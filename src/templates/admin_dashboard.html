@@ -154,6 +154,7 @@
                 <div class="card" id="createCompanyCard" style="margin-bottom: 2rem; display: none;">
                     <div class="card-body">
                         <form id="createCompanyForm" onsubmit="handleCreateCompany(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <!-- Simplified Form Content, handled by JS normally -->
                             <div
                                 style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
@@ -181,6 +182,7 @@
                     </div>
                     <div class="card-body">
                         <form id="editCompanyForm" onsubmit="handleUpdateCompany(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <input type="hidden" name="company_id" id="edit_company_id">
                             <div
                                 style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
@@ -254,6 +256,7 @@
                     <!-- Standard Create Form -->
                     <div class="card-body">
                         <form id="createManagerForm" onsubmit="handleCreateManager(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <!-- Content simplified -->
                             <div
                                 style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end;">
@@ -287,6 +290,7 @@
                     </div>
                     <div class="card-body">
                         <form id="editManagerForm" onsubmit="handleUpdateManager(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <input type="hidden" name="user_id" id="edit_manager_id">
                             <div
                                 style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem; align-items: end;">
