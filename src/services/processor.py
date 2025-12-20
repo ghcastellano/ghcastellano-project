@@ -31,7 +31,11 @@ class ProcessorService:
         self.folder_backup = os.getenv("FOLDER_ID_03_PROCESSADOS_BACKUP", "")
         self.folder_error = os.getenv("FOLDER_ID_99_ERROS", "")
         
-        logger.info("Initializing ProcessorService (OpenAI Mode)", folder_in=self.folder_in)
+        logger.info("Initializing ProcessorService (OpenAI Mode)", 
+                    folder_in=self.folder_in, 
+                    folder_out=self.folder_out, 
+                    folder_backup=self.folder_backup, 
+                    folder_error=self.folder_error)
         
         # Drive Service (Singleton injection preferred, or use global)
         self.drive_service = drive_service
