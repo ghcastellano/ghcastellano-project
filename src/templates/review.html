@@ -400,7 +400,10 @@ padding-right: 2.5rem;
         try {
             const res = await fetch('/api/save_review/{{ file_id }}', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
                 body: JSON.stringify(updates)
             });
 

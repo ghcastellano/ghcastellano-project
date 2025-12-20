@@ -126,6 +126,7 @@
         </div>
 
         <form action="/register" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <div class="form-group">
                 <label for="name">Nome Completo</label>
                 <input type="text" id="name" name="name" placeholder="Ex: Maria Silva" required>

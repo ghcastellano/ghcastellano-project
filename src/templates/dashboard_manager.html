@@ -281,6 +281,7 @@
                     </div>
                     <div class="card-body">
                         <form id="editConsultantForm" onsubmit="handleUpdateConsultant(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <input type="hidden" name="user_id" id="edit_consultant_id">
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div class="form-group">
@@ -324,6 +325,7 @@
                     </div>
                     <div class="card-body">
                         <form id="editEstForm" onsubmit="handleUpdateEst(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <input type="hidden" name="est_id" id="edit_est_id">
                             <div
                                 style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
