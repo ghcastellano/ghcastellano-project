@@ -385,6 +385,11 @@
                                                     title="Editar">
                                                     <i class="ph-bold ph-pencil-simple"></i>
                                                 </button>
+                                                <button class="btn-icon btn-icon-delete"
+                                                    onclick="if(confirm('Tem certeza?')) deleteConsultant('{{ consultant.id }}')"
+                                                    title="Remover" style="color: #ef4444;">
+                                                    <i class="ph-bold ph-trash"></i>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -423,6 +428,11 @@
                                                     onclick="openEditEst('{{ est.id }}', '{{ est.name }}', '{{ est.code or '' }}')"
                                                     title="Editar">
                                                     <i class="ph-bold ph-pencil-simple"></i>
+                                                </button>
+                                                <button class="btn-icon btn-icon-delete"
+                                                    onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
+                                                    title="Remover" style="color: #ef4444;">
+                                                    <i class="ph-bold ph-trash"></i>
                                                 </button>
                                             </div>
                                         </td>
@@ -544,6 +554,34 @@
             else alert('Erro ao atualizar');
         } catch (err) { console.error(err); alert('Erro'); }
         finally { btn.disabled = false; btn.innerHTML = 'Salvar'; }
+    }
+
+    async function deleteConsultant(id) {
+        if (!confirm('Tem certeza que deseja remover este consultor?')) return;
+        try {
+            const token = document.querySelector('input[name="csrf_token"]').value;
+            const res = await fetch(`/manager/consultant/${id}/delete`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': token }
+            });
+            const data = await res.json();
+            if (res.ok) window.location.reload();
+            else alert(data.error || 'Erro ao remover');
+        } catch (err) { console.error(err); alert('Erro de conexão'); }
+    }
+
+    async function deleteEstablishment(id) {
+        if (!confirm('Tem certeza que deseja remover este estabelecimento?')) return;
+        try {
+            const token = document.querySelector('input[name="csrf_token"]').value;
+            const res = await fetch(`/manager/establishment/${id}/delete`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': token }
+            });
+            const data = await res.json();
+            if (res.ok) window.location.reload();
+            else alert(data.error || 'Erro ao remover');
+        } catch (err) { console.error(err); alert('Erro de conexão'); }
     }
 
     // Polling Logic

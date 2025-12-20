@@ -170,6 +170,29 @@ def update_consultant(user_id):
     finally:
         db.close()
 
+@manager_bp.route('/manager/consultant/<uuid:user_id>/delete', methods=['POST'])
+@login_required
+def delete_consultant(user_id):
+    if current_user.role != UserRole.MANAGER:
+        return jsonify({'error': 'Acesso negado'}), 403
+        
+    db = next(get_db())
+    try:
+        user = db.query(User).get(user_id)
+        if not user or user.role != UserRole.CONSULTANT:
+            return jsonify({'error': 'Consultor não encontrado'}), 404
+        if user.company_id != current_user.company_id:
+            return jsonify({'error': 'Acesso negado'}), 403
+            
+        db.delete(user)
+        db.commit()
+        return jsonify({'success': True, 'message': 'Consultor removido!'}), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
 @manager_bp.route('/manager/establishment/new', methods=['POST'])
 @login_required
 def create_establishment():
@@ -234,6 +257,29 @@ def update_establishment(est_id):
         db.commit()
         
         return jsonify({'success': True, 'message': 'Estabelecimento atualizado!'}), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+@manager_bp.route('/manager/establishment/<uuid:est_id>/delete', methods=['POST'])
+@login_required
+def delete_establishment(est_id):
+    if current_user.role != UserRole.MANAGER:
+        return jsonify({'error': 'Acesso negado'}), 403
+        
+    db = next(get_db())
+    try:
+        est = db.query(Establishment).get(est_id)
+        if not est:
+            return jsonify({'error': 'Estabelecimento não encontrado'}), 404
+        if est.company_id != current_user.company_id:
+            return jsonify({'error': 'Acesso negado'}), 403
+            
+        db.delete(est)
+        db.commit()
+        return jsonify({'success': True, 'message': 'Estabelecimento removido!'}), 200
     except Exception as e:
         db.rollback()
         return jsonify({'error': str(e)}), 500
