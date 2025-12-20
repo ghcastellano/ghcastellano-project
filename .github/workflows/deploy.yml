@@ -100,6 +100,9 @@ jobs:
           export AWS_SES_SENDER="${{ secrets.AWS_SES_SENDER }}"
           export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
           export SECRET_KEY="${{ secrets.SECRET_KEY }}"
+          export WHATSAPP_TOKEN="${{ secrets.WHATSAPP_TOKEN }}"
+          export WHATSAPP_PHONE_ID="${{ secrets.WHATSAPP_PHONE_ID }}"
+          export WHATSAPP_DESTINATION_PHONE="${{ secrets.WHATSAPP_DESTINATION_PHONE }}"
           
           # Run Deploy
           ./deploy_and_register.sh
