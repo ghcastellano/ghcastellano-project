@@ -35,3 +35,7 @@ local_secrets.txt
 .env.bak
 src/secrets.sh
 *.log
+
+# Scripts de Debug
+scripts/debug_jobs.py
+scripts/verify_drive_upload.py

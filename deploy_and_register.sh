@@ -213,6 +213,8 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars FOLDER_ID_02_PLANOS_GERADOS="1nBBlpVmTSPdpMZGZA1HjrRmi-_W30qoM" \
   --set-env-vars FOLDER_ID_03_PROCESSADOS_BACKUP="1kgNrQxQNAp5h_rG3xYzD-a5v38zYvfUw" \
   --set-env-vars FOLDER_ID_99_ERROS="1KHlP7dbeyX8_hUF5Y8mooSu7jnB4ZZzK" \
+  --set-env-vars "GCP_PROJECT_ID=$PROJECT_ID" \
+  --set-env-vars "GCP_LOCATION=$REGION" \
   --set-secrets "$SECRETS_LIST"
 
 echo "✅ Deploy concluído com sucesso."

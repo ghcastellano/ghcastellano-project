@@ -53,7 +53,7 @@ def role_required(role: str):
 def login():
     if current_user.is_authenticated:
         if current_user.role == UserRole.MANAGER:
-            return redirect(url_for('dashboard_manager')) # Ajustar nome da rota depois
+            return redirect(url_for('manager.dashboard_manager')) # Ajustar nome da rota depois
         return redirect(url_for('dashboard_consultant')) # Ajustar nome da rota depois
 
     if request.method == 'POST':
