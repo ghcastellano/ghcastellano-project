@@ -93,7 +93,7 @@ jobs:
           export FOLDER_ID_03_PROCESSADOS_BACKUP="${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}"
           export FOLDER_ID_99_ERROS="${{ secrets.FOLDER_ID_99_ERROS }}"
           export DRIVE_WEBHOOK_TOKEN="${{ secrets.DRIVE_WEBHOOK_TOKEN }}"
-          export GCP_SA_KEY='${{ secrets.GCP_SA_KEY }}'
+          export GCP_SA_KEY='${{ secrets.GCP_SA_KEY || secrets.GCP_CREDENTIALS }}'
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
           export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
@@ -102,12 +102,14 @@ jobs:
           export SECRET_KEY="${{ secrets.SECRET_KEY }}"
           export WHATSAPP_TOKEN="${{ secrets.WHATSAPP_TOKEN }}"
           export WHATSAPP_PHONE_ID="${{ secrets.WHATSAPP_PHONE_ID }}"
-          export WHATSAPP_DESTINATION_PHONE="${{ secrets.WHATSAPP_DESTINATION_PHONE }}"
+          export WHATSAPP_DESTINATION_PHONE="${{ secrets.WHATSAPP_DESTINATION_PHONE || secrets.WHATSAPP_DEST_PHONE }}"
           export APP_PUBLIC_URL="${{ secrets.APP_PUBLIC_URL }}"
           export FOLDER_ID_01_ENTRADA_RELATORIOS="${{ secrets.FOLDER_ID_01_ENTRADA_RELATORIOS }}"
           export FOLDER_ID_02_PLANOS_GERADOS="${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }}"
           export FOLDER_ID_03_PROCESSADOS_BACKUP="${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}"
           export FOLDER_ID_99_ERROS="${{ secrets.FOLDER_ID_99_ERROS }}"
+          export GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+          export GCP_LOCATION="${{ secrets.GCP_LOCATION }}"
           
           # Run Deploy
           ./deploy_and_register.sh
