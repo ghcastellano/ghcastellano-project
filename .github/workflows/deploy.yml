@@ -27,6 +27,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          echo "📦 DIP LIST:"
+          pip list
+          echo "🐍 PYTHON INFO:"
+          which python
+          python --version
           
       - name: Run Sanity Check
         run: python scripts/sanity_check.py
