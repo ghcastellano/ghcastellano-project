@@ -7,9 +7,9 @@ logger = logging.getLogger("migration_v9")
 
 def run_migration_v9():
     """
-    Migration V9 (Final Sync):
-    Ensures ALL models defined in models_db.py have their corresponding columns in Neon.
-    This is a 'Catch-All' drift fix.
+    Migração V9 (Sincronização Final):
+    Garante que TODOS os modelos definidos em models_db.py tenham suas colunas correspondentes no Neon.
+    Isso é uma correção de 'Drift' (desvio de schema) abrangente.
     """
     database_url = normalize_database_url(config.DATABASE_URL)
     if not database_url:
