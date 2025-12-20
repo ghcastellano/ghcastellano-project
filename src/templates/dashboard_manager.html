@@ -41,6 +41,95 @@
 
         /* Mobile implementation pending, keep simple for now */
     }
+
+    /* Tabela Profissional - Zero Defect Alignment */
+    .modern-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 1rem;
+    }
+
+    .modern-table th {
+        background: #f1f5f9;
+        padding: 0.75rem 1rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-light);
+        letter-spacing: 0.05em;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .modern-table td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+    }
+
+    .modern-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .modern-table tr:hover td {
+        background: #f8fafc;
+    }
+
+    .text-right {
+        text-align: right !important;
+    }
+
+    .text-center {
+        text-align: center !important;
+    }
+
+    .user-avatar-sm {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--accent-color), #6366f1);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .btn-icon-group {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .btn-action {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #e2e8f0;
+        background: white;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .btn-action:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+        background: #f5f3ff;
+    }
+
+    .btn-action-delete:hover {
+        border-color: var(--danger-color);
+        color: var(--danger-color);
+        background: #fef2f2;
+    }
 </style>
 
 <div class="admin-wrapper-grid">
@@ -365,30 +454,24 @@
                                 <tbody>
                                     {% for consultant in consultants %}
                                     <tr>
-                                        <td style="font-weight: 500;">
-                                            <div style="display:flex; align-items:center; gap:0.5rem;">
-                                                <div class="user-avatar"
-                                                    style="width: 24px; height: 24px; font-size: 0.7rem;">{{
-                                                    consultant.name[0] }}</div>
-                                                {{ consultant.name }}
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:0.75rem;">
+                                                <div class="user-avatar-sm">{{ consultant.name[0].upper() }}</div>
+                                                <div style="font-weight: 600;">{{ consultant.name }}</div>
                                             </div>
                                         </td>
-                                        <td class="text-sm text-muted">{{ consultant.email }}</td>
+                                        <td style="color: var(--text-secondary);">{{ consultant.email }}</td>
                                         <td class="text-right">
-                                            <!-- Note: Establishments list usually not in template obj by default unless joined.
-                                             We will infer or rely on user re-selecting in modal for simplicity, or we check if we have the data.
-                                             Ideally, backend passes this. Assuming we might need to fetch or just clear/reset. 
-                                             For MVP, we'll populate name/email and let them reset stores. -->
-                                            <div class="btn-icon-group" style="justify-content: flex-end;">
-                                                <button class="btn-icon btn-icon-edit"
+                                            <div class="btn-icon-group">
+                                                <button class="btn-action"
                                                     onclick="openEditConsultant('{{ consultant.id }}', '{{ consultant.name }}', '{{ consultant.email }}')"
                                                     title="Editar">
-                                                    <i class="ph-bold ph-pencil-simple"></i>
+                                                    <i class="ph ph-pencil-simple"></i>
                                                 </button>
-                                                <button class="btn-icon btn-icon-delete"
+                                                <button class="btn-action btn-action-delete"
                                                     onclick="if(confirm('Tem certeza?')) deleteConsultant('{{ consultant.id }}')"
-                                                    title="Remover" style="color: #ef4444;">
-                                                    <i class="ph-bold ph-trash"></i>
+                                                    title="Remover">
+                                                    <i class="ph ph-trash"></i>
                                                 </button>
                                             </div>
                                         </td>
@@ -420,19 +503,28 @@
                                 <tbody>
                                     {% for est in establishments %}
                                     <tr>
-                                        <td style="font-weight: 500;">{{ est.name }}</td>
-                                        <td class="text-muted text-sm">{{ est.code or '-' }}</td>
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:0.75rem;">
+                                                <div class="user-avatar-sm"
+                                                    style="background: linear-gradient(135deg, #10b981, #059669);">
+                                                    <i class="ph ph-storefront"></i>
+                                                </div>
+                                                <div style="font-weight: 600;">{{ est.name }}</div>
+                                            </div>
+                                        </td>
+                                        <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or
+                                            '-' }}</td>
                                         <td class="text-right">
-                                            <div class="btn-icon-group" style="justify-content: flex-end;">
-                                                <button class="btn-icon btn-icon-edit"
+                                            <div class="btn-icon-group">
+                                                <button class="btn-action"
                                                     onclick="openEditEst('{{ est.id }}', '{{ est.name }}', '{{ est.code or '' }}')"
                                                     title="Editar">
-                                                    <i class="ph-bold ph-pencil-simple"></i>
+                                                    <i class="ph ph-pencil-simple"></i>
                                                 </button>
-                                                <button class="btn-icon btn-icon-delete"
+                                                <button class="btn-action btn-action-delete"
                                                     onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
-                                                    title="Remover" style="color: #ef4444;">
-                                                    <i class="ph-bold ph-trash"></i>
+                                                    title="Remover">
+                                                    <i class="ph ph-trash"></i>
                                                 </button>
                                             </div>
                                         </td>

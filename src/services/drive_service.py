@@ -159,6 +159,11 @@ class DriveService:
         """Move arquivo de uma pasta para outra."""
         if not self.service: return
         try:
+            logger.info(f"🔄 Tentando mover arquivo {file_id} para pasta {target_folder_id}")
+            if not target_folder_id:
+                logger.error("❌ Erro: target_folder_id está vazio!")
+                return
+
             with self.lock:
                 file = self.service.files().get(
                     fileId=file_id, 
