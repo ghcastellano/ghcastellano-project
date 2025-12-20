@@ -88,10 +88,6 @@ jobs:
         run: |
           chmod +x deploy_and_register.sh
           # Export variables explicitly for the script
-          export FOLDER_ID_01_ENTRADA_RELATORIOS="${{ secrets.FOLDER_ID_01_ENTRADA_RELATORIOS }}"
-          export FOLDER_ID_02_PLANOS_GERADOS="${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }}"
-          export FOLDER_ID_03_PROCESSADOS_BACKUP="${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}"
-          export FOLDER_ID_99_ERROS="${{ secrets.FOLDER_ID_99_ERROS }}"
           export DRIVE_WEBHOOK_TOKEN="${{ secrets.DRIVE_WEBHOOK_TOKEN }}"
           export GCP_SA_KEY='${{ secrets.GCP_SA_KEY || secrets.GCP_CREDENTIALS }}'
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
