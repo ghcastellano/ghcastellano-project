@@ -103,6 +103,7 @@ jobs:
           export WHATSAPP_TOKEN="${{ secrets.WHATSAPP_TOKEN }}"
           export WHATSAPP_PHONE_ID="${{ secrets.WHATSAPP_PHONE_ID }}"
           export WHATSAPP_DESTINATION_PHONE="${{ secrets.WHATSAPP_DESTINATION_PHONE }}"
+          export APP_PUBLIC_URL="${{ secrets.APP_PUBLIC_URL }}"
           
           # Run Deploy
           ./deploy_and_register.sh

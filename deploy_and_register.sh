@@ -6,7 +6,7 @@ SERVICE_NAME="mvp-web"
 REGION="us-central1"
 PROJECT_ID="projeto-poc-ap"
 IMAGE="gcr.io/projeto-poc-ap/mvp-web"
-PUBLIC_URL="https://mvp-web-aojigo3nta-uc.a.run.app"
+PUBLIC_URL="${APP_PUBLIC_URL:-https://mvp-web-aojigo3nta-uc.a.run.app}"
 # WEBHOOK_SECRET: Used for Drive notifications. In Prod, use Secret Manager.
 WEBHOOK_SECRET="${DRIVE_WEBHOOK_TOKEN:-segredo-webhook-drive-dev}"
 
@@ -251,7 +251,6 @@ if [ -n "${GCP_SA_KEY:-}" ]; then
   fi
   echo "$GCP_SA_KEY" | gcloud secrets versions add "GCP_SA_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
   echo "✅ Secret GCP_SA_KEY atualizado com sucesso."
-  SECRETS_LIST="${SECRETS_LIST},GCP_SA_KEY=GCP_SA_KEY:latest"
   SECRETS_LIST="${SECRETS_LIST},GCP_SA_KEY=GCP_SA_KEY:latest"
 fi
 
