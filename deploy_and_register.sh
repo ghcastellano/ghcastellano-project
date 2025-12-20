@@ -66,6 +66,14 @@ audit_secret () {
   fi
 }
 
+trim_var () {
+  local var_name="$1"
+  local val="${!var_name:-}"
+  # Remove leading/trailing whitespace and quotes
+  val=$(echo "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+  eval "$var_name=\$val"
+}
+
 update_secret_from_file () {
   local secret_name="$1"
   local file_path="$2"
@@ -205,9 +213,43 @@ if [[ "${TEST_DATABASE_URL:-}" == "1" ]]; then
   test_database_url "$dburl"
 fi
 
-# Deploy and set environment variables
-# Nota: preferimos manter segredos via Secret Manager (mais seguro que env var em texto).
 # Determina segredos opcionais para incluir no deploy consolidado
+# ALIASES para FOLDER_IDs
+FOLDER_ID_01_ENTRADA_RELATORIOS="${FOLDER_ID_01_ENTRADA_RELATORIOS:-${FOLDER_ID_01:-}}"
+FOLDER_ID_02_PLANOS_GERADOS="${FOLDER_ID_02_PLANOS_GERADOS:-${FOLDER_ID_02:-}}"
+FOLDER_ID_03_PROCESSADOS_BACKUP="${FOLDER_ID_03_PROCESSADOS_BACKUP:-${FOLDER_ID_03:-}}"
+FOLDER_ID_99_ERROS="${FOLDER_ID_99_ERROS:-${FOLDER_ID_99:-}}"
+
+# CLEANUP SECRETS (TRIM)
+trim_var "OPENAI_API_KEY"
+trim_var "DATABASE_URL"
+trim_var "SECRET_KEY"
+trim_var "WHATSAPP_TOKEN"
+
+# --- TESTE LIVE OPENAI (Evita subir chave inválida) ---
+if [ -n "$OPENAI_API_KEY" ]; then
+  echo "🧪 Testando validade da OPENAI_API_KEY via API..."
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://api.openai.com/v1/models \
+    -H "Authorization: Bearer $OPENAI_API_KEY")
+  if [ "$HTTP_CODE" -eq 401 ]; then
+    echo "❌ FALHA CRÍTICA: A chave OpenAI no GitHub Secrets é INVÁLIDA (401 Unauthorized)."
+    echo "   Por favor, gere uma nova chave na OpenAI e atualize o GitHub Secret."
+    # audit_secret "OPENAI_API_KEY" # Já feito na auditoria
+    exit 1
+  elif [ "$HTTP_CODE" -eq 200 ]; then
+    echo "✅ Conexão OpenAI confirmada."
+  else
+    echo "⚠️  OpenAI retornou status $HTTP_CODE (pode ser problema de rede ou cota, mas auth passou)."
+  fi
+fi
+
+# Validação final de pastas críticas
+if [ -z "$FOLDER_ID_01_ENTRADA_RELATORIOS" ] || [ -z "$FOLDER_ID_02_PLANOS_GERADOS" ]; then
+  echo "❌ ERRO: IDs de pastas críticas (01 ou 02) estão vazios após mapeamento de aliases!"
+  echo "   Verifique se as pastas FOLDER_ID_01 e FOLDER_ID_02 estão no GitHub Secrets."
+  exit 1
+fi
+
 SECRETS_LIST="DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest"
 
 if gcloud secrets describe "WHATSAPP_TOKEN" --project "$PROJECT_ID" >/dev/null 2>&1; then
