@@ -1,68 +1,64 @@
-name: Build and Deploy to Cloud Run
+name: Deploy Production
 
 on:
   push:
     branches:
-      - main
+      - main  # ou master
 
 env:
   PROJECT_ID: projeto-poc-ap
-  SERVICE_NAME: mvp-web
   REGION: us-central1
-  IMAGE: gcr.io/projeto-poc-ap/mvp-web
+  SERVICE_NAME: mvp-web
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest
-
-      - name: Run Tests
-        # Ignoring functional tests that require DB/GCP connections for now
-        # run: pytest tests/
-        run: echo "Unit tests placeholder - skipping DB dependent tests in CI currently"
-
   deploy:
-    needs: test
+    name: Build & Deploy to Cloud Run
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Google Auth
+      - name: Auth with Google Cloud
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build and Push Container
-        run: |
-          gcloud builds submit --tag $IMAGE --project $PROJECT_ID .
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      - name: Deploy to Cloud Run
+      - name: Create .env file from Secret
         run: |
-          gcloud run deploy $SERVICE_NAME \
-            --image $IMAGE \
-            --region $REGION \
-            --project $PROJECT_ID \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-env-vars "APP_PUBLIC_URL=https://mvp-web-aojigo3nta-uc.a.run.app" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
-            --set-secrets "OPENAI_API_KEY=OPENAI_API_KEY:latest" \
-            --set-secrets "GOOGLE_DRIVE_IMPERSONATE_EMAIL=GOOGLE_DRIVE_IMPERSONATE_EMAIL:latest"
+          echo "${{ secrets.ENV_FILE }}" > .env
+          # Append specific secrets if not in ENV_FILE
+          echo "FOLDER_ID_01_ENTRADA_RELATORIOS=${{ secrets.FOLDER_ID_01_ENTRADA_RELATORIOS }}" >> .env
+          echo "FOLDER_ID_02_PLANOS_GERADOS=${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }}" >> .env
+          echo "FOLDER_ID_03_PROCESSADOS_BACKUP=${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}" >> .env
+          echo "FOLDER_ID_99_ERROS=${{ secrets.FOLDER_ID_99_ERROS }}" >> .env
+          echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "APP_PUBLIC_URL=${{ secrets.APP_PUBLIC_URL }}" >> .env
+          echo "WHATSAPP_PHONE_ID=${{ secrets.WHATSAPP_PHONE_ID }}" >> .env
+          echo "WHATSAPP_TOKEN=${{ secrets.WHATSAPP_TOKEN }}" >> .env
+          echo "WHATSAPP_DESTINATION_PHONE=${{ secrets.WHATSAPP_DESTINATION_PHONE }}" >> .env
+
+      - name: Execute Deploy Script
+        run: |
+          chmod +x deploy_and_register.sh
+          # Export variables explicitly for the script
+          export FOLDER_ID_01_ENTRADA_RELATORIOS="${{ secrets.FOLDER_ID_01_ENTRADA_RELATORIOS }}"
+          export FOLDER_ID_02_PLANOS_GERADOS="${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }}"
+          export FOLDER_ID_03_PROCESSADOS_BACKUP="${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}"
+          export FOLDER_ID_99_ERROS="${{ secrets.FOLDER_ID_99_ERROS }}"
+          export DRIVE_WEBHOOK_TOKEN="${{ secrets.DRIVE_WEBHOOK_TOKEN }}"
+          export GCP_SA_KEY='${{ secrets.GCP_SA_KEY }}'
+          
+          # Run Deploy
+          ./deploy_and_register.sh

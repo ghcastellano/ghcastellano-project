@@ -47,7 +47,12 @@ def role_required(role: str):
                     return redirect(url_for('dashboard_consultant'))
             return f(*args, **kwargs)
         return decorated_function
+        return decorated_function
     return decorator
+
+def admin_required(f):
+    """Atalho para @role_required(UserRole.ADMIN)"""
+    return role_required(UserRole.ADMIN)(f)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():

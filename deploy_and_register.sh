@@ -12,11 +12,19 @@ WEBHOOK_SECRET="${DRIVE_WEBHOOK_TOKEN:-segredo-webhook-drive-dev}"
 
 echo "🚀 Iniciando Deploy do Serviço com Configuração de Webhook..."
 
-# --- NOVO: Verificação Pré-Deploy ---
-echo "🔍 Executando scripts/verify_deploy.py..."
-python3 scripts/verify_deploy.py
+# --- NOVO: Verificação Pré-Deploy (Zero Defect) ---
+echo "🔍 Executando scripts/sanity_check.py..."
+# Tenta usar python3 do sistema ou venv se disponível
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+    python3 scripts/sanity_check.py
+    deactivate
+else
+    python3 scripts/sanity_check.py
+fi
+
 if [ $? -ne 0 ]; then
-  echo "❌ Verificação Pré-Deploy falhou! Deploy cancelado por segurança."
+  echo "❌ Sanity Check FALHOU! Deploy abortado para evitar erros em produção."
   exit 1
 fi
 # ------------------------------------
@@ -209,12 +217,13 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars "APP_PUBLIC_URL=$PUBLIC_URL" \
   --set-env-vars "DRIVE_WEBHOOK_TOKEN=$WEBHOOK_SECRET" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
-  --set-env-vars FOLDER_ID_01_ENTRADA_RELATORIOS="1nHUNMLNdETy1Wkhu1i5ZSD6fh72fqbTW" \
-  --set-env-vars FOLDER_ID_02_PLANOS_GERADOS="1nBBlpVmTSPdpMZGZA1HjrRmi-_W30qoM" \
-  --set-env-vars FOLDER_ID_03_PROCESSADOS_BACKUP="1kgNrQxQNAp5h_rG3xYzD-a5v38zYvfUw" \
-  --set-env-vars FOLDER_ID_99_ERROS="1KHlP7dbeyX8_hUF5Y8mooSu7jnB4ZZzK" \
+  --set-env-vars "FOLDER_ID_01_ENTRADA_RELATORIOS=${FOLDER_ID_01_ENTRADA_RELATORIOS:?Faltando Env Var FOLDER_ID_01}" \
+  --set-env-vars "FOLDER_ID_02_PLANOS_GERADOS=${FOLDER_ID_02_PLANOS_GERADOS:?Faltando Env Var FOLDER_ID_02}" \
+  --set-env-vars "FOLDER_ID_03_PROCESSADOS_BACKUP=${FOLDER_ID_03_PROCESSADOS_BACKUP:?Faltando Env Var FOLDER_ID_03}" \
+  --set-env-vars "FOLDER_ID_99_ERROS=${FOLDER_ID_99_ERROS:?Faltando Env Var FOLDER_ID_99}" \
   --set-env-vars "GCP_PROJECT_ID=$PROJECT_ID" \
   --set-env-vars "GCP_LOCATION=$REGION" \
+  --set-env-vars "GCP_SA_KEY=${GCP_SA_KEY:-}" \
   --set-secrets "$SECRETS_LIST"
 
 echo "✅ Deploy concluído com sucesso."

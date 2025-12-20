@@ -54,7 +54,7 @@ from src.config import config
 from src import database # Import module to access updated db_session
 from src.database import get_db, init_db # Keep functions
 from src.models_db import User, Company, Establishment, Job, JobStatus, UserRole
-from src.auth import role_required, login_manager, auth_bp
+from src.auth import role_required, admin_required, login_manager, auth_bp
 from src.tasks import task_manager
 from src.services.email_service import EmailService
 
@@ -99,6 +99,25 @@ def debug_routes():
     for rule in app.url_map.iter_rules():
         rules.append(f"{rule.endpoint}: {rule}")
     return "<br>".join(rules)
+
+@app.route('/debug/config')
+@login_required
+@admin_required
+def debug_config():
+    """
+    Zero Defect Check: Verify if Cloud Run Env Vars are actually injected.
+    """
+    keys = ['GCP_PROJECT_ID', 'GCP_LOCATION', 'DATABASE_URL', 'FOLDER_ID_01_ENTRADA_RELATORIOS']
+    status = {}
+    for k in keys:
+        val = os.getenv(k)
+        if k == 'DATABASE_URL' and val:
+            status[k] = val[:15] + "..." # Obfuscate
+        else:
+            status[k] = val or "MISSING"
+    
+    status['Task Queue'] = config.GCP_PROJECT_ID  # Confirm loaded config
+    return jsonify(status)
 # app.register_blueprint(worker_bp, url_prefix='/worker') # Removed to avoid conflict with app.route
 
 

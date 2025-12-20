@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 class WhatsAppService:
     def __init__(self):
         self.token = os.getenv("WHATSAPP_TOKEN")
-        self.phone_id = os.getenv("WHATSAPP_PHONE_ID", "1330168895511682") # Default from user request
+        self.phone_id = os.getenv("WHATSAPP_PHONE_ID")
         self.dest_phone = os.getenv("WHATSAPP_DESTINATION_PHONE") # Fallback
         self.base_url = f"https://graph.facebook.com/v17.0/{self.phone_id}"
         self.headers = {
