@@ -6,8 +6,8 @@ on:
       - main  # ou master
 
 env:
-  PROJECT_ID: projeto-poc-ap
-  REGION: us-central1
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'projeto-poc-ap' }}
+  REGION: ${{ secrets.GCP_LOCATION || 'us-central1' }}
   SERVICE_NAME: mvp-web
 
 jobs:
