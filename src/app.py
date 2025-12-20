@@ -134,6 +134,12 @@ except Exception as e:
 try:
     with app.app_context():
         from src.migration import run_migrations
+        from src.models_db import Base
+        
+        logger.info("🏗️ Criando tabelas (Schema Initialization)...")
+        # Ensure we use the engine from initialized database
+        Base.metadata.create_all(bind=database.engine)
+        
         logger.info("🔄 Iniciando Migrações Unificadas...")
         # Use database.db_session to ensure we get the initialized object
         run_migrations(database.db_session)
