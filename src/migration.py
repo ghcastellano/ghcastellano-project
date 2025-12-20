@@ -40,6 +40,14 @@ def run_migrations(db_session=None): # Renamed to generic
             """))
             conn.commit()
             
+            # 1.1 Force Update Schema (Fix Drift for existing legacy tables)
+            conn.execute(text("ALTER TABLE companies ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"))
+            conn.execute(text("ALTER TABLE companies ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();"))
+            
+            conn.execute(text("ALTER TABLE establishments ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"))
+            conn.execute(text("ALTER TABLE establishments ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();"))
+            conn.commit()
+            
             # 2. Update Users Table
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS establishment_id UUID REFERENCES establishments(id);"))
