@@ -397,7 +397,7 @@ gcloud run jobs deploy mvp-worker \
   --region $REGION \
   --project $PROJECT_ID \
   --command "python" \
-  --args "-m,src.main,--once" \
+  --args="-m,src.main,--once" \
   --set-env-vars "APP_PUBLIC_URL=$PUBLIC_URL" \
   --set-env-vars "DRIVE_WEBHOOK_TOKEN=$WEBHOOK_SECRET" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
