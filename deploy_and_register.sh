@@ -234,6 +234,15 @@ if [ -n "${SECRET_KEY:-}" ]; then
   echo "✅ Secret SECRET_KEY sincronizado do GitHub para Secret Manager."
 fi
 
+# SYNC WHATSAPP_TOKEN
+if [ -n "${WHATSAPP_TOKEN:-}" ]; then
+  if ! gcloud secrets describe "WHATSAPP_TOKEN" --project "$PROJECT_ID" >/dev/null 2>&1; then
+     gcloud secrets create "WHATSAPP_TOKEN" --replication-policy=automatic --project "$PROJECT_ID"
+  fi
+  printf "%s" "$WHATSAPP_TOKEN" | gcloud secrets versions add "WHATSAPP_TOKEN" --data-file=- --project "$PROJECT_ID" >/dev/null
+  echo "✅ Secret WHATSAPP_TOKEN sincronizado do GitHub para Secret Manager."
+fi
+
 if [ -n "${GCP_SA_KEY:-}" ]; then
   # Se GCP_SA_KEY foi passada (via CI), salve no Secret Manager para evitar problemas de parsing no deploy
   # e para garantir segurança.
@@ -297,6 +306,8 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars "GCP_PROJECT_ID=$PROJECT_ID" \
   --set-env-vars "GCP_LOCATION=$REGION" \
   --set-env-vars "AWS_SES_SENDER=${AWS_SES_SENDER:-noreply@inspetorai.com}" \
+  --set-env-vars "WHATSAPP_PHONE_ID=${WHATSAPP_PHONE_ID:-}" \
+  --set-env-vars "WHATSAPP_DESTINATION_PHONE=${WHATSAPP_DESTINATION_PHONE:-}" \
   --set-secrets "$SECRETS_LIST"
 
 echo "✅ Deploy concluído com sucesso."
