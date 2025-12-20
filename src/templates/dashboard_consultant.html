@@ -1,0 +1,527 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard Consultor | InspetorAI{% endblock %}
+
+{% block content %}
+<style>
+    /* Consultant Layout Overrides */
+    .app-container {
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #f8fafc;
+    }
+
+    .top-navbar {
+        position: sticky;
+        top: 0;
+        z-index: 1001;
+    }
+
+    .admin-wrapper {
+        display: flex;
+        min-height: calc(100vh - 70px);
+    }
+
+    /* Sidebar */
+    .admin-sidebar {
+        width: 260px;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        border-right: 1px solid rgba(255, 255, 255, 0.5);
+        padding: 2rem 1.5rem;
+        flex-shrink: 0;
+        position: sticky;
+        top: 70px;
+        height: calc(100vh - 70px);
+        overflow-y: auto;
+    }
+
+    .sidebar-menu {
+        list-style: none;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .sidebar-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        color: var(--text-secondary);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .sidebar-item:hover,
+    .sidebar-item.active {
+        background: white;
+        color: var(--primary-color);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .sidebar-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #cbd5e1;
+        transition: background 0.2s;
+    }
+
+    .sidebar-item.active .sidebar-dot {
+        background: var(--accent-color);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+
+    .sidebar-header {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-light);
+        margin-bottom: 1rem;
+        margin-top: 1.5rem;
+        padding-left: 0.5rem;
+    }
+
+    /* Main Content */
+    .admin-main {
+        flex-grow: 1;
+        padding: 2rem;
+        overflow-x: hidden;
+    }
+
+    .section-view {
+        display: none;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .section-view.active {
+        display: block;
+    }
+
+    .stat-card {
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<div class="admin-wrapper">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+        <h3
+            style="margin-bottom: 2rem; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            <i class="ph-fill ph-clipboard-text" style="color: var(--accent-color);"></i>
+            Campo
+        </h3>
+
+        <div class="sidebar-header">Principal</div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item active" id="menu-overview" onclick="showSection('overview', this)">
+                <div class="sidebar-dot"></div> Início
+            </li>
+            <li class="sidebar-item" id="menu-lists" onclick="showSection('lists-section', this)">
+                <div class="sidebar-dot"></div> Histórico
+            </li>
+        </ul>
+
+        <div class="sidebar-header">Meus Locais</div>
+        <div class="card" style="padding: 1rem; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05);">
+            <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Estabelecimentos</div>
+            {% if current_user.establishments %}
+            <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+                {% for est in current_user.establishments %}
+                <li style="margin-bottom: 0.25rem;">• {{ est.name }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="text-xs text-muted">Nenhum local vinculado</div>
+            {% endif %}
+        </div>
+    </aside>
+
+    <div class="admin-main">
+        <div class="content-wrapper">
+            <!-- 1. Overview (Combined with Upload) -->
+            <div id="overview" class="section-view active">
+                <!-- Modern Header -->
+                <!-- Modern Header - WOW Edition -->
+                <div
+                    style="margin-bottom: 2.5rem; position: relative; overflow: hidden; border-radius: 24px; padding: 3rem 2.5rem; background: white; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);">
+                    <!-- Mesh Gradient Background -->
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.6; pointer-events: none;
+                    background: radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                                radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);">
+                    </div>
+
+                    <div
+                        style="position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end;">
+                        <div style="max-width: 600px;">
+                            <span
+                                style="font-size: 0.875rem; font-weight: 700; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; background: rgba(99, 102, 241, 0.1); padding: 0.25rem 0.75rem; border-radius: 99px;">
+                                <i class="ph-bold ph-rocket-launch"></i> Painel do Consultor
+                            </span>
+                            <h1
+                                style="font-size: 3rem; font-weight: 800; color: #1e293b; letter-spacing: -0.03em; margin: 0; line-height: 1.1; font-family: 'Outfit', sans-serif;">
+                                Olá, {{ current_user.name.split()[0] }} <span
+                                    style="animation: wave 2s infinite; display: inline-block; transform-origin: 70% 70%;">👋</span>
+                            </h1>
+                            <p
+                                style="font-size: 1.15rem; color: #64748b; margin-top: 1rem; font-weight: 400; line-height: 1.6;">
+                                Pronto para hoje? Você tem <strong style="color: var(--accent-color);">{{
+                                    current_user.establishments|length }}</strong> locais ativos.
+                                Inicie uma nova vistoria abaixo.
+                            </p>
+                        </div>
+
+                        <div style="text-align: right; display: flex; flex-direction: column; gap: 1rem;">
+                            <div
+                                style="background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); padding: 0.75rem 1.25rem; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 0.75rem; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.5);">
+                                <div
+                                    style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);">
+                                </div>
+                                Sistema Operacional
+                            </div>
+                            <div style="font-size: 0.9rem; color: #94a3b8; font-weight: 500;">
+                                <i class="ph-bold ph-calendar-blank" style="color: var(--accent-color);"></i>
+                                <script>document.write(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))</script>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    @keyframes wave {
+                        0% {
+                            transform: rotate(0.0deg)
+                        }
+
+                        10% {
+                            transform: rotate(14.0deg)
+                        }
+
+                        20% {
+                            transform: rotate(-8.0deg)
+                        }
+
+                        30% {
+                            transform: rotate(14.0deg)
+                        }
+
+                        40% {
+                            transform: rotate(-4.0deg)
+                        }
+
+                        50% {
+                            transform: rotate(10.0deg)
+                        }
+
+                        60% {
+                            transform: rotate(0.0deg)
+                        }
+
+                        100% {
+                            transform: rotate(0.0deg)
+                        }
+                    }
+                </style>
+
+                <div class="stats-grid" id="tour-stats" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <span class="stat-label">Estabelecimentos Vinculados</span>
+                        <span class="stat-value">{{ current_user.establishments|length if current_user.establishments
+                            else 0
+                            }}</span>
+                        <div class="stat-trend trend-up">
+                            <i class="ph-bold ph-storefront"></i> Meus Locais
+                        </div>
+                    </div>
+                    <!-- Removed Total Stats to focus on action, or keep if useful. Keep for now -->
+                    <div class="stat-card" onclick="document.getElementById('menu-lists').click()">
+                        <span class="stat-label">Vistorias Realizadas</span>
+                        <span class="stat-value" id="stat-processed">-</span>
+                        <div class="stat-trend trend-up">
+                            <i class="ph-bold ph-check-circle"></i> Ver Histórico
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Action Area: Upload directly here -->
+                <div class="card" id="tour-upload"
+                    style="margin-bottom: 2rem; border: 2px dashed var(--accent-color); background: #f8fafc;">
+                    <div class="card-body" style="padding: 2.5rem;">
+                        <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 300px;">
+                                <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--primary-color);">Nova
+                                    Vistoria</h2>
+                                <p class="text-muted" style="margin-bottom: 1.5rem;">Carregue o relatório PDF gerado em
+                                    campo. A IA processará os dados e criará as ações corretivas automaticamente.</p>
+
+                                {% if current_user.establishments %}
+                                <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                                    <div class="upload-area" id="dropZone"
+                                        onclick="document.getElementById('fileInput').click()"
+                                        style="background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; text-align: left; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 1rem;">
+                                        <input type="file" name="file" id="fileInput" accept=".pdf"
+                                            style="display: none;">
+
+                                        <div
+                                            style="font-size: 2rem; color: var(--accent-color); background: #eff6ff; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                                            <i class="ph-bold ph-upload-simple"></i>
+                                        </div>
+                                        <div style="flex-grow: 1;">
+                                            <h4 style="margin: 0; font-weight: 600; color: var(--text-primary);">
+                                                Selecionar
+                                                Arquivo PDF</h4>
+                                            <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;"
+                                                id="fileName">Nenhum arquivo selecionado</p>
+                                        </div>
+                                        <div class="btn btn-secondary" style="pointer-events: none;">Procurar</div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary w-full" id="submitBtn"
+                                        style="margin-top: 1rem; display: none; width: 100%;">
+                                        <i class="ph-bold ph-paper-plane-right"></i> Enviar para Análise
+                                    </button>
+                                </form>
+                                {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="ph-bold ph-warning-circle"></i>
+                                    Para iniciar, peça ao seu gestor para vincular você a um estabelecimento.
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div
+                                style="flex: 1; min-width: 300px; background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                                <h4
+                                    style="font-size: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="ph-fill ph-clock-counter-clockwise"
+                                        style="color: var(--accent-color);"></i>
+                                    Processamento Recente
+                                </h4>
+                                <div id="recent-activity-placeholder">
+                                    <p class="text-muted text-sm">Nenhuma atividade recente.</p>
+                                </div>
+                                <div style="margin-top: 1rem; text-align: right;">
+                                    <a href="#" onclick="document.getElementById('menu-lists').click()"
+                                        style="font-size: 0.85rem; font-weight: 600; color: var(--primary-color);">Ver
+                                        todo
+                                        o histórico &rarr;</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- REMOVED Separate Upload Section (Merged into Overview) -->
+
+            <!-- 3. My Lists -->
+            <div id="lists-section" class="section-view">
+                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Minhas Listas de Verificação</h1>
+
+                <div class="card" style="min-height: 500px;" id="tour-lists">
+                    <div class="card-header">
+                        <h3 class="card-title">📋 Histórico Completo</h3>
+                    </div>
+
+                    <div id="list-tasks-container" style="padding: 1rem;">
+                        <div class="text-center text-muted" style="padding: 2rem;">
+                            <div class="spinner" style="margin: 0 auto 1rem;"></div>
+                            Carregando suas tarefas...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            </main>
+        </div>
+
+        {% endblock %}
+
+        {% block scripts %}
+        <script>
+            function showSection(sectionId, element) {
+                document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+                if (element) element.classList.add('active');
+                document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
+                document.getElementById(sectionId).classList.add('active');
+            }
+
+            // File Upload Logic
+            const fileInput = document.getElementById('fileInput');
+            const fileName = document.getElementById('fileName');
+            const submitBtn = document.getElementById('submitBtn');
+            const dropZone = document.getElementById('dropZone');
+            const uploadForm = document.getElementById('uploadForm');
+
+            if (fileInput) {
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        fileName.textContent = "Selecionado: " + e.target.files[0].name;
+                        submitBtn.style.display = 'block';
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="ph-bold ph-paper-plane-right"></i> Enviar Agora';
+                        dropZone.style.borderColor = 'var(--success-color)';
+                        dropZone.style.background = '#f0fdf4';
+                    }
+                });
+            }
+
+            if (uploadForm) {
+                uploadForm.addEventListener('submit', (e) => {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<div class="spinner-small"></div> Enviando...';
+                    dropZone.style.opacity = '0.7';
+                    dropZone.style.pointerEvents = 'none';
+                });
+            }
+
+            // Task Polling
+            async function updateTasks() {
+                try {
+                    const response = await fetch('/api/status?v=' + new Date().getTime());
+                    const data = await response.json();
+
+                    const container = document.getElementById('list-tasks-container');
+                    const statProcessed = document.getElementById('stat-processed');
+                    // Update Activity Placeholder as well if needed
+                    const activityPlaceholder = document.getElementById('recent-activity-placeholder');
+
+                    let htmlContent = '';
+                    let totalCount = 0;
+                    // 1. Technical Processing (Jobs)
+                    const recentDiv = document.getElementById('recent-activity-placeholder');
+                    const pendingJobs = data.pending || [];
+
+                    // 2. Business Approval (Waiting Approval)
+                    const inApproval = data.in_approval || [];
+
+                    // Render Combined Recent Activity (Processing + Approval)
+                    if (pendingJobs.length > 0 || inApproval.length > 0) {
+                        let html = '';
+
+                        // Render Processing Jobs
+                        pendingJobs.forEach(job => {
+                            html += `
+                     <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                        <div class="spinner" style="width: 16px; height: 16px; border: 2px solid var(--text-light); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <div style="flex-grow:1;">
+                            <span style="font-weight: 500; color: var(--text-primary); display:block;">${job.name}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">Processando IA...</span>
+                        </div>
+                    </div>`;
+                        });
+
+                        // Render Waiting Approval
+                        inApproval.forEach(item => {
+                            html += `
+                     <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                        <i class="ph-fill ph-clock-user" style="color: #f59e0b; font-size: 1.1rem;"></i>
+                        <div style="flex-grow:1;">
+                            <span style="font-weight: 500; color: var(--text-primary); display:block;">${item.name}</span>
+                            <span style="font-size: 0.75rem; color: #f59e0b; font-weight: 600;">Aguardando Gestor</span>
+                        </div>
+                    </div>`;
+                        });
+
+                        recentDiv.innerHTML = html;
+                    } else {
+                        recentDiv.innerHTML = '<p class="text-muted text-sm" style="font-style:italic;">Nenhuma atividade pendente.</p>';
+                    }
+
+                    // 3. Processed (Completed History)
+                    const listContainer = document.getElementById('list-tasks-container');
+                    if (data.processed_raw && data.processed_raw.length > 0) {
+                        listContainer.innerHTML = data.processed_raw.map(item => `
+                <div class="task-item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="background: #ecfdf5; padding: 0.5rem; border-radius: 8px; color: var(--success-color);">
+                            <i class="ph-bold ph-check-circle"></i>
+                        </div>
+                        <div>
+                            <h4 style="margin: 0; font-size: 1rem; font-weight: 600;">${item.name}</h4>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                <i class="ph-bold ph-calendar-blank"></i> ${item.date} • ${item.establishment}
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <a href="${item.review_link}" class="btn btn-secondary btn-sm">Ver Detalhes</a>
+                    </div>
+                </div>
+                `).join('');
+                        document.getElementById('stat-processed').textContent = data.processed_raw.length;
+                    } else {
+                        listContainer.innerHTML = '<div class="text-center text-muted" style="padding: 2rem;">Nenhuma vistoria Finalizada.</div>';
+                        document.getElementById('stat-processed').textContent = '0';
+                    }
+
+                } catch (e) { console.error(e); }
+            }
+
+            updateLists();
+            setInterval(updateLists, 10000);
+
+            // Initial Product Tour (Optional)
+            document.addEventListener('DOMContentLoaded', () => {
+                // Could check for alerts here
+            });
+        </script>
+
+        <style>
+            .spinner {
+                width: 24px;
+                height: 24px;
+                border: 3px solid var(--border-color);
+                border-top-color: var(--accent-color);
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .spinner-small {
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                border-top-color: white;
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+                display: inline-block;
+                margin-right: 0.5rem;
+                vertical-align: middle;
+            }
+        </style>
+    </div>
+</div>
+</div>
+{% endblock %}

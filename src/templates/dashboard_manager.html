@@ -1,0 +1,594 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard Gestor | InspetorAI{% endblock %}
+
+{% block content %}
+
+<div class="admin-wrapper">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+        <h3
+            style="margin-bottom: 2rem; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            <i class="ph-fill ph-briefcase" style="color: var(--accent-color);"></i>
+            Gestão
+        </h3>
+
+        <div class="sidebar-header">Principal</div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item active" id="menu-overview" onclick="showSection('overview', this)">
+                <div class="sidebar-dot"></div> Visão Geral
+            </li>
+            <li class="sidebar-item" id="menu-management" onclick="showSection('management', this)">
+                <div class="sidebar-dot"></div> Equipe & Lojas
+            </li>
+            <li class="sidebar-item" id="menu-inspections" onclick="showSection('inspections', this)">
+                <div class="sidebar-dot"></div> Vistorias
+            </li>
+        </ul>
+
+        <!-- Filter (moved to sidebar bottom area) -->
+        <div style="margin-top: auto; padding-top: 2rem;">
+            <form id="filterForm" action="{{ url_for('manager.dashboard_manager') }}" method="GET">
+                <label class="form-label" style="font-size: 0.75rem; color: var(--text-light);">FILTRAR POR LOJA</label>
+                <select name="establishment_id" onchange="this.form.submit()" class="form-control"
+                    style="font-size: 0.85rem;">
+                    <option value="">Todas as Lojas</option>
+                    {% for est in establishments %}
+                    <option value="{{ est.id }}" {% if selected_est_id==est.id|string %}selected{% endif %}>
+                        {{ est.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+        <!-- Main Content -->
+        <div class="admin-main">
+            <div class="content-wrapper">
+                <!-- 1. Overview Section -->
+                <div id="overview" class="section-view active">
+                    <!-- Modern Header -->
+                    <div style="margin-bottom: 2.5rem;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <div>
+                                <span
+                                    style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">Painel
+                                    do Gestor</span>
+                                <h1
+                                    style="font-size: 2.5rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin: 0;">
+                                    Olá, {{ current_user.name.split()[0] }} <span
+                                        style="animation: wave 2s infinite; display: inline-block; transform-origin: 70% 70%;">👋</span>
+                                </h1>
+                            </div>
+                            <div style="text-align: right;">
+                                <div
+                                    style="background: white; padding: 0.5rem 1rem; border-radius: 50px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); border: 1px solid rgba(0,0,0,0.02);">
+                                    <i class="ph-fill ph-calendar-blank" style="color: var(--accent-color);"></i>
+                                    <span style="text-transform: capitalize;">
+                                        <script>document.write(new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'long' }))</script>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- <p class="text-muted">Gerencie sua equipe e estabelecimentos.</p> -->
+                    </div>
+
+                    <style>
+                        @keyframes wave {
+                            0% {
+                                transform: rotate(0.0deg)
+                            }
+
+                            10% {
+                                transform: rotate(14.0deg)
+                            }
+
+                            20% {
+                                transform: rotate(-8.0deg)
+                            }
+
+                            30% {
+                                transform: rotate(14.0deg)
+                            }
+
+                            40% {
+                                transform: rotate(-4.0deg)
+                            }
+
+                            50% {
+                                transform: rotate(10.0deg)
+                            }
+
+                            60% {
+                                transform: rotate(0.0deg)
+                            }
+
+                            100% {
+                                transform: rotate(0.0deg)
+                            }
+                        }
+                    </style>
+
+                    <div class="stats-grid">
+                        <div class="stat-card" onclick="document.getElementById('menu-management').click()">
+                            <span class="stat-label">Estabelecimentos</span>
+                            <span class="stat-value">{{ establishments|length if establishments else 0 }}</span>
+                            <div class="stat-trend trend-up"><i class="ph-bold ph-trend-up"></i> Conectados</div>
+                        </div>
+                        <div class="stat-card" onclick="document.getElementById('menu-management').click()">
+                            <span class="stat-label">Consultores</span>
+                            <span class="stat-value">{{ consultants|length if consultants else 0 }}</span>
+                            <div class="stat-trend trend-up"><i class="ph-bold ph-users"></i> Ativos</div>
+                        </div>
+                        <div class="stat-card" style="border-color: var(--accent-color); background: #EFF6FF;"
+                            onclick="document.getElementById('menu-inspections').click()">
+                            <span class="stat-label" style="color: var(--accent-color);">Em Processamento</span>
+                            <span class="stat-value" id="stat-pending" style="color: var(--accent-color);">0</span>
+                            <div class="stat-trend" style="color: var(--accent-color);"><i
+                                    class="ph-bold ph-hourglass"></i>
+                                Ver
+                                Status</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions (Tabs) -->
+                    <div class="card" style="margin-top: 2rem;">
+                        <div class="card-header">
+                            <h3 class="card-title">Adicionar Novo</h3>
+                        </div>
+                        <div class="card-body">
+                            <style>
+                                .action-tabs {
+                                    display: flex;
+                                    border-bottom: 1px solid var(--border-color);
+                                    margin-bottom: 1.5rem;
+                                }
+
+                                .action-tab {
+                                    padding: 0.75rem 1.5rem;
+                                    cursor: pointer;
+                                    font-weight: 500;
+                                    color: var(--text-secondary);
+                                    border-bottom: 2px solid transparent;
+                                }
+
+                                .action-tab.active {
+                                    color: var(--primary-color);
+                                    border-bottom-color: var(--accent-color);
+                                }
+
+                                .action-content {
+                                    display: none;
+                                }
+
+                                .action-content.active {
+                                    display: block;
+                                }
+                            </style>
+                            <div class="action-tabs">
+                                <div class="action-tab active" onclick="switchTab('tab-consultant', this)">Novo
+                                    Consultor
+                                </div>
+                                <div class="action-tab" onclick="switchTab('tab-est', this)">Novo Estabelecimento</div>
+                            </div>
+
+                            <!-- New Consultant -->
+                            <div id="tab-consultant" class="action-content active">
+                                <form action="{{ url_for('manager.create_consultant') }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <div
+                                        style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+                                        <div class="form-group" style="margin:0;">
+                                            <input type="text" name="name" placeholder="Nome" class="form-control"
+                                                required>
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <input type="email" name="email" placeholder="Email" class="form-control"
+                                                required>
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <select name="establishment_ids" class="form-control" multiple
+                                                style="height: 42px; padding: 0.25rem;"
+                                                title="Segure Ctrl para múltiplos" required>
+                                                {% for est in establishments %}
+                                                <option value="{{ est.id }}">{{ est.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Criar</button>
+                                    </div>
+                                    <small class="text-muted" style="display:block; margin-top:0.5rem;">* Segure
+                                        Ctrl/Cmd
+                                        para
+                                        selecionar múltiplas lojas.</small>
+                                </form>
+                            </div>
+
+                            <!-- New Establishment -->
+                            <div id="tab-est" class="action-content">
+                                <form action="{{ url_for('manager.create_establishment') }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <div
+                                        style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+                                        <div class="form-group" style="margin:0;">
+                                            <input type="text" name="name" placeholder="Nome da Loja"
+                                                class="form-control" required>
+                                        </div>
+                                        <div class="form-group" style="margin:0;">
+                                            <input type="text" name="code" placeholder="Código (Opcional)"
+                                                class="form-control">
+                                        </div>
+                                        <button type="submit" class="btn btn-accent">Adicionar</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Management (Team & Stores) -->
+                <div id="management" class="section-view">
+                    <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Gerenciar Equipe e Lojas</h1>
+
+                    <!-- Edit Modals -->
+                    <!-- Edit Consultant Modal -->
+                    <div class="card" id="editConsultantCard"
+                        style="margin-bottom: 2rem; display: none; border: 1px solid #3b82f6;">
+                        <div class="card-header" style="background:none; padding-bottom:0;">
+                            <h4 style="margin:0; color:#1e40af;">Editar Consultor</h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="editConsultantForm" onsubmit="handleUpdateConsultant(event)">
+                                <input type="hidden" name="user_id" id="edit_consultant_id">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div class="form-group">
+                                        <label class="form-label">Nome</label>
+                                        <input type="text" name="name" id="edit_consultant_name" class="form-control"
+                                            required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" name="email" id="edit_consultant_email" class="form-control"
+                                            required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Lojas Vinculadas</label>
+                                    <select name="establishment_ids" id="edit_consultant_ests" class="form-control"
+                                        multiple style="height: 100px;">
+                                        {% for est in establishments %}
+                                        <option value="{{ est.id }}">{{ est.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Nova Senha (Opcional)</label>
+                                    <input type="password" name="password" class="form-control">
+                                </div>
+                                <div style="text-align: right;">
+                                    <button type="button" class="btn btn-secondary"
+                                        onclick="document.getElementById('editConsultantCard').style.display='none'">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary"
+                                        id="btnUpdateConsultant">Salvar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Edit Est Modal -->
+                    <div class="card" id="editEstCard"
+                        style="margin-bottom: 2rem; display: none; border: 1px solid #3b82f6;">
+                        <div class="card-header" style="background:none; padding-bottom:0;">
+                            <h4 style="margin:0; color:#1e40af;">Editar Estabelecimento</h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="editEstForm" onsubmit="handleUpdateEst(event)">
+                                <input type="hidden" name="est_id" id="edit_est_id">
+                                <div
+                                    style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+                                    <div class="form-group" style="margin:0;">
+                                        <label class="form-label">Nome</label>
+                                        <input type="text" name="name" id="edit_est_name" class="form-control" required>
+                                    </div>
+                                    <div class="form-group" style="margin:0;">
+                                        <label class="form-label">Código</label>
+                                        <input type="text" name="code" id="edit_est_code" class="form-control">
+                                    </div>
+                                    <div style="display:flex; gap:0.5rem">
+                                        <button type="button" class="btn btn-secondary"
+                                            onclick="document.getElementById('editEstCard').style.display='none'">Cancelar</button>
+                                        <button type="submit" class="btn btn-primary" id="btnUpdateEst">Salvar</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
+                        <!-- Consultants Table -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Consultores</h3>
+                            </div>
+                            <div class="table-container">
+                                <table class="modern-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Email</th>
+                                            <th class="text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for consultant in consultants %}
+                                        <tr>
+                                            <td style="font-weight: 500;">
+                                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                                    <div class="user-avatar"
+                                                        style="width: 24px; height: 24px; font-size: 0.7rem;">{{
+                                                        consultant.name[0] }}</div>
+                                                    {{ consultant.name }}
+                                                </div>
+                                            </td>
+                                            <td class="text-sm text-muted">{{ consultant.email }}</td>
+                                            <td class="text-right">
+                                                <!-- Note: Establishments list usually not in template obj by default unless joined.
+                                             We will infer or rely on user re-selecting in modal for simplicity, or we check if we have the data.
+                                             Ideally, backend passes this. Assuming we might need to fetch or just clear/reset. 
+                                             For MVP, we'll populate name/email and let them reset stores. -->
+                                                <div class="btn-icon-group" style="justify-content: flex-end;">
+                                                    <button class="btn-icon btn-icon-edit"
+                                                        onclick="openEditConsultant('{{ consultant.id }}', '{{ consultant.name }}', '{{ consultant.email }}')"
+                                                        title="Editar">
+                                                        <i class="ph-bold ph-pencil-simple"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted">Nenhum consultor.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Establishments Table (New View for Management) -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Estabelecimentos</h3>
+                            </div>
+                            <div class="table-container">
+                                <table class="modern-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Código</th>
+                                            <th class="text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for est in establishments %}
+                                        <tr>
+                                            <td style="font-weight: 500;">{{ est.name }}</td>
+                                            <td class="text-muted text-sm">{{ est.code or '-' }}</td>
+                                            <td class="text-right">
+                                                <div class="btn-icon-group" style="justify-content: flex-end;">
+                                                    <button class="btn-icon btn-icon-edit"
+                                                        onclick="openEditEst('{{ est.id }}', '{{ est.name }}', '{{ est.code or '' }}')"
+                                                        title="Editar">
+                                                        <i class="ph-bold ph-pencil-simple"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Inspections List -->
+                <div id="inspections" class="section-view">
+                    <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Vistorias</h1>
+
+                    <div class="card" style="min-height: 500px;">
+                        <div class="card-header">
+                            <h3 class="card-title">Histórico e Status</h3>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                <i class="ph-fill ph-circle"
+                                    style="color: var(--success-color); font-size: 0.6rem;"></i>
+                                Tempo
+                                Real
+                            </div>
+                        </div>
+                        <!-- Pending List -->
+                        <div id="list-pending-container"
+                            style="padding: 1rem; background: #F8FAFC; border-bottom: 1px solid var(--border-color);">
+                        </div>
+
+                        <!-- Processed List -->
+                        <div class="card-body" style="padding:0;">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Estabelecimento</th>
+                                        <th>Data/Hora</th>
+                                        <th>Status</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="list-processed-tbody">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted" style="padding: 2rem;">
+                                            Carregando...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+</div>
+
+<script>
+    function showSection(sectionId, element) {
+        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+        if (element) element.classList.add('active');
+        document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
+        document.getElementById(sectionId).classList.add('active');
+    }
+
+    function switchTab(tabId, element) {
+        document.querySelectorAll('.action-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.action-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        if (element) element.classList.add('active');
+    }
+
+    // Edit Consultant
+    function openEditConsultant(id, name, email) {
+        document.getElementById('editConsultantCard').style.display = 'block';
+        document.getElementById('edit_consultant_id').value = id;
+        document.getElementById('edit_consultant_name').value = name;
+        document.getElementById('edit_consultant_email').value = email;
+        // Ideally we would pre-select establishments here, but logic is complex without extra data.
+        window.scrollTo(0, 0);
+    }
+
+    async function handleUpdateConsultant(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit_consultant_id').value;
+        const form = e.target;
+        const btn = document.getElementById('btnUpdateConsultant');
+        btn.disabled = true; btn.innerHTML = 'Salvando...';
+
+        try {
+            const formData = new FormData(form);
+            const res = await fetch(`/manager/consultant/${id}/update`, { method: 'POST', body: formData });
+            if (res.ok) window.location.reload();
+            else alert('Erro ao atualizar');
+        } catch (err) { console.error(err); alert('Erro'); }
+        finally { btn.disabled = false; btn.innerHTML = 'Salvar'; }
+    }
+
+    // Edit Est
+    function openEditEst(id, name, code) {
+        document.getElementById('editEstCard').style.display = 'block';
+        document.getElementById('edit_est_id').value = id;
+        document.getElementById('edit_est_name').value = name;
+        document.getElementById('edit_est_code').value = code;
+        window.scrollTo(0, 0);
+    }
+
+    async function handleUpdateEst(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit_est_id').value;
+        const form = e.target;
+        const btn = document.getElementById('btnUpdateEst');
+        btn.disabled = true; btn.innerHTML = 'Salvando...';
+
+        try {
+            const formData = new FormData(form);
+            const res = await fetch(`/manager/establishment/${id}/update`, { method: 'POST', body: formData });
+            if (res.ok) window.location.reload();
+            else alert('Erro ao atualizar');
+        } catch (err) { console.error(err); alert('Erro'); }
+        finally { btn.disabled = false; btn.innerHTML = 'Salvar'; }
+    }
+
+    // Polling Logic
+    async function updateLists() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const estId = urlParams.get('establishment_id') || '';
+            const response = await fetch(`/api/status?establishment_id=${estId}&v=` + new Date().getTime());
+            const data = await response.json();
+
+            // Pending
+            const pendingDiv = document.getElementById('list-pending-container');
+            if (data.pending && data.pending.length > 0) {
+                pendingDiv.innerHTML = data.pending.map(item => `
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                        <div class="spinner" style="width: 16px; height: 16px; border: 2px solid var(--text-light); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <span style="font-weight: 500; color: var(--text-primary);">${item.name}</span>
+                        <span class="badge badge-warning" style="margin-left: auto;">Processando</span>
+                    </div>
+                `).join('');
+                document.getElementById('stat-pending').textContent = data.pending.length;
+            } else {
+                pendingDiv.innerHTML = '';
+                document.getElementById('stat-pending').textContent = '0';
+            }
+
+            // Processed
+            const tbody = document.getElementById('list-processed-tbody');
+            if (data.processed_raw && data.processed_raw.length > 0) {
+                tbody.innerHTML = data.processed_raw.map(item => `
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar avatar-xs bg-light-primary text-primary rounded-circle mr-3">
+                                    <i class="ph-bold ph-storefront"></i>
+                                </div>
+                                <span class="font-weight-medium">${item.establishment}</span>
+                            </div>
+                        </td>
+                        <td>${item.date}</td>
+                        <td>${getStatusBadge(item.status)}</td>
+                        <td>
+                            <a href="${item.review_link}" class="btn btn-sm btn-white border shadow-sm">
+                                <i class="ph-bold ph-pencil-simple text-primary"></i> Editar
+                            </a>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Nenhuma vistoria encontrada.</td></tr>';
+            }
+        } catch (e) {
+            console.error("Erro no polling:", e);
+        }
+    }
+
+    function getStatusBadge(status) {
+        // Map backend enum to UI Badge
+        const map = {
+            'PROCESSING': { class: 'badge-primary', text: 'Processando' },
+            'PENDING_MANAGER_REVIEW': { class: 'badge-warning', text: 'Aguardando Aprovação' },
+            'WAITING_APPROVAL': { class: 'badge-warning', text: 'Aguardando Aprovação' },
+            'APPROVED': { class: 'badge-success', text: 'Aprovado' },
+            'PENDING_VERIFICATION': { class: 'badge-info', text: 'Em Verificação' },
+            'COMPLETED': { class: 'badge-success', text: 'Concluído' },
+            'REJECTED': { class: 'badge-danger', text: 'Rejeitado' }
+        };
+
+        const badge = map[status] || { class: 'badge-secondary', text: status || 'Desconhecido' };
+        return `<span class="badge ${badge.class}">${badge.text}</span>`;
+    }
+
+    // Iniciar Polling
+    updateLists();
+    setInterval(updateLists, 10000);
+</script>
+
+<style>
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+{% endblock %}

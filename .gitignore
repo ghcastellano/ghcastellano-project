@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Credentials and Secrets
+credentials.json
+local_secrets.txt
+secrets.sh
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+service-account-*.json
+
+# Google Cloud
+client_secret.json
+
+# Data and Logs
+app.log
+worker.log
+data/
+01_ENTRADA_RELATORIOS/
+02_PLANOS_GERADOS/
+03_PROCESSADOS_BACKUP/
+99_ERROS/
+
+# OS
+.DS_Store
+setup_env.sh
+local_secrets.txt
+.env.bak
+src/secrets.sh
+*.log

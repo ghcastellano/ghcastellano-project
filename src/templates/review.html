@@ -1,0 +1,422 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="glass-panel" style="padding: 2rem;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h2 class="section-title">📝 Revisão do Plano de Ação</h2>
+            <p style="color: #64748b;">{{ data.estabelecimento }} - {{ data.data_inspecao }}</p>
+        </div>
+        <div class="header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+            <a href="/" class="btn" style="background: #e2e8f0; color: #334155;">Voltar</a>
+
+            <a href="/download_pdf/{{ file_id }}" target="_blank" class="btn"
+                style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                📥 Relatório Inicial
+            </a>
+
+            <a href="/download_revised_pdf/{{ file_id }}" target="_blank" class="btn"
+                style="background: #dcfce7; color: #15803d; border: 1px solid #86efac;">
+                📥 Baixar c/ Correções
+            </a>
+
+            <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+            <button class="btn btn-outline" onclick="saveReview()">💾 Salvar</button>
+
+            {% if current_user.role == 'MANAGER' %}
+            <button class="btn btn-success" onclick="openModal('approve')">✅ Aprovar e Enviar</button>
+            {% else %}
+            <button class="btn btn-info" style="background: #25D366; color: white; border: none;"
+                onclick="openModal('share')">📱 Compartilhar WhatsApp</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Info Grid with Scores -->
+    <div class="info-grid" style="margin-bottom: 2rem;">
+        <!-- Card 1: Main Status & Score -->
+        <div class="glass-panel" style="padding: 1.5rem; background: rgba(255,255,255,0.4);">
+            <h3>{{ data.estabelecimento }}</h3>
+            <p><strong>Inspeção:</strong> {{ data.data_inspecao }}</p>
+            <p class="status-badge">Em Revisão</p>
+
+            {% if data.pontuacao_geral %}
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+                <h4>Pontuação Geral</h4>
+                <div
+                    style="font-size: 2rem; font-weight: bold; color: {% if data.pontuacao_geral >= 70 %}#16a34a{% elif data.pontuacao_geral >= 50 %}#ca8a04{% else %}#dc2626{% endif %};">
+                    {{ data.pontuacao_geral }}%
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Card 2: Topic Breakdown -->
+        {% if data.detalhe_pontuacao %}
+        <div class="glass-panel" style="padding: 1.5rem; background: rgba(255,255,255,0.4);">
+            <h4>Detalhamento por Tópico</h4>
+            <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1rem;">
+                {% for topic in data.detalhe_pontuacao %}
+                <div>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin-bottom: 0.2rem;">
+                        <span>{{ topic.topico }}</span>
+                        <span
+                            style="font-weight: 600; color: {% if topic.percentual >= 70 %}#16a34a{% elif topic.percentual >= 50 %}#ca8a04{% else %}#dc2626{% endif %};">
+                            {{ topic.percentual }}%
+                        </span>
+                    </div>
+                    <div style="height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden;">
+                        <div
+                            style="height: 100%; width: {{ topic.percentual }}%; background: {% if topic.percentual >= 70 %}#22c55e{% elif topic.percentual >= 50 %}#eab308{% else %}#ef4444{% endif %};">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Card 3: Summary -->
+        <div class="glass-panel full-width"
+            style="padding: 1.5rem; background: rgba(255,255,255,0.4); grid-column: span 2;">
+            <h4>Resumo Geral</h4>
+            <p>{{ data.resumo_geral }}</p>
+        </div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 2rem 0;">
+
+    <!-- Items List -->
+    <div>
+        <h3 class="section-title">Itens para Correção</h3>
+        <form id="reviewForm">
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                {% for nc in data.nao_conformidades %}
+                <div class="nc-card status-{{ nc.status_item|default('Não Conforme')|slugify }}" id="nc-{{ nc.id }}"
+                    style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+
+                    <div class="nc-header"
+                        style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                        <div class="nc-title" style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span class="nc-id"
+                                    style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">#{{
+                                    nc.id }}</span>
+                                <!-- Status Badge -->
+                                <span
+                                    class="status-badge-item {{ 'partial' if 'Parcialmente' in nc.status_item|default('') else 'non-compliant' }}"
+                                    style="padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; 
+                                             background: {% if 'Parcialmente' in nc.status_item|default('') %}#fef9c3{% else %}#fee2e2{% endif %}; 
+                                             color: {% if 'Parcialmente' in nc.status_item|default('') %}#854d0e{% else %}#991b1b{% endif %};">
+                                    {{ nc.status_item|default('Não Conforme') }}
+                                </span>
+                            </div>
+                            <h4 style="margin: 0; font-size: 1.1rem;">{{ nc.item }}</h4>
+                        </div>
+
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="check-{{ nc.id }}" name="is_corrected_{{ nc.id }}" {% if
+                                nc.is_corrected %}checked{% endif %} onchange="updateStatus('{{ nc.id }}')">
+                            <label for="check-{{ nc.id }}"
+                                style="cursor: pointer; font-size: 0.9rem; margin-left: 0.5rem;">Corrigido</label>
+                        </div>
+                    </div>
+
+                    <div class="nc-body">
+                        <div style="margin-bottom: 1rem;">
+                            <strong>Problema:</strong>
+                            <p style="margin-top: 0.2rem; color: #475569;">{{ nc.descricao }}</p>
+                        </div>
+
+                        <div style="margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                            <strong>Ação Corretiva Sugerida:</strong>
+                            <ul style="margin: 0.5rem 0 0 1.5rem;">
+                                {% for acao in nc.acoes_corretivas %}
+                                <li>{{ acao.descricao }} (Prazo: {{ acao.prazo_sugerido }})</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div class="nc-notes">
+                            <label
+                                style="display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.5rem;">Notas
+                                de Correção:</label>
+                            <textarea id="note-{{ nc.id }}" name="notes_{{ nc.id }}"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px;"
+                                placeholder="Descreva o que foi feito..." rows="2"
+                                onblur="updateStatus('{{ nc.id }}')">{{ nc.correction_notes or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </form>
+    </div>
+</div>
+
+/* Modern Modal Styles */
+.modal {
+display: none;
+position: fixed;
+z-index: 1000;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+overflow: auto;
+background-color: rgba(0,0,0,0.5);
+backdrop-filter: blur(5px);
+animation: fadeIn 0.3s;
+}
+
+.modal-content {
+background: rgba(255, 255, 255, 0.95);
+margin: 10vh auto;
+padding: 2rem;
+border: 1px solid rgba(255,255,255,0.2);
+width: 90%;
+max-width: 500px;
+border-radius: 24px;
+box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+animation: slideIn 0.3s;
+position: relative;
+}
+
+@keyframes fadeIn {
+from { opacity: 0; }
+to { opacity: 1; }
+}
+
+@keyframes slideIn {
+from { transform: translateY(-20px); opacity: 0; }
+to { transform: translateY(0); opacity: 1; }
+}
+
+.close {
+color: #aaa;
+float: right;
+font-size: 28px;
+font-weight: bold;
+transition: 0.2s;
+}
+
+.close:hover,
+.close:focus {
+color: #000;
+text-decoration: none;
+cursor: pointer;
+}
+
+/* Form Enhancements */
+.form-control {
+width: 100%;
+padding: 0.8rem 1rem;
+border: 1px solid #e2e8f0;
+border-radius: 12px;
+font-size: 1rem;
+transition: all 0.2s;
+background: #f8fafc;
+}
+
+.form-control:focus {
+outline: none;
+border-color: #3b82f6;
+box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+background: white;
+}
+
+select.form-control {
+appearance: none;
+background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20
+20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4
+4-4'/%3e%3c/svg%3e");
+background-position: right 0.5rem center;
+background-repeat: no-repeat;
+background-size: 1.5em 1.5em;
+padding-right: 2.5rem;
+}
+
+<!-- WhatsApp Modal (Shared for Approval and Sharing) -->
+<div id="whatsappModal" class="modal"
+    style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; override-flow: auto; background-color: rgba(0,0,0,0.4);">
+    <div class="modal-content"
+        style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0;" id="modalTitle">Enviar WhatsApp</h3>
+            <span class="close" onclick="closeModal()"
+                style="font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+        </div>
+
+        <p id="modalDesc">Selecione o destinatário para receber o relatório:</p>
+
+        <form id="whatsappForm" onsubmit="submitWhatsApp(event)">
+            <input type="hidden" id="actionType" value="share">
+
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Selecionar Contato:</label>
+                <select id="contactSelect" class="form-control" style="width: 100%; padding: 0.5rem;"
+                    onchange="fillContact()">
+                    <option value="">-- Selecione ou Digite Abaixo --</option>
+                    {% for c in contacts %}
+                    <option value="{{ c.id }}" data-name="{{ c.name }}" data-phone="{{ c.phone }}">{{ c.name }} - {{
+                        c.phone }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem;">Nome:</label>
+                    <input type="text" name="resp_name" id="resp_name" class="form-control"
+                        style="width: 100%; padding: 0.5rem;" required>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem;">WhatsApp:</label>
+                    <input type="text" name="resp_phone" id="resp_phone" class="form-control"
+                        style="width: 100%; padding: 0.5rem;" required placeholder="+55...">
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 1.5rem;">
+                <button type="button" class="btn" style="margin-right: 0.5rem;" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-success" id="btnSubmit">🚀 Enviar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Move Script block here -->
+<!-- CSRF Token -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
+<script>
+    // Utils
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    function openModal(action) {
+        document.getElementById('whatsappModal').style.display = "block";
+        document.getElementById('actionType').value = action;
+
+        const title = document.getElementById('modalTitle');
+        const btn = document.getElementById('btnSubmit');
+
+        if (action === 'approve') {
+            title.innerText = "Aprovar e Enviar";
+            btn.innerText = "✅ Aprovar e Enviar";
+            btn.className = "btn btn-success";
+        } else {
+            title.innerText = "Compartilhar Relatório";
+            btn.innerText = "📱 Compartilhar";
+            btn.className = "btn btn-info";
+            btn.style.backgroundColor = "#25D366";
+            btn.style.color = "white";
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('whatsappModal').style.display = "none";
+    }
+
+    function fillContact() {
+        const select = document.getElementById('contactSelect');
+        const option = select.options[select.selectedIndex];
+        if (option.value) {
+            document.getElementById('resp_name').value = option.getAttribute('data-name');
+            document.getElementById('resp_phone').value = option.getAttribute('data-phone');
+        }
+    }
+
+    async function submitWhatsApp(e) {
+        e.preventDefault();
+        const form = document.getElementById('whatsappForm');
+        const formData = new FormData(form);
+        const action = document.getElementById('actionType').value;
+        const btn = document.getElementById('btnSubmit');
+
+        btn.disabled = true;
+        btn.innerText = "Processando em 2º Plano...";
+
+        const url = action === 'approve' ? '/api/approve_plan/{{ file_id }}' : '/api/share_plan/{{ file_id }}';
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({
+                    resp_name: formData.get('resp_name'),
+                    resp_phone: formData.get('resp_phone'),
+                    contact_id: document.getElementById('contactSelect').value
+                })
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                alert('Processamento iniciado! O WhatsApp será enviado em breve.');
+                if (action === 'approve') {
+                    window.location.href = '/dashboard/manager';
+                } else {
+                    closeModal();
+                    btn.disabled = false;
+                    btn.innerText = "Enviado p/ Fila";
+                }
+            } else {
+                alert('Erro: ' + (result.error || 'Falha desconhecida'));
+                btn.disabled = false;
+                btn.innerText = "Tentar Novamente";
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de conexão.');
+            btn.disabled = false;
+        }
+    }
+
+    async function saveReview() {
+        const form = document.getElementById('reviewForm');
+        const formData = new FormData(form);
+        const updates = {};
+        const uuids = new Set();
+
+        for (let [key, value] of formData.entries()) {
+            if (key.startsWith('notes_')) uuids.add(key.replace('notes_', ''));
+            if (key.startsWith('is_corrected_')) uuids.add(key.replace('is_corrected_', ''));
+        }
+
+        uuids.forEach(uuid => {
+            updates[uuid] = {
+                is_corrected: formData.get(`is_corrected_${uuid}`) === 'on',
+                correction_notes: formData.get(`notes_${uuid}`)
+            };
+        });
+
+        try {
+            const res = await fetch('/api/save_review/{{ file_id }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+
+            if (res.ok) alert('Revisão salva com sucesso!');
+            else alert('Erro ao salvar revisão.');
+        } catch (e) {
+            console.error(e);
+            alert('Erro de conexão.');
+        }
+    }
+
+    // Window click to close modal
+    window.onclick = function (event) {
+        if (event.target == document.getElementById('approvalModal')) {
+            closeModal();
+        }
+    }
+</script>
+{% endblock %}
