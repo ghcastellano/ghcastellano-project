@@ -113,8 +113,8 @@ if [[ "${UPDATE_DATABASE_URL_SECRET:-}" == "1" ]]; then
   fi
 
   echo "Cole aqui a DATABASE_URL completa (não será exibida de volta)."
-  echo "Ex.: postgresql://postgres.<ref>:*****@aws-0-<region>.pooler.supabase.com:5432/postgres"
-  echo "Dica: a senha correta é a 'Database password' (Reset database password no Supabase), não é anon/service key."
+  echo "Ex.: postgresql://user:password@params.neon.tech/dbname?sslmode=require"
+  echo "Dica: Cole a Connection String completa do Neon."
   read -r -s DATABASE_URL_VALUE
   echo
   tmp_file="$(mktemp)"
@@ -149,13 +149,12 @@ if not db or "postgresql://" in db or "postgres://" in db:
     sys.exit(1)
 
 host = (p.hostname or "").lower()
-is_pooler = "pooler.supabase.com" in host
-if is_pooler and "." not in (p.username or ""):
-    print("❌ Para o Supabase Pooler, o usuário precisa ser do tipo 'postgres.<project-ref>'.")
-    sys.exit(1)
+
+# (Supabase checks removed)
 
 query = dict(parse_qsl(p.query, keep_blank_values=True))
-if (host.endswith("supabase.co") or host.endswith("supabase.com")) and "sslmode" not in query:
+# Ensure sslmode for any cloud provider if appropriate, or rely on URL params
+if "sslmode" not in query:
     query["sslmode"] = "require"
 
 normalized = urlunparse((p.scheme, p.netloc, p.path, p.params, urlencode(query), p.fragment))
