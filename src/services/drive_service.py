@@ -15,9 +15,15 @@ class DriveService:
         self.scopes = ['https://www.googleapis.com/auth/drive']
         self.credentials_file = credentials_file
         self.creds = None
-        self.service = None
+        self._service = None
         self.lock = threading.Lock()
-        self._authenticate()
+        # self._authenticate() # Lazy load instead
+
+    @property
+    def service(self):
+        if not self._service:
+             self._authenticate()
+        return self._service
 
     def _authenticate(self):
         try:
@@ -47,14 +53,21 @@ class DriveService:
                 logger.warning("⚠️ Impersonation requested but credentials do not support with_subject.")
             # -------------------------------------------
 
-            self.service = build('drive', 'v3', credentials=self.creds)
+            self._service = build('drive', 'v3', credentials=self.creds)
             logger.info("✅ Serviço do Drive Autenticado")
         except Exception as e:
             logger.error(f"❌ Falha ao autenticar no Drive: {e}")
-            raise
+            # Do not re-raise to avoid crashing the app on property access, 
+            # effectively disabling Drive features.
+            # raise e 
+            self._service = None # Ensure it stays None so we might retry or fail gracefully
 
     def list_files(self, folder_id, mime_type=None, extension=None):
         """Lista arquivos numa pasta, filtrando por tipo ou extensão."""
+        if not self.service: # Checks property which triggers auth
+            logger.warning("Drive Service indisponível.")
+            return []
+            
         if not folder_id or folder_id == "None":
             return []
             
@@ -85,6 +98,7 @@ class DriveService:
 
     def download_file(self, file_id):
         """Baixa arquivo e retorna bytes."""
+        if not self.service: return b""
         with self.lock:
             # Note: get_media doesn't strictly need supportsAllDrives but it's good practice for consistency
             request = self.service.files().get_media(fileId=file_id)
@@ -98,10 +112,13 @@ class DriveService:
     def read_json(self, file_id):
         """Lê o conteúdo de um arquivo JSON diretamente."""
         content = self.download_file(file_id)
+        if not content: return {}
         return json.loads(content.decode('utf-8'))
 
     def upload_file(self, file_path, folder_id, filename=None):
         """Faz upload de um arquivo local para o Drive."""
+        if not self.service: raise Exception("Drive Service Unavailable")
+        
         if not filename:
             filename = os.path.basename(file_path)
         
@@ -127,6 +144,7 @@ class DriveService:
 
     def update_file(self, file_id, new_content_str):
         """Atualiza o conteúdo de um arquivo existente (ex: JSON)."""
+        if not self.service: return None
         media = MediaIoBaseUpload(io.BytesIO(new_content_str.encode('utf-8')), mimetype='application/json', resumable=True)
         with self.lock:
             updated = self.service.files().update(
@@ -139,6 +157,7 @@ class DriveService:
 
     def move_file(self, file_id, target_folder_id):
         """Move arquivo de uma pasta para outra."""
+        if not self.service: return
         try:
             with self.lock:
                 file = self.service.files().get(
@@ -160,6 +179,7 @@ class DriveService:
             logger.error(f"Erro ao mover arquivo: {e}")
 
     def _share_file(self, file_id):
+        if not self.service: return
         try:
             with self.lock:
                 self.service.permissions().create(
@@ -174,6 +194,7 @@ class DriveService:
         Registra um Webhook (Channel) para monitorar mudanças numa pasta.
         Expiration: Timestamp em millis (opcional). Default Drive é ~1 semana.
         """
+        if not self.service: return None
         body = {
             "id": channel_id,
             "type": "web_hook",
@@ -201,6 +222,7 @@ class DriveService:
 
     def stop_watch(self, channel_id, resource_id):
         """Para de receber notificações."""
+        if not self.service: return
         try:
             with self.lock:
                 self.service.channels().stop(
