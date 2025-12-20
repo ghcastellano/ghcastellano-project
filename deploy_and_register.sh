@@ -53,6 +53,19 @@ update_secret_from_stdin () {
   echo "✅ Secret atualizado: $secret_name"
 }
 
+audit_secret () {
+  local name="$1"
+  local val="${!name:-}"
+  if [ -z "$val" ]; then
+    echo "⚠️  VARÍAVEL AUSENTE NO GITHUB: $name"
+  else
+    local len=${#val}
+    local start="${val:0:6}"
+    local end="${val: -4}"
+    echo "🔍 AUDIT: $name [Size: $len] | Prefix: $start... | Suffix: ...$end"
+  fi
+}
+
 update_secret_from_file () {
   local secret_name="$1"
   local file_path="$2"
@@ -271,6 +284,24 @@ if [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
   printf "%s" "$AWS_SECRET_ACCESS_KEY" | gcloud secrets versions add "AWS_SECRET_ACCESS_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
   echo "✅ Secret AWS_SECRET_ACCESS_KEY sincronizado."
 fi
+
+# --------------------------------------------------------------------------------
+# AUDIT SECRETS (Fonte da Verdade: GitHub)
+# --------------------------------------------------------------------------------
+echo "🛡️  AUDITORIA DE SEGREDOS DO GITHUB (Antes do Deploy):"
+audit_secret "DATABASE_URL"
+audit_secret "OPENAI_API_KEY"
+audit_secret "SECRET_KEY"
+audit_secret "GCP_SA_KEY"
+audit_secret "AWS_ACCESS_KEY_ID"
+audit_secret "AWS_SECRET_ACCESS_KEY"
+audit_secret "WHATSAPP_TOKEN"
+audit_secret "FOLDER_ID_01_ENTRADA_RELATORIOS"
+audit_secret "FOLDER_ID_02_PLANOS_GERADOS"
+audit_secret "FOLDER_ID_03_PROCESSADOS_BACKUP"
+audit_secret "FOLDER_ID_99_ERROS"
+audit_secret "DRIVE_WEBHOOK_TOKEN"
+# --------------------------------------------------------------------------------
 
 # Add AWS Secrets to Deploy List if they exist
 if gcloud secrets describe "AWS_ACCESS_KEY_ID" --project "$PROJECT_ID" >/dev/null 2>&1; then
