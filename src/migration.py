@@ -2,7 +2,7 @@ import logging
 from sqlalchemy import create_engine, text
 from src.config import config
 from src.database import normalize_database_url
-from src.legacy_migrations import migration_v4, migration_v5, migration_v6, migration_v7, migration_v8
+from src.legacy_migrations import migration_v4, migration_v5, migration_v6, migration_v7, migration_v8, migration_v9_sync
 
 logger = logging.getLogger("migration")
 
@@ -127,11 +127,18 @@ def run_migrations(db_session=None): # Renamed to generic
         logger.info("🚀 Running Migration V7 (Jobs/Status)...")
         migration_v7.run_migration_v7()
 
+from src.legacy_migrations import migration_v4, migration_v5, migration_v6, migration_v7, migration_v8, migration_v9_sync
+
+# ... (inside run_migrations function, after migration_v8 block) ...
+
         if hasattr(migration_v8, 'run_migration_v8'):
            logger.info("🚀 Running Migration V8...")
            migration_v8.run_migration_v8()
         else:
            logger.warning("⚠️ Migration V8 imported but no run function found.")
+
+        logger.info("🚀 Running Migration V9 (Final Sync)...")
+        migration_v9_sync.run_migration_v9()
 
     except Exception as e:
         logger.error(f"❌ Error running subsequent migrations: {e}")
