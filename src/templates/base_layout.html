@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{ relatorio.titulo }}</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>Plano de Ação - Acompanhamento</h1>
+        <div class="subtitle-box">
+            <span class="meta-item"><strong>Estabelecimento:</strong> {{ relatorio.estabelecimento }}</span> |
+            <span class="meta-item"><strong>Checklist Base:</strong> {{ relatorio.data_inspecao }}</span> |
+            <span class="meta-item"><strong>Plano de Ação Gerado em:</strong> {{ data_geracao }}</span>
+        </div>
+    </header>
+
+    <div class="section-box">
+        <h2 class="blue-header">Resumo do Plano de Ação</h2>
+
+        <p><strong>Resumo Geral:</strong> {{ relatorio.resumo_geral }}</p>
+
+        {% if relatorio.pontos_fortes %}
+        <p><strong>Destaques Positivos:</strong> {{ relatorio.pontos_fortes|join(', ') }}</p>
+        {% endif %}
+
+        <p class="aproveitamento-geral"><strong>Aproveitamento Geral:</strong> {{
+            "%.1f"|format(relatorio.pontuacao_geral) }}%</p>
+
+        <!-- Tabela de Pontuação -->
+        <table class="score-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%;">Área</th>
+                    <th style="width: 25%;">Nota / Máximo</th>
+                    <th style="width: 25%;">Aproveitamento</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for topico in relatorio.detalhe_pontuacao %}
+                <tr>
+                    <td><strong>{{ topico.topico }}</strong></td>
+                    <td>{{ "%.2f"|format(topico.pontos_obtidos) }} / {{ "%.2f"|format(topico.pontos_possiveis) }}</td>
+                    <td>{{ "%.1f"|format(topico.percentual) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Tabela de Ações Corretivas por Tópico -->
+    {% for topico_nome in relatorio.detalhe_pontuacao|map(attribute='topico') %}
+
+    <!-- Filtra NCs deste tópico (approximated, since NC model doesn't explicitly store topic, we might group by generic or list all if no topic link) -->
+    <!-- Na prática atual, o modelo NC não tem 'topico'. Vou listar TODAS se não conseguir filtrar, ou assumir um agrupamento se o prompt gerasse -->
+    <!-- Como o prompt atual não garante 'topico' na NC, vou mostrar uma seção geral se não houver agrupamento, mas idealmente deveria agrupar. -->
+    <!-- Vou assumir que o usuário quer ver TUDO numa tabela só se não tivermos metadados de tópico na NC. -->
+    <!-- Mas o design pede "Área: Cozinha..." -->
+    <!-- Vou iterar sobre as NCs e tentar agrupar dinamicamente ou mostrar tudo numa única seção "Plano de Ação Detalhado" se faltar dados. -->
+
+    {% endfor %}
+
+    <!-- Como o modelo atual de NC não tem o campo 'topico' explicitamente linkado na struct NaoConformidade (tem item, legislacao...), vou criar uma única grande tabela por enquanto ou agrupar se conseguir deduzir. -->
+    <!-- Vou usar uma abordagem de Tabela Única de Ações para simplificar, já que não tenho o vínculo NC->Topico garantido no JSON output agora. -->
+
+    <h2 class="blue-header-large"
+        style="margin-top: 2rem; border-bottom: 2px solid #ccc; padding-bottom: 10px; color: #0056b3;">Detalhamento das
+        Não Conformidades</h2>
+
+    <table class="action-table">
+        <thead>
+            <tr>
+                <th style="width: 20%;">Item</th>
+                <th style="width: 15%;">Status</th>
+                <th style="width: 35%;">Plano de Ação Inicial</th>
+                <th style="width: 30%;">Acompanhamento</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for nc in relatorio.nao_conformidades %}
+            <tr>
+                <!-- Item -->
+                <td style="font-weight: bold; font-size: 0.95em;">
+                    {{ nc.item }}
+                </td>
+
+                <!-- Status -->
+                <td class="status-cell">
+                    <span class="status-text {{ 'partial' if 'Parcialmente' in nc.status_item else 'non-compliant' }}">
+                        {{ nc.status_item }}
+                    </span>
+                </td>
+
+                <!-- Plano Inicial -->
+                <td class="plan-cell">
+                    {% for acao in nc.acoes_corretivas %}
+                    <div style="margin-bottom: 4px;">
+                        <strong>Ação:</strong> {{ acao.descricao }}
+                    </div>
+                    <div style="margin-bottom: 4px;">
+                        <strong>Prazo:</strong> {{ acao.prazo_sugerido }}
+                    </div>
+                    {% endfor %}
+                    <div style="margin-top: 8px;">
+                        <strong>Legal:</strong> {{ nc.legislacao_relacionada }}
+                    </div>
+                </td>
+
+                <!-- Acompanhamento -->
+                <td class="followup-cell">
+                    {% if nc.is_corrected %}
+                    <div class="followup-box corrected">
+                        <strong>Visita de {{ data_geracao }} [Corrigido]</strong>
+                        <p><em>Notas: {{ nc.correction_notes }}</em></p>
+                    </div>
+                    {% else %}
+                    <div class="followup-box pending">
+                        <strong>Visita de {{ data_geracao }} [Pendente]</strong>
+                        <p><em>Notas: {{ nc.correction_notes or 'Item ainda não regularizado.' }}</em></p>
+                    </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <footer
+        style="margin-top: 50px; text-align: center; font-size: 0.8em; color: #777; border-top: 1px solid #ddd; padding-top: 10px;">
+        <p>Relatório gerado via MVP Inspeção Sanitária (AI Powered)</p>
+    </footer>
+
+</body>
+
+</html>

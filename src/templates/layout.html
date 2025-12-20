@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Inspeção Sanitária AI{% endblock %}</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons (Phosphor Icons - Fast & Clean) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root {
+            --primary-color: #0f172a;
+            --accent-color: #4f46e5;
+            /* Indigo 600 */
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-light: #94a3b8;
+            --bg-color: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Modern Navbar - WOW Header Edition */
+        .top-navbar {
+            background: var(--glass-bg) !important;
+            backdrop-filter: blur(20px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+            border-bottom: 1px solid var(--glass-border) !important;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03) !important;
+            padding: 0.75rem 2rem !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 2000;
+            height: 72px;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-logo i {
+            font-size: 2.25rem;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-logo span {
+            color: var(--accent-color);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.03);
+            padding: 4px;
+            border-radius: 50px;
+        }
+
+        .nav-link {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary) !important;
+            padding: 0.5rem 1.25rem !important;
+            border-radius: 50px !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none !important;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-color) !important;
+            background: rgba(255, 255, 255, 0.8) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-link.active {
+            color: white !important;
+            background: var(--accent-color) !important;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-info {
+            text-align: right;
+            line-height: 1.3;
+        }
+
+        .user-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+        }
+
+        .user-role {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-color) 0%, #7c3aed 100%);
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+        }
+
+        .logout-btn {
+            color: var(--text-light);
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .logout-btn:hover {
+            color: var(--danger-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <div class="brand-logo">
+                <i class="ph-fill ph-shield-check" style="font-size: 2rem; color: var(--accent-color);"></i>
+                Inspetor<span>AI</span>
+            </div>
+
+            <div class="nav-links">
+                <!-- Links contextuais baseados em Role -->
+                {% if current_user.is_authenticated %}
+                {% if current_user.role == 'ADMIN' %}
+                <a href="{{ url_for('admin.index') }}"
+                    class="nav-link {{ 'active' if request.endpoint and 'admin' in request.endpoint }}">Admin</a>
+                {% endif %}
+
+                {% if current_user.role == 'MANAGER' %}
+                <a href="{{ url_for('manager.dashboard_manager') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'manager.dashboard_manager' }}">Visão Geral</a>
+                {% endif %}
+
+                {% if current_user.role == 'CONSULTANT' %}
+                <a href="{{ url_for('dashboard_consultant') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'dashboard_consultant' }}">Minhas Vistorias</a>
+                {% endif %}
+                {% endif %}
+            </div>
+
+            <div class="user-menu">
+                {% if current_user.is_authenticated %}
+                <div class="user-info">
+                    <div class="user-name">{{ current_user.name or current_user.email.split('@')[0] }}</div>
+                    <div class="user-role">
+                        {% if current_user.role == 'ADMIN' %}Administrador
+                        {% elif current_user.role == 'MANAGER' %}Gestor
+                        {% else %}Consultor{% endif %}
+                    </div>
+                </div>
+                <div class="user-avatar">
+                    {{ (current_user.name or current_user.email)[0].upper() }}
+                </div>
+                <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Sair">
+                    <i class="ph-bold ph-sign-out" style="font-size: 1.5rem;"></i>
+                </a>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="btn btn-primary"
+                    style="padding: 0.5rem 1.5rem; border-radius: 12px; font-weight: 600;">Entrar</a>
+                {% endif %}
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Flash Messages -->
+            <!-- Flash Messages (Floating Toasts) -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div id="toast-container">
+                {% for category, message in messages %}
+                <div
+                    class="alert-card shadow-lg toast-{{ category if category in ['success', 'warning', 'error'] else 'info' }}">
+                    <i
+                        class="ph-fill {{ 'ph-check-circle' if category == 'success' else 'ph-warning-circle' if category == 'error' or category == 'warning' else 'ph-info' }}"></i>
+                    <div style="flex-grow: 1;">
+                        <span class="toast-title">
+                            {{ 'Sucesso!' if category == 'success' else 'Atenção' if category == 'warning' else 'Erro'
+                            if category == 'error' else 'Informação' }}
+                        </span>
+                        <span class="toast-message">{{ message }}</span>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="toast-close"><i
+                            class="ph-bold ph-x"></i></button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <script>
+                // Auto-dismiss toasts after 8 seconds
+                setTimeout(() => {
+                    const toasts = document.querySelectorAll('.alert-card');
+                    toasts.forEach(t => {
+                        t.style.opacity = '0';
+                        t.style.transform = 'translateX(100%)';
+                        setTimeout(() => t.remove(), 500);
+                    });
+                }, 8000);
+            </script>
+
+            <style>
+                #toast-container {
+                    position: fixed;
+                    top: 1rem;
+                    right: 1rem;
+                    z-index: 9999;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                    max-width: 400px;
+                    width: 90%;
+                }
+
+                .alert-card {
+                    padding: 1rem;
+                    background: white;
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: start;
+                    gap: 1rem;
+                    border-left: 5px solid var(--accent-color);
+                    /* Default */
+                    animation: slideIn 0.3s ease-out;
+                    transition: all 0.5s ease;
+                }
+
+                .alert-card i {
+                    font-size: 1.5rem;
+                    flex-shrink: 0;
+                    color: var(--accent-color);
+                }
+
+                /* Variants */
+                .toast-success {
+                    border-left-color: var(--success-color);
+                }
+
+                .toast-success i {
+                    color: var(--success-color);
+                }
+
+                .toast-warning {
+                    border-left-color: #f59e0b;
+                }
+
+                /* Warning color hardcoded or var */
+                .toast-warning i {
+                    color: #f59e0b;
+                }
+
+                .toast-error {
+                    border-left-color: var(--danger-color);
+                }
+
+                .toast-error i {
+                    color: var(--danger-color);
+                }
+
+                .toast-info {
+                    border-left-color: var(--accent-color);
+                }
+
+                .toast-info i {
+                    color: var(--accent-color);
+                }
+
+                .toast-title {
+                    font-weight: 600;
+                    display: block;
+                    margin-bottom: 0.25rem;
+                    color: var(--text-primary);
+                }
+
+                .toast-message {
+                    font-size: 0.9rem;
+                    color: var(--text-secondary);
+                    line-height: 1.4;
+                }
+
+                .toast-close {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    color: var(--text-light);
+                    padding: 0;
+                }
+
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+
+                .shadow-lg {
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                }
+            </style>
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer
+            style="text-align: center; padding: 2rem; color: var(--text-light); font-size: 0.85rem; border-top: 1px solid var(--border-color); background: white;">
+            &copy; 2025 Inspeção Sanitária AI. Todos os direitos reservados.
+        </footer>
+    </div>
+
+    {% block scripts %}{% endblock %}
+    <!-- Driver.js for Product Tours -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+
+    <script>
+        // Common Tour Logic
+        function startTour(steps, tourKey) {
+            const hasSeenTour = localStorage.getItem(tourKey);
+            if (!hasSeenTour) {
+                const driver = window.driver.js.driver;
+                const tour = driver({
+                    showProgress: true,
+                    steps: steps,
+                    onDestroyed: () => {
+                        localStorage.setItem(tourKey, 'true');
+                    }
+                });
+                tour.drive();
+            }
+        }
+    </script>
+</body>
+
+</html>

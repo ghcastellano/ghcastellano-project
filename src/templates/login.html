@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Inspeção Sanitária</title>
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 h-screen flex overflow-hidden">
+
+    <!-- Left Side: Image/Brand -->
+    <div class="hidden lg:flex lg:w-1/2 bg-slate-900 relative items-center justify-center overflow-hidden">
+        <div class="absolute inset-0 z-0">
+            <!-- Placeholder Modern Abstract or Office Image -->
+            <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2000&auto=format&fit=crop"
+                alt="Background" class="w-full h-full object-cover opacity-40 mix-blend-overlay">
+        </div>
+        <div class="relative z-10 text-white p-12 max-w-xl">
+            <h1 class="text-5xl font-bold mb-6 tracking-tight">Qualidade e Segurança.</h1>
+            <p class="text-xl text-slate-300 font-light leading-relaxed">
+                Plataforma de gestão inteligente para inspeções sanitárias. Automatize planos de ação e garanta a
+                conformidade com eficiência.
+            </p>
+        </div>
+    </div>
+
+    <!-- Right Side: Login Form -->
+    <div class="w-full lg:w-1/2 flex items-center justify-center p-8 animated fade-in">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-10">
+            <div class="mb-8 text-center">
+                <!-- Icon/Logo -->
+                <div
+                    class="w-12 h-12 bg-blue-600 rounded-lg mx-auto flex items-center justify-center mb-4 shadow-lg shadow-blue-600/30">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-semibold text-slate-900">Bem-vindo de volta</h2>
+                <p class="text-slate-500 mt-2 text-sm">Acesse sua conta para continuar</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for category, message in messages %}
+                <div class="p-3 rounded-lg text-sm font-medium 
+                        {% if category == 'error' %} bg-red-50 text-red-600 border border-red-100 
+                        {% else %} bg-blue-50 text-blue-600 border border-blue-100 {% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-5">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <input type="email" name="email" id="email" required placeholder="seu@email.com"
+                        class="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-slate-400">
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+                    <input type="password" name="password" id="password" required placeholder="••••••••"
+                        class="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-slate-400">
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" name="remember"
+                            class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                        <span class="text-sm text-slate-600">Lembrar de mim</span>
+                    </label>
+                    <a href="#" class="text-sm font-medium text-blue-600 hover:text-blue-500">Esqueceu a senha?</a>
+                </div>
+
+                <button type="submit"
+                    class="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg shadow-lg shadow-slate-900/20 transform transition-all active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900">
+                    Entrar
+                </button>
+            </form>
+
+            <p class="mt-8 text-center text-sm text-slate-500">
+                Não tem uma conta? <a href="#" class="font-medium text-blue-600 hover:text-blue-500">Fale com o
+                    admin</a>
+            </p>
+        </div>
+    </div>
+
+</body>
+
+</html>

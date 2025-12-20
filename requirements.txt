@@ -1,0 +1,17 @@
+openai
+pypdf
+google-api-python-client
+weasyprint==60.1
+uvicorn
+structlog
+python-dotenv
+sqlalchemy>=2.0.0
+psycopg2-binary
+flask
+tomli
+gunicorn
+flask-login
+flask-wtf
+boto3
+google-cloud-tasks
+google-auth

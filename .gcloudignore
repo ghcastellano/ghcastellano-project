@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Tool generated / Logs
+data/
+*.log
+01_ENTRADA_RELATORIOS/
+02_PLANOS_GERADOS/
+03_PROCESSADOS_BACKUP/
+99_ERROS/
+
+# OS
+.DS_Store
+
+# Git
+.git
+.gitignore
+.github/
+local_secrets.txt
+src/secrets.sh

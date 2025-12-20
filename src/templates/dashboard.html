@@ -1,0 +1,421 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
+
+    <!-- Only Consultants can upload -->
+    {% if user_role == 'CONSULTANT' %}
+    <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
+        <h2 class="section-title">✨ Novo Relatório</h2>
+
+        <!-- Upload Section -->
+        <div id="dropZone" class="glass-panel text-center p-8 active-zone mb-6">
+            <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div
+                    class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 hover:bg-gray-50 transition">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
+                    <h3 style="margin: 0; font-weight: 500; color: #334155;">Arraste seu PDF aqui</h3>
+                    <p style="color: #64748b; margin: 0.5rem 0 1.5rem;">ou clique para selecionar do computador</p>
+
+                    <input type="file" name="file" id="fileInput" accept=".pdf" style="display: none;">
+                    <button type="button" class="btn btn-primary"
+                        onclick="document.getElementById('fileInput').click()">
+                        Selecionar Arquivo
+                    </button>
+
+                    <!-- Preview Area -->
+                    <div id="filePreview" class="file-preview" style="display: none; margin-top: 1.5rem;">
+                        <span style="font-size: 1.5rem;">📎</span>
+                        <span id="fileName" style="font-weight: 500; color: #334155;">nome_do_arquivo.pdf</span>
+                        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                            Enviar Agora
+                        </button>
+                    </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <div class="glass-panel" style="margin-bottom: 2rem; padding: 2rem; text-align: center;">
+        <h2 style="color: var(--primary-dark); margin-bottom: 1rem;">🗂️ Gestão de Relatórios</h2>
+        <div
+            style="display: flex; gap: 1rem; justify-content: center; max-width: 600px; margin: 0 auto; flex-wrap: wrap;">
+
+            <!-- Barra de Busca -->
+            <div style="flex: 1; min-width: 250px; position: relative;">
+                <input type="text" id="searchInput" placeholder="Buscar estabelecimento..."
+                    style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 1rem;"
+                    oninput="filterItems(this.value)">
+                <span
+                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8;">🔍</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Entrada / Pendente -->
+        <div class="glass-panel" style="flex: 1; padding: 1.5rem;">
+            <h3 style="margin-top: 0; color: #475569; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                <span style="background: #f1f5f9; padding: 4px; border-radius: 6px;">⏳</span>
+                Na Fila (Entrada)
+            </h3>
+            <ul id="list-pending" class="file-list" style="margin-top: 1rem;">
+                <li class="file-item"
+                    style="color: #64748b; font-style: italic; display: flex; align-items: center; gap: 10px;">
+                    <div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+                    Iniciando sistema...
+                </li>
+            </ul>
+        </div>
+
+        <div class="glass-panel" style="flex: 2; padding: 1.5rem;">
+            <h3 style="margin-top: 0; color: #166534; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                <span style="background: #dcfce7; padding: 4px; border-radius: 6px;">✅</span>
+                Planos Gerados
+            </h3>
+            <!-- Flash Messages (Toasts) -->
+            <div
+                style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px;">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="toast animate-slide-in" onclick="this.remove()" style="
+                background: {% if category == 'error' %}#fef2f2{% else %}#f0fdf4{% endif %};
+                border-left: 4px solid {% if category == 'error' %}#ef4444{% else %}#22c55e{% endif %};
+                color: {% if category == 'error' %}#991b1b{% else %}#166534{% endif %};
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                cursor: pointer;
+                transition: opacity 0.3s;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                min-width: 300px;
+            ">
+                    <span>{% if category == 'error' %}⚠️{% else %}✅{% endif %}</span>
+                    {{ message }}
+                </div>
+                {% endfor %}
+
+                <script>
+                    // Auto-dismiss notification after 5 seconds
+                    setTimeout(() => {
+                        const toasts = document.querySelectorAll('.toast');
+                        toasts.forEach(t => {
+                            t.style.opacity = '0';
+                            setTimeout(() => t.remove(), 300);
+                        });
+                    }, 5000);
+                </script>
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Animation CSS (inline for quick fix, move to .css later) -->
+            <style>
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+
+                .animate-slide-in {
+                    animation: slideIn 0.4s ease-out forwards;
+                }
+            </style>
+
+            <div id="list-processed-container" style="display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Groups injected by JS -->
+                <div class="text-muted">Carregando...</div>
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    {% block scripts %}
+    <script>
+        // GLOBAL ERROR HANDLER
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            const container = document.getElementById('list-processed-container');
+            if (container) {
+                container.innerHTML = `
+                    <div style="color: red; padding: 20px; border: 1px solid red; background: #fee;">
+                        <strong>Erro Crítico de JS:</strong><br>
+                        ${msg}<br>
+                        Line: ${lineNo}
+                    </div>
+                `;
+            }
+            return false;
+        };
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const filePreview = document.getElementById('filePreview');
+        const fileName = document.getElementById('fileName');
+
+        // Cache de detalhes para evitar re-fetch
+        const detailsCache = new Map();
+
+        try {
+            // Drag & Drop interactions
+            if (dropZone) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, preventDefaults, false);
+                });
+
+                function preventDefaults(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+
+                dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+                dropZone.addEventListener('drop', handleDrop);
+                fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+            }
+        } catch (e) {
+            console.error("Setup error", e);
+        }
+
+        function handleDrop(e) {
+            dropZone.classList.remove('dragover');
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files; // Sync with input
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type === 'application/pdf') {
+                    fileName.textContent = file.name;
+                    filePreview.style.display = 'flex';
+                } else {
+                    alert('Apenas arquivos PDF são permitidos!');
+                }
+            }
+        }
+
+        // Polling for file lists
+        async function updateLists() {
+            // Timeout de 10 segundos para não travar a UI
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Timeout")), 8000)
+            );
+
+            try {
+                // Add explicit cache busting timestamp
+                const response = await Promise.race([
+                    fetch('/api/status?v=' + new Date().getTime()),
+                    timeoutPromise
+                ]);
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+
+                renderPendingList('list-pending', data.pending);
+
+                const container = document.getElementById('list-processed-container');
+                if (data.processed_raw && data.processed_raw.length > 0) {
+                    // Agrupa por estabelecimento
+                    const groupedData = {};
+                    data.processed_raw.forEach(item => {
+                        const estab = item.establishment || 'Outros';
+                        if (!groupedData[estab]) groupedData[estab] = [];
+                        groupedData[estab].push(item);
+                    });
+                    renderProcessedGroups('list-processed-container', groupedData);
+                } else {
+                    // Empty State Bonito
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: #64748b;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;">📭</div>
+                            <h4 style="margin: 0; font-weight: 500;">Nenhum relatório pronto</h4>
+                            <p style="font-size: 0.9rem; margin-top: 5px;">Os planos gerados aparecerão aqui automaticamente.</p>
+                        </div>
+                     `;
+                }
+
+            } catch (e) {
+                console.error("Failed to fetch status", e);
+                // Mostrar erro na UI para não ficar "Carregando..." para sempre
+                document.getElementById('list-pending').innerHTML = `
+                    <div style="text-align: center; padding: 1.5rem; color: #ef4444;">
+                        <span style="font-size: 1.5rem; display: block; margin-bottom: 5px;">⚠️</span>
+                        <span style="font-style: italic; font-size: 0.9rem;">Erro ao carregar fila.</span>
+                    </div>
+                `;
+                document.getElementById('list-processed-container').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #ef4444;">
+                        <span style="font-size: 2rem; display: block; margin-bottom: 10px;">🚨</span>
+                        ⚠️ Erro ao carregar dados. Tente atualizar a página.
+                    </div>
+                `;
+            }
+        }
+
+        // Função processRawList removida pois não é mais necessária com a otimização do backend
+
+        function renderPendingList(elementId, items) {
+            const list = document.getElementById(elementId);
+            list.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                list.innerHTML = `
+                    <div style="text-align: center; padding: 1.5rem; color: #94a3b8;">
+                        <span style="font-size: 1.5rem; display: block; margin-bottom: 5px; opacity: 0.5;">💤</span>
+                        <span style="font-style: italic; font-size: 0.9rem;">Fila de processamento vazia</span>
+                    </div>
+                `;
+                return;
+            }
+
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'file-item';
+                li.style.display = 'flex';
+                li.style.alignItems = 'center';
+                li.style.gap = '10px';
+                li.innerHTML = `
+                <div style="background: #f1f5f9; padding: 8px; border-radius: 8px;">📄</div>
+                <div style="flex: 1; overflow: hidden; text-overflow: ellipsis;">
+                    <span style="font-weight: 500; display: block; color: #334155;">${item.name}</span>
+                    <span style="font-size: 0.75rem; color: #64748b;">Processando...</span>
+                </div>
+                <div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+            `;
+                list.appendChild(li);
+            });
+        }
+
+        function renderProcessedGroups(containerId, groupedData) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            const establishments = Object.keys(groupedData).sort(); // Ordena alfabeticamente
+
+            if (establishments.length === 0) {
+                container.innerHTML = '<div class="text-muted" style="text-align: center; padding: 2rem;">Nenhum plano gerado ainda.</div>';
+                return;
+            }
+
+            establishments.forEach(estab => {
+                const group = document.createElement('div');
+                group.className = 'establishment-group glass-panel';
+                group.style.boxShadow = 'none';
+                group.style.border = '1px solid rgba(255,255,255,0.4)';
+                group.style.background = 'rgba(255,255,255,0.3)';
+                group.style.padding = '1rem';
+
+                const header = document.createElement('h4');
+                header.style.margin = '0 0 1rem 0';
+                header.style.color = 'var(--primary-dark)';
+                header.textContent = `🏢 ${estab}`;
+
+                const list = document.createElement('ul');
+                list.className = 'file-list';
+
+                // Ordena itens por data ou nome se possível
+                const items = groupedData[estab];
+
+                items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'file-item';
+                    li.style.display = 'flex';
+                    li.style.justifyContent = 'space-between';
+                    li.style.alignItems = 'center';
+
+                    li.innerHTML = `
+                    <div>
+                        <span style="font-weight: 600; color: #1e293b; display: block;">${item.name}</span>
+                        <span style="font-size: 0.8rem; color: #64748b;">📅 ${item.date || 'Data N/A'}</span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="${item.pdf_link}" target="_blank" class="btn" style="background: #e2e8f0; color: #334155; font-size: 0.85rem;">👁️ PDF</a>
+                        <a href="${item.review_link}" class="btn btn-primary" style="font-size: 0.85rem;">✏️ Revisar</a>
+                    </div>
+                 `;
+                    list.appendChild(li);
+                });
+
+                group.appendChild(header);
+                group.appendChild(list);
+                container.appendChild(group);
+            });
+        }
+
+        // Filter Logic
+        function filterItems(query) {
+            query = query.toLowerCase();
+            const container = document.getElementById('list-processed-container');
+            const groups = container.getElementsByClassName('establishment-group');
+
+            let hasVisible = false;
+
+            Array.from(groups).forEach(group => {
+                const header = group.querySelector('h4').textContent.toLowerCase();
+                const items = group.querySelectorAll('li.file-item');
+
+                let groupVisible = false;
+
+                // Check if Group Title matches
+                if (header.includes(query)) {
+                    groupVisible = true;
+                    items.forEach(item => item.style.display = 'flex'); // Show all children
+                } else {
+                    // Check children items
+                    items.forEach(item => {
+                        const text = item.textContent.toLowerCase();
+                        if (text.includes(query)) {
+                            item.style.display = 'flex';
+                            groupVisible = true;
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                }
+
+                if (groupVisible) {
+                    group.style.display = 'block';
+                    hasVisible = true;
+                } else {
+                    group.style.display = 'none';
+                }
+            });
+
+            // Show empty state if nothing found
+            // Use a persistent element or create one
+            let emptyMsg = document.getElementById('empty-search-msg');
+            if (!hasVisible && query.length > 0) {
+                if (!emptyMsg) {
+                    emptyMsg = document.createElement('div');
+                    emptyMsg.id = 'empty-search-msg';
+                    emptyMsg.className = 'text-center text-muted';
+                    emptyMsg.style.padding = '2rem';
+                    emptyMsg.textContent = 'Nenhum estabelecimento encontrado.';
+                    container.appendChild(emptyMsg);
+                } else {
+                    emptyMsg.style.display = 'block';
+                }
+            } else if (emptyMsg) {
+                emptyMsg.style.display = 'none';
+            }
+        }
+
+        // Initial load and periodic update
+        updateLists();
+        setInterval(updateLists, 10000); // 10s is enough for Drive poll
+    </script>
+    {% endblock %}
