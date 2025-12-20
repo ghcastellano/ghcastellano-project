@@ -22,8 +22,8 @@ logger = logging.getLogger("mvp-app")
 
 def normalize_database_url(database_url: Optional[str]) -> Optional[str]:
     """
-    Normaliza a URL do banco para provedores que exigem SSL (ex.: Supabase).
-    - Se for Postgres em `*.supabase.co` e não tiver `sslmode`, injeta `sslmode=require`.
+    Normaliza a URL do banco.
+    - Se for Postgres, garante que sslmode=require esteja presente.
     """
     if not database_url:
         return None
@@ -34,16 +34,15 @@ def normalize_database_url(database_url: Optional[str]) -> Optional[str]:
         # Mantém a URL como está se não for parseável pelo SQLAlchemy
         return database_url
 
-    host = (url.host or "").lower()
-    # Supabase pode aparecer como `*.supabase.co` (db) ou `*.supabase.com` (pooler)
-    if url.drivername.startswith("postgresql") and (host.endswith("supabase.co") or host.endswith("supabase.com")):
-        if "sslmode" not in url.query:
-            url = url.set(query={**url.query, "sslmode": "require"})
+    # Garante SSL mode require se não estiver presente (boas práticas nuvem)
+    if url.drivername.startswith("postgresql") and "sslmode" not in url.query:
+        url = url.set(query={**url.query, "sslmode": "require"})
+            
     return url.render_as_string(hide_password=False)
 
 def init_db():
     global engine, db_session, SessionLocal
-    # Restore normalization to ensure sslmode=require for Supabase
+    # Restore normalization
     database_url = normalize_database_url(config.DATABASE_URL)
     # database_url = config.DATABASE_URL
     print(f"DEBUG: RAW CONFIG URL: '{config.DATABASE_URL}'")
@@ -54,8 +53,7 @@ def init_db():
             masked_url = database_url.split("@")[-1] if "@" in database_url else "configured"
             logger.info(f"🔌 Tentando conectar ao banco: {masked_url}")
             
-            # Defaults conservadores (especialmente para Supabase Free + Cloud Run),
-            # evitando estouro de conexões em cenários serverless.
+            # Defaults conservadores para evitar estouro de conexões em cenários serverless.
             pool_size = int(os.getenv("DB_POOL_SIZE", "2"))
             max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "3"))
             pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
