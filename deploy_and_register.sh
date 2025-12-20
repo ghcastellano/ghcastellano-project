@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Configuration
 SERVICE_NAME="mvp-web"
-REGION="us-central1"
-PROJECT_ID="projeto-poc-ap"
+REGION="${GCP_LOCATION:-us-central1}"
+PROJECT_ID="${GCP_PROJECT_ID:-projeto-poc-ap}"
 IMAGE="gcr.io/projeto-poc-ap/mvp-web"
 PUBLIC_URL="${APP_PUBLIC_URL:-https://mvp-web-aojigo3nta-uc.a.run.app}"
 # WEBHOOK_SECRET: Used for Drive notifications. In Prod, use Secret Manager.
@@ -301,6 +301,12 @@ audit_secret "FOLDER_ID_02_PLANOS_GERADOS"
 audit_secret "FOLDER_ID_03_PROCESSADOS_BACKUP"
 audit_secret "FOLDER_ID_99_ERROS"
 audit_secret "DRIVE_WEBHOOK_TOKEN"
+audit_secret "WHATSAPP_PHONE_ID"
+audit_secret "WHATSAPP_DESTINATION_PHONE"
+audit_secret "APP_PUBLIC_URL"
+audit_secret "GCP_PROJECT_ID"
+audit_secret "GCP_LOCATION"
+audit_secret "AWS_SES_SENDER"
 # --------------------------------------------------------------------------------
 
 # Add AWS Secrets to Deploy List if they exist
