@@ -223,6 +223,33 @@ if [ -n "${GCP_SA_KEY:-}" ]; then
   echo "$GCP_SA_KEY" | gcloud secrets versions add "GCP_SA_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
   echo "✅ Secret GCP_SA_KEY atualizado com sucesso."
   SECRETS_LIST="${SECRETS_LIST},GCP_SA_KEY=GCP_SA_KEY:latest"
+  SECRETS_LIST="${SECRETS_LIST},GCP_SA_KEY=GCP_SA_KEY:latest"
+fi
+
+# SYNC AWS SECRETS: AWS_ACCESS_KEY_ID
+if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
+  if ! gcloud secrets describe "AWS_ACCESS_KEY_ID" --project "$PROJECT_ID" >/dev/null 2>&1; then
+     gcloud secrets create "AWS_ACCESS_KEY_ID" --replication-policy=automatic --project "$PROJECT_ID"
+  fi
+  printf "%s" "$AWS_ACCESS_KEY_ID" | gcloud secrets versions add "AWS_ACCESS_KEY_ID" --data-file=- --project "$PROJECT_ID" >/dev/null
+  echo "✅ Secret AWS_ACCESS_KEY_ID sincronizado."
+fi
+
+# SYNC AWS SECRETS: AWS_SECRET_ACCESS_KEY
+if [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+  if ! gcloud secrets describe "AWS_SECRET_ACCESS_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
+     gcloud secrets create "AWS_SECRET_ACCESS_KEY" --replication-policy=automatic --project "$PROJECT_ID"
+  fi
+  printf "%s" "$AWS_SECRET_ACCESS_KEY" | gcloud secrets versions add "AWS_SECRET_ACCESS_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
+  echo "✅ Secret AWS_SECRET_ACCESS_KEY sincronizado."
+fi
+
+# Add AWS Secrets to Deploy List if they exist
+if gcloud secrets describe "AWS_ACCESS_KEY_ID" --project "$PROJECT_ID" >/dev/null 2>&1; then
+  SECRETS_LIST="${SECRETS_LIST},AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID:latest"
+fi
+if gcloud secrets describe "AWS_SECRET_ACCESS_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
+  SECRETS_LIST="${SECRETS_LIST},AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY:latest"
 fi
 
 # Deploy Consolidado (Evita sobrescrever variáveis entre comandos)

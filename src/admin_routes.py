@@ -146,11 +146,11 @@ def create_manager():
             flash('Email já cadastrado.', 'error')
             return redirect(url_for('admin.index'))
             
-        # Generate Strong Password
-        import secrets
-        import string
-        alphabet = string.ascii_letters + string.digits + "!@#$%&"
-        initial_password = ''.join(secrets.choice(alphabet) for i in range(12)) # 12 chars strong
+        if not initial_password or initial_password == '123456':
+            import secrets
+            import string
+            alphabet = string.ascii_letters + string.digits + "!@#$%&"
+            initial_password = ''.join(secrets.choice(alphabet) for i in range(12)) # 12 chars strong
             
         hashed = generate_password_hash(initial_password)
         user = User(
