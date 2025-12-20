@@ -252,6 +252,13 @@ if gcloud secrets describe "AWS_SECRET_ACCESS_KEY" --project "$PROJECT_ID" >/dev
   SECRETS_LIST="${SECRETS_LIST},AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY:latest"
 fi
 
+# ADD AWS_SES_SENDER (Optional)
+if [ -n "${AWS_SES_SENDER:-}" ]; then
+  # Passar como Env Var direta é mais simples, já que não é secreto (é um email)
+  # Mas para consistência, podemos passar via --set-env-vars no comando final
+  echo "📧 Configurando Remetente de Email: $AWS_SES_SENDER"
+fi
+
 # Deploy Consolidado (Evita sobrescrever variáveis entre comandos)
 echo "🚀 Executando deploy consolidado..."
 gcloud run deploy $SERVICE_NAME \
@@ -269,6 +276,7 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars "FOLDER_ID_99_ERROS=${FOLDER_ID_99_ERROS:?Faltando Env Var FOLDER_ID_99}" \
   --set-env-vars "GCP_PROJECT_ID=$PROJECT_ID" \
   --set-env-vars "GCP_LOCATION=$REGION" \
+  --set-env-vars "AWS_SES_SENDER=${AWS_SES_SENDER:-noreply@inspetorai.com}" \
   --set-secrets "$SECRETS_LIST"
 
 echo "✅ Deploy concluído com sucesso."
