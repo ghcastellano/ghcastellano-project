@@ -368,19 +368,24 @@ fi
 
 # Deploy Consolidado (Evita sobrescrever variáveis entre comandos)
 echo "🚀 Executando deploy consolidado..."
-gcloud run deploy $SERVICE_NAME \
+  --set-secrets "$SECRETS_LIST"
+
+echo "✅ Deploy do serviço web concluído."
+
+echo "🚀 Executando deploy do WORKER (mvp-worker)..."
+gcloud run deploy mvp-worker \
   --image $IMAGE \
   --region $REGION \
   --project $PROJECT_ID \
   --max-instances 2 \
-  --concurrency 20 \
+  --concurrency 10 \
   --set-env-vars "APP_PUBLIC_URL=$PUBLIC_URL" \
   --set-env-vars "DRIVE_WEBHOOK_TOKEN=$WEBHOOK_SECRET" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
-  --set-env-vars "FOLDER_ID_01_ENTRADA_RELATORIOS=${FOLDER_ID_01_ENTRADA_RELATORIOS:?Faltando Env Var FOLDER_ID_01}" \
-  --set-env-vars "FOLDER_ID_02_PLANOS_GERADOS=${FOLDER_ID_02_PLANOS_GERADOS:?Faltando Env Var FOLDER_ID_02}" \
-  --set-env-vars "FOLDER_ID_03_PROCESSADOS_BACKUP=${FOLDER_ID_03_PROCESSADOS_BACKUP:?Faltando Env Var FOLDER_ID_03}" \
-  --set-env-vars "FOLDER_ID_99_ERROS=${FOLDER_ID_99_ERROS:?Faltando Env Var FOLDER_ID_99}" \
+  --set-env-vars "FOLDER_ID_01_ENTRADA_RELATORIOS=${FOLDER_ID_01_ENTRADA_RELATORIOS}" \
+  --set-env-vars "FOLDER_ID_02_PLANOS_GERADOS=${FOLDER_ID_02_PLANOS_GERADOS}" \
+  --set-env-vars "FOLDER_ID_03_PROCESSADOS_BACKUP=${FOLDER_ID_03_PROCESSADOS_BACKUP}" \
+  --set-env-vars "FOLDER_ID_99_ERROS=${FOLDER_ID_99_ERROS}" \
   --set-env-vars "GCP_PROJECT_ID=$PROJECT_ID" \
   --set-env-vars "GCP_LOCATION=$REGION" \
   --set-env-vars "AWS_SES_SENDER=${AWS_SES_SENDER:-noreply@inspetorai.com}" \
@@ -388,7 +393,7 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars "WHATSAPP_DESTINATION_PHONE=${WHATSAPP_DESTINATION_PHONE:-}" \
   --set-secrets "$SECRETS_LIST"
 
-echo "✅ Deploy concluído com sucesso."
+echo "✅ Deploy do worker concluído com sucesso."
 
 # --------------------------------------------------------------------------------
 # Pós-processamento (Opcional: Registro de Webhook)
