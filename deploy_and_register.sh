@@ -195,7 +195,7 @@ fi
 # Deploy and set environment variables
 # Nota: preferimos manter segredos via Secret Manager (mais seguro que env var em texto).
 # Determina segredos opcionais para incluir no deploy consolidado
-SECRETS_LIST="DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest"
+SECRETS_LIST="DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest"
 
 if gcloud secrets describe "WHATSAPP_TOKEN" --project "$PROJECT_ID" >/dev/null 2>&1; then
   SECRETS_LIST="${SECRETS_LIST},WHATSAPP_TOKEN=WHATSAPP_TOKEN:latest"
@@ -214,6 +214,24 @@ if [ -n "${DATABASE_URL:-}" ]; then
   fi
   printf "%s" "$DATABASE_URL" | gcloud secrets versions add "DATABASE_URL" --data-file=- --project "$PROJECT_ID" >/dev/null
   echo "✅ Secret DATABASE_URL sincronizado do GitHub para Secret Manager."
+fi
+
+# SYNC OPENAI_API_KEY
+if [ -n "${OPENAI_API_KEY:-}" ]; then
+  if ! gcloud secrets describe "OPENAI_API_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
+     gcloud secrets create "OPENAI_API_KEY" --replication-policy=automatic --project "$PROJECT_ID"
+  fi
+  printf "%s" "$OPENAI_API_KEY" | gcloud secrets versions add "OPENAI_API_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
+  echo "✅ Secret OPENAI_API_KEY sincronizado do GitHub para Secret Manager."
+fi
+
+# SYNC SECRET_KEY
+if [ -n "${SECRET_KEY:-}" ]; then
+  if ! gcloud secrets describe "SECRET_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
+     gcloud secrets create "SECRET_KEY" --replication-policy=automatic --project "$PROJECT_ID"
+  fi
+  printf "%s" "$SECRET_KEY" | gcloud secrets versions add "SECRET_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
+  echo "✅ Secret SECRET_KEY sincronizado do GitHub para Secret Manager."
 fi
 
 if [ -n "${GCP_SA_KEY:-}" ]; then
