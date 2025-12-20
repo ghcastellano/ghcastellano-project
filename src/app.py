@@ -127,10 +127,10 @@ except Exception as e:
 # Inicializa Serviços
 # Drive Service
 # 1le3240234 is the default placeholder if env var is missing
-FOLDER_IN = config.FOLDER_IN
-FOLDER_OUT = config.FOLDER_OUT
-FOLDER_BACKUP = config.FOLDER_BACKUP
-FOLDER_ERROR = config.FOLDER_ERROR
+FOLDER_IN = config.FOLDER_ID_01_ENTRADA_RELATORIOS
+FOLDER_OUT = config.FOLDER_ID_02_PLANOS_GERADOS
+FOLDER_BACKUP = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+FOLDER_ERROR = config.FOLDER_ID_99_ERROS
 
 @app.errorhandler(500)
 def handle_500(e):
@@ -711,7 +711,7 @@ def renew_webhook():
         from src.services.drive_service import drive_service
         import uuid
         
-        folder_id = config.FOLDER_IN
+        folder_id = config.FOLDER_ID_01_ENTRADA_RELATORIOS
         # Tenta descobrir a própria URL pública (difícil em serverless sem config)
         # Vamos usar uma env var APP_URL or pass it via request
         callback_url = os.getenv("APP_PUBLIC_URL") 
