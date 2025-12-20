@@ -21,12 +21,21 @@ class DriveService:
 
     def _authenticate(self):
         try:
+            # 1. Tenta carregar do arquivo local (Dev)
             if os.path.exists(self.credentials_file):
                 logger.info(f"🔑 Autenticando usando arquivo: {self.credentials_file}")
                 self.creds = Credentials.from_service_account_file(
                     self.credentials_file, scopes=self.scopes)
+            
+            # 2. Tenta carregar da Env Var GCP_SA_KEY (Prod / GitHub Actions)
+            elif os.getenv('GCP_SA_KEY'):
+                logger.info("🔑 Autenticando usando JSON em Env Var (GCP_SA_KEY)...")
+                info = json.loads(os.getenv('GCP_SA_KEY'))
+                self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
+                
+            # 3. Fallback para Default Credentials (Cloud Run Identity)
             else:
-                logger.info("☁️ Arquivo de credenciais não encontrado. Usando Default Credentials (ADC)...")
+                logger.info("☁️ Usando Default Credentials (ADC/Cloud Run Identity)...")
                 self.creds, _ = google.auth.default(scopes=self.scopes)
             
             # --- IMPERSONATION FIX FOR STORAGE QUOTA ---
@@ -35,7 +44,7 @@ class DriveService:
                 logger.info(f"🕶️ Impersonating user: {impersonate_email}")
                 self.creds = self.creds.with_subject(impersonate_email)
             elif impersonate_email:
-                logger.warning("⚠️ Impersonation requested but credentials do not support with_subject (Standard ADC).")
+                logger.warning("⚠️ Impersonation requested but credentials do not support with_subject.")
             # -------------------------------------------
 
             self.service = build('drive', 'v3', credentials=self.creds)

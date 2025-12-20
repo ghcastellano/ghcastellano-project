@@ -14,7 +14,9 @@ secrets.sh
 !.env.example
 *.key
 *.pem
+*.pem
 service-account-*.json
+deploy_keys/
 
 # Google Cloud
 client_secret.json

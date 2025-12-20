@@ -327,8 +327,10 @@ def update_manager(user_id):
             
         user.name = name
         user.email = email
-        if company_id:
+        if company_id and company_id.strip():
             user.company_id = uuid.UUID(company_id)
+        else:
+            user.company_id = None # Permite desvincular empresa (Super Admin)
             
         if password and len(password.strip()) > 0:
             user.password_hash = generate_password_hash(password)
