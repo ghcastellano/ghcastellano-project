@@ -206,6 +206,17 @@ if gcloud secrets describe "GOOGLE_DRIVE_IMPERSONATE_EMAIL" --project "$PROJECT_
   SECRETS_LIST="${SECRETS_LIST},GOOGLE_DRIVE_IMPERSONATE_EMAIL=GOOGLE_DRIVE_IMPERSONATE_EMAIL:latest"
 fi
 
+if [ -n "${GCP_SA_KEY:-}" ]; then
+  # Se GCP_SA_KEY foi passada (via CI), salve no Secret Manager para evitar problemas de parsing no deploy
+  # e para garantir segurança.
+  if ! gcloud secrets describe "GCP_SA_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
+     gcloud secrets create "GCP_SA_KEY" --replication-policy=automatic --project "$PROJECT_ID"
+  fi
+  echo "$GCP_SA_KEY" | gcloud secrets versions add "GCP_SA_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
+  echo "✅ Secret GCP_SA_KEY atualizado com sucesso."
+  SECRETS_LIST="${SECRETS_LIST},GCP_SA_KEY=GCP_SA_KEY:latest"
+fi
+
 # Deploy Consolidado (Evita sobrescrever variáveis entre comandos)
 echo "🚀 Executando deploy consolidado..."
 gcloud run deploy $SERVICE_NAME \
@@ -223,7 +234,6 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars "FOLDER_ID_99_ERROS=${FOLDER_ID_99_ERROS:?Faltando Env Var FOLDER_ID_99}" \
   --set-env-vars "GCP_PROJECT_ID=$PROJECT_ID" \
   --set-env-vars "GCP_LOCATION=$REGION" \
-  --set-env-vars "GCP_SA_KEY=${GCP_SA_KEY:-}" \
   --set-secrets "$SECRETS_LIST"
 
 echo "✅ Deploy concluído com sucesso."
