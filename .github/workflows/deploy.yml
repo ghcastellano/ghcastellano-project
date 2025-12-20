@@ -11,9 +11,34 @@ env:
   SERVICE_NAME: mvp-web
 
 jobs:
-  deploy:
-    name: Build & Deploy to Cloud Run
+  verify:
+    name: 🛡️ Verify & Test
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run Sanity Check
+        run: python scripts/sanity_check.py
+        env:
+          # Mock env vars needed for imports to work
+          SECRET_KEY: "mock-key-for-test"
+
+  deploy:
+    name: 🚀 Build & Deploy
+    needs: verify
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     
     steps:
       - name: Checkout Code
@@ -36,7 +61,7 @@ jobs:
       - name: Create .env file from Secret
         run: |
           echo "${{ secrets.ENV_FILE }}" > .env
-          # Append specific secrets if not in ENV_FILE
+          # Append specific secrets if not in ENV_FILE (redundancy safe)
           echo "FOLDER_ID_01_ENTRADA_RELATORIOS=${{ secrets.FOLDER_ID_01_ENTRADA_RELATORIOS }}" >> .env
           echo "FOLDER_ID_02_PLANOS_GERADOS=${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }}" >> .env
           echo "FOLDER_ID_03_PROCESSADOS_BACKUP=${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}" >> .env
