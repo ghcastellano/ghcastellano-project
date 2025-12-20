@@ -201,9 +201,11 @@ if gcloud secrets describe "WHATSAPP_TOKEN" --project "$PROJECT_ID" >/dev/null 2
   SECRETS_LIST="${SECRETS_LIST},WHATSAPP_TOKEN=WHATSAPP_TOKEN:latest"
 fi
 
-if gcloud secrets describe "GOOGLE_DRIVE_IMPERSONATE_EMAIL" --project "$PROJECT_ID" >/dev/null 2>&1; then
-  SECRETS_LIST="${SECRETS_LIST},GOOGLE_DRIVE_IMPERSONATE_EMAIL=GOOGLE_DRIVE_IMPERSONATE_EMAIL:latest"
-fi
+# IMPERSONATION DISABLED: User is on consumer Gmail (@gmail.com) which does not support Domain-Wide Delegation.
+# We must use the Service Account directly and share folders with it.
+# if gcloud secrets describe "GOOGLE_DRIVE_IMPERSONATE_EMAIL" --project "$PROJECT_ID" >/dev/null 2>&1; then
+#   SECRETS_LIST="${SECRETS_LIST},GOOGLE_DRIVE_IMPERSONATE_EMAIL=GOOGLE_DRIVE_IMPERSONATE_EMAIL:latest"
+# fi
 
 # SYNC DATABASE_URL: Garante que o valor do GitHub Secret sobrescreva o Secret Manager (Fonte da Verdade)
 if [ -n "${DATABASE_URL:-}" ]; then
