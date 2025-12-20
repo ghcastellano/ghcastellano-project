@@ -104,6 +104,10 @@ jobs:
           export FOLDER_ID_02_PLANOS_GERADOS="${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }}"
           export FOLDER_ID_03_PROCESSADOS_BACKUP="${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}"
           export FOLDER_ID_99_ERROS="${{ secrets.FOLDER_ID_99_ERROS }}"
+          export FOLDER_ID_01="${{ secrets.FOLDER_ID_01 }}"
+          export FOLDER_ID_02="${{ secrets.FOLDER_ID_02 }}"
+          export FOLDER_ID_03="${{ secrets.FOLDER_ID_03 }}"
+          export FOLDER_ID_99="${{ secrets.FOLDER_ID_99 }}"
           export GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
           export GCP_LOCATION="${{ secrets.GCP_LOCATION }}"
           
