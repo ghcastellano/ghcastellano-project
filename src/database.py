@@ -45,8 +45,6 @@ def init_db():
     # Restore normalization
     database_url = normalize_database_url(config.DATABASE_URL)
     # database_url = config.DATABASE_URL
-    print(f"DEBUG: RAW CONFIG URL: '{config.DATABASE_URL}'")
-    # print(f"DEBUG: NORMALIZED URL: '{database_url}'")
     if database_url:
         try:
             # Masking URL for security in logs
