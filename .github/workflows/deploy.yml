@@ -94,6 +94,7 @@ jobs:
           export FOLDER_ID_99_ERROS="${{ secrets.FOLDER_ID_99_ERROS }}"
           export DRIVE_WEBHOOK_TOKEN="${{ secrets.DRIVE_WEBHOOK_TOKEN }}"
           export GCP_SA_KEY='${{ secrets.GCP_SA_KEY }}'
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
           # Run Deploy
           ./deploy_and_register.sh

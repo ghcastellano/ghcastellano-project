@@ -206,6 +206,15 @@ if gcloud secrets describe "GOOGLE_DRIVE_IMPERSONATE_EMAIL" --project "$PROJECT_
   SECRETS_LIST="${SECRETS_LIST},GOOGLE_DRIVE_IMPERSONATE_EMAIL=GOOGLE_DRIVE_IMPERSONATE_EMAIL:latest"
 fi
 
+# SYNC DATABASE_URL: Garante que o valor do GitHub Secret sobrescreva o Secret Manager (Fonte da Verdade)
+if [ -n "${DATABASE_URL:-}" ]; then
+  if ! gcloud secrets describe "DATABASE_URL" --project "$PROJECT_ID" >/dev/null 2>&1; then
+     gcloud secrets create "DATABASE_URL" --replication-policy=automatic --project "$PROJECT_ID"
+  fi
+  printf "%s" "$DATABASE_URL" | gcloud secrets versions add "DATABASE_URL" --data-file=- --project "$PROJECT_ID" >/dev/null
+  echo "✅ Secret DATABASE_URL sincronizado do GitHub para Secret Manager."
+fi
+
 if [ -n "${GCP_SA_KEY:-}" ]; then
   # Se GCP_SA_KEY foi passada (via CI), salve no Secret Manager para evitar problemas de parsing no deploy
   # e para garantir segurança.
