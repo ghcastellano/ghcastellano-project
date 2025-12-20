@@ -390,13 +390,14 @@ gcloud run deploy $SERVICE_NAME \
 
 echo "✅ Deploy do serviço web concluído."
 
-echo "🚀 Executando deploy do WORKER (mvp-worker)..."
-gcloud run deploy mvp-worker \
+echo "🚀 Executando deploy do WORKER como Cloud Run JOB (mvp-worker)..."
+# Usamos 'deploy' que cria se não existir ou atualiza se existir
+gcloud run jobs deploy mvp-worker \
   --image $IMAGE \
   --region $REGION \
   --project $PROJECT_ID \
-  --max-instances 2 \
-  --concurrency 10 \
+  --command "python" \
+  --args "-m,src.main,--once" \
   --set-env-vars "APP_PUBLIC_URL=$PUBLIC_URL" \
   --set-env-vars "DRIVE_WEBHOOK_TOKEN=$WEBHOOK_SECRET" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
@@ -411,7 +412,7 @@ gcloud run deploy mvp-worker \
   --set-env-vars "WHATSAPP_DESTINATION_PHONE=${WHATSAPP_DESTINATION_PHONE:-}" \
   --set-secrets "$SECRETS_LIST"
 
-echo "✅ Deploy do worker concluído com sucesso."
+echo "✅ Deploy do worker (Job) concluído com sucesso."
 
 # --------------------------------------------------------------------------------
 # Pós-processamento (Opcional: Registro de Webhook)
