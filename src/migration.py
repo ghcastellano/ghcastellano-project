@@ -115,30 +115,26 @@ def run_migrations(db_session=None): # Renamed to generic
 
     # Run Subsequent Migrations (Explicitly)
     try:
-        logger.info("🚀 Running Migration V4 (Post-Migration)...")
+        logger.info("🚀 Rodando Migração V4 (Pós-Migração)...")
         migration_v4.run_migration_v4()
         
-        logger.info("🚀 Running Migration V5 (Establishment/Hash)...")
+        logger.info("🚀 Rodando Migração V5 (Estabelecimento/Hash)...")
         migration_v5.run_migration_v5()
 
-        logger.info("🚀 Running Migration V6 (Users/Roles)...")
+        logger.info("🚀 Rodando Migração V6 (Usuários/Funções)...")
         migration_v6.run_migration_v6()
         
-        logger.info("🚀 Running Migration V7 (Jobs/Status)...")
+        logger.info("🚀 Rodando Migração V7 (Tarefas/Status)...")
         migration_v7.run_migration_v7()
 
-from src.legacy_migrations import migration_v4, migration_v5, migration_v6, migration_v7, migration_v8, migration_v9_sync
-
-# ... (inside run_migrations function, after migration_v8 block) ...
-
         if hasattr(migration_v8, 'run_migration_v8'):
-           logger.info("🚀 Running Migration V8...")
+           logger.info("🚀 Rodando Migração V8...")
            migration_v8.run_migration_v8()
         else:
-           logger.warning("⚠️ Migration V8 imported but no run function found.")
+           logger.warning("⚠️ Migração V8 importada mas função de execução não encontrada.")
 
-        logger.info("🚀 Running Migration V9 (Final Sync)...")
+        logger.info("🚀 Rodando Migração V9 (Sincronização Final)...")
         migration_v9_sync.run_migration_v9()
 
     except Exception as e:
-        logger.error(f"❌ Error running subsequent migrations: {e}")
+        logger.error(f"❌ Erro ao rodar migrações subsequentes: {e}")
