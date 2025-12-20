@@ -39,13 +39,13 @@ def normalize_database_url(database_url: Optional[str]) -> Optional[str]:
     if url.drivername.startswith("postgresql") and (host.endswith("supabase.co") or host.endswith("supabase.com")):
         if "sslmode" not in url.query:
             url = url.set(query={**url.query, "sslmode": "require"})
-    return str(url)
+    return url.render_as_string(hide_password=False)
 
 def init_db():
     global engine, db_session, SessionLocal
-    # Bypass normalization to match successful one-liner
-    # database_url = normalize_database_url(config.DATABASE_URL)
-    database_url = config.DATABASE_URL
+    # Restore normalization to ensure sslmode=require for Supabase
+    database_url = normalize_database_url(config.DATABASE_URL)
+    # database_url = config.DATABASE_URL
     print(f"DEBUG: RAW CONFIG URL: '{config.DATABASE_URL}'")
     # print(f"DEBUG: NORMALIZED URL: '{database_url}'")
     if database_url:
