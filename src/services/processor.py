@@ -39,8 +39,14 @@ class ProcessorService:
         # Inicializa OpenAI
         try:
             api_key = os.getenv("OPENAI_API_KEY")
-            # if not api_key:
-            #    raise ValueError("OPENAI_API_KEY not found in .env") # Weak requirement for import safety
+            if api_key:
+                # Security Log: Only show prefix and suffix
+                prefix = api_key[:10] if len(api_key) > 10 else "SHORT"
+                suffix = api_key[-4:] if len(api_key) > 4 else "????"
+                logger.info("OpenAI Key Status", prefix=f"{prefix}...", suffix=f"...{suffix}")
+            else:
+                logger.warning("OPENAI_API_KEY não encontrada nas variáveis de ambiente.")
+                
             self.client = OpenAI(api_key=api_key) if api_key else None
             self.model_name = "gpt-4o-mini"
         except Exception as e:
