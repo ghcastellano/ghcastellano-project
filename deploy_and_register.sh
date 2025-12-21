@@ -318,6 +318,7 @@ gcloud run deploy $SERVICE_NAME \
   --project $PROJECT_ID \
   --max-instances 2 \
   --concurrency 20 \
+  --remove-secrets "DRIVE_WEBHOOK_TOKEN" \
   --set-env-vars "APP_PUBLIC_URL=$PUBLIC_URL" \
   --set-env-vars "DRIVE_WEBHOOK_TOKEN=$WEBHOOK_SECRET" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
@@ -342,6 +343,7 @@ gcloud run jobs deploy mvp-worker \
   --project $PROJECT_ID \
   --command "python" \
   --args="-m,src.main,--once" \
+  --remove-secrets "DRIVE_WEBHOOK_TOKEN" \
   --set-env-vars "APP_PUBLIC_URL=$PUBLIC_URL" \
   --set-env-vars "DRIVE_WEBHOOK_TOKEN=$WEBHOOK_SECRET" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
