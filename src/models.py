@@ -8,6 +8,7 @@ class AcaoCorretiva(BaseModel):
 
 class NaoConformidade(BaseModel):
     item: str = Field(description="Nome do item avaliado (ex: Higiene Pessoal)")
+    setor: Optional[str] = Field(description="Setor ou área onde o problema foi encontrado (ex: Cozinha, Estoque)")
     descricao: str = Field(description="Descrição do problema encontrado")
     legislacao_relacionada: Optional[str] = Field(description="Artigo da RDC 216 ou legislação pertinente")
     acoes_corretivas: List[AcaoCorretiva] = Field(description="Lista de ações corretivas sugeridas")

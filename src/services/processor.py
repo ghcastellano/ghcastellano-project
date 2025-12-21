@@ -382,7 +382,8 @@ class ProcessorService:
                     legal_basis=item.legislacao_relacionada or "",
                     ai_suggested_deadline=item.acoes_corretivas[0].prazo_sugerido if item.acoes_corretivas else "Imediato",
                     severity=sev,
-                    status=ActionPlanItemStatus.OPEN
+                    status=ActionPlanItemStatus.OPEN,
+                    sector=item.setor or "Geral"
                 )
                 session.add(plan_item)
             
