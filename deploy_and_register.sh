@@ -282,9 +282,34 @@ fi
 
 # --------------------------------------------------------------------------------
 # SECRETS HANDLING (OPTIMIZED)
-# GitHub Actions already injects secrets as environment variables.
-# We pass them directly to Cloud Run via --set-env-vars or --set-secrets if predefined.
+# We assume secrets refer to Secret Manager versions existing in the project.
+# We build the list statically to avoid slow 'gcloud secrets describe' calls.
 # --------------------------------------------------------------------------------
+
+# Core Info Secrets
+SECRETS_LIST="DATABASE_URL=DATABASE_URL:latest"
+SECRETS_LIST="${SECRETS_LIST},OPENAI_API_KEY=OPENAI_API_KEY:latest"
+SECRETS_LIST="${SECRETS_LIST},SECRET_KEY=SECRET_KEY:latest"
+SECRETS_LIST="${SECRETS_LIST},WHATSAPP_TOKEN=WHATSAPP_TOKEN:latest"
+
+# Folder IDs (Still passed as Env Vars for simplicity, or could be Secrets)
+# For now, we kept them as Env Vars in the previous logic, sticking to that.
+
+# Optional AWS Keys - Blindly add them if we expect them, or strictly check env var presence?
+# If we want to be safe without gcloud calls, we can conditionally add them if the ENV VAR is present in the build environment
+if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
+  SECRETS_LIST="${SECRETS_LIST},AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID:latest"
+fi
+if [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+  SECRETS_LIST="${SECRETS_LIST},AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY:latest"
+fi
+# GCP SA KEY
+if [ -n "${GCP_SA_KEY:-}" ]; then
+  SECRETS_LIST="${SECRETS_LIST},GCP_SA_KEY=GCP_SA_KEY:latest"
+fi
+# Drive Webhook Token
+SECRETS_LIST="${SECRETS_LIST},DRIVE_WEBHOOK_TOKEN=DRIVE_WEBHOOK_TOKEN:latest"
+
 
 echo "🚀 Executando deploy consolidado..."
 gcloud run deploy $SERVICE_NAME \
@@ -294,7 +319,6 @@ gcloud run deploy $SERVICE_NAME \
   --max-instances 2 \
   --concurrency 20 \
   --set-env-vars "APP_PUBLIC_URL=$PUBLIC_URL" \
-  --set-env-vars "DRIVE_WEBHOOK_TOKEN=$WEBHOOK_SECRET" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
   --set-env-vars "FOLDER_ID_01_ENTRADA_RELATORIOS=${FOLDER_ID_01_ENTRADA_RELATORIOS}" \
   --set-env-vars "FOLDER_ID_02_PLANOS_GERADOS=${FOLDER_ID_02_PLANOS_GERADOS}" \
@@ -305,10 +329,7 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars "AWS_SES_SENDER=${AWS_SES_SENDER:-noreply@inspetorai.com}" \
   --set-env-vars "WHATSAPP_PHONE_ID=${WHATSAPP_PHONE_ID:-}" \
   --set-env-vars "WHATSAPP_DESTINATION_PHONE=${WHATSAPP_DESTINATION_PHONE:-}" \
-  --set-env-vars "DATABASE_URL=${DATABASE_URL}" \
-  --set-env-vars "OPENAI_API_KEY=${OPENAI_API_KEY}" \
-  --set-env-vars "SECRET_KEY=${SECRET_KEY}" \
-  --set-env-vars "WHATSAPP_TOKEN=${WHATSAPP_TOKEN}"
+  --set-secrets "$SECRETS_LIST"
 
 echo "✅ Deploy do serviço web concluído."
 
