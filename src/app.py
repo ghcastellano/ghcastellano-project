@@ -164,6 +164,22 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"❌ Erro Crítico nas Migrações: {e}")
 
+import unicodedata
+import re
+
+@app.template_filter('slugify')
+def slugify(value):
+    """
+    Normalizes string, converts to lowercase, removes non-alpha characters,
+    and converts spaces to hyphens.
+    """
+    if not value:
+        return ""
+    value = str(value)
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
+    return re.sub(r'[-\s]+', '-', value)
+
 # Inicializa Serviços
 # Drive Service
 # 1le3240234 is the default placeholder if env var is missing
