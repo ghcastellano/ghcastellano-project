@@ -215,6 +215,10 @@ class ActionPlan(Base):
     
     approved_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     approved_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    
+    # Rich Content (Added in Migration V11)
+    summary_text: Mapped[Optional[str]] = mapped_column(Text)
+    strengths_text: Mapped[Optional[str]] = mapped_column(Text)
 
     # Relacionamentos
     inspection: Mapped["Inspection"] = relationship(back_populates="action_plan")
