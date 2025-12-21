@@ -1,152 +1,121 @@
 {% extends "layout.html" %}
 
-{% block title %}Dashboard Consultor | InspetorAI{% endblock %}
+{% block title %}InspetorAI | Meu Painel{% endblock %}
 
 {% block content %}
 <style>
-    /* Consultant Layout Overrides */
-    .app-container {
-        max-width: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #f8fafc;
+    /* Modern Dashboard Styling */
+    :root {
+        --glass-bg: rgba(255, 255, 255, 0.95);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.6);
+        --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%);
+        --surface-color: #F8FAFC;
     }
 
-    .top-navbar {
-        position: sticky;
-        top: 0;
-        z-index: 1001;
+    body {
+        background-color: #F1F5F9;
+        /* Subtle gray background to make cards pop */
     }
 
-    .admin-wrapper {
-        display: flex;
-        min-height: calc(100vh - 70px);
-    }
-
-    /* Sidebar */
-    .admin-sidebar {
-        width: 260px;
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(12px);
-        border-right: 1px solid rgba(255, 255, 255, 0.5);
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
         padding: 2rem 1.5rem;
-        flex-shrink: 0;
-        position: sticky;
-        top: 70px;
-        height: calc(100vh - 70px);
-        overflow-y: auto;
     }
 
-    .sidebar-menu {
-        list-style: none;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
+    /* Hero Section */
+    .hero-section {
+        margin-bottom: 2.5rem;
+        animation: slideDown 0.6s ease-out;
     }
 
-    .sidebar-item {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        color: var(--text-secondary);
+    .greeting-text {
+        font-size: 1.875rem;
+        font-weight: 800;
+        color: #1E293B;
+        letter-spacing: -0.025em;
+        margin-bottom: 0.5rem;
+    }
+
+    .date-text {
+        color: #64748B;
+        font-size: 1rem;
         font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
     }
 
-    .sidebar-item:hover,
-    .sidebar-item.active {
-        background: white;
-        color: var(--primary-color);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    }
-
-    .sidebar-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #cbd5e1;
-        transition: background 0.2s;
-    }
-
-    .sidebar-item.active .sidebar-dot {
-        background: var(--accent-color);
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-    }
-
-    .sidebar-header {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--text-light);
-        margin-bottom: 1rem;
-        margin-top: 1.5rem;
-        padding-left: 0.5rem;
-    }
-
-    /* Main Content */
-    .admin-main {
-        flex-grow: 1;
-        padding: 2rem;
-        overflow-x: hidden;
-    }
-
-    .section-view {
-        display: none;
-        animation: fadeIn 0.3s ease-out;
-    }
-
-    .section-view.active {
-        display: block;
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
     }
 
     .stat-card {
-        cursor: pointer;
-        transition: transform 0.2s;
+        background: var(--glass-bg);
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        /* Soft shadow */
+        border: var(--glass-border);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }
 
     .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
     }
 
-    .badge {
-        display: inline-flex;
+    /* Primary Action Card (Special Styling) */
+    .action-card {
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        display: flex;
+        /* Flex to align content */
+        flex-direction: column;
+        justify-content: space-between;
+        cursor: pointer;
+    }
+
+    .action-card:hover {
+        opacity: 0.95;
+    }
+
+    .action-icon-circle {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        display: flex;
         align-items: center;
-        gap: 0.25rem;
-        padding: 0.25rem 0.6rem;
-        border-radius: 99px;
-        font-size: 0.75rem;
+        justify-content: center;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(4px);
+    }
+
+    .stat-value {
+        font-size: 2.25rem;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
         font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.8;
     }
 
-    .badge-warning {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .badge-success {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .badge-info {
-        background: #e0f2fe;
-        color: #075985;
-    }
-
-    .badge-white {
-        background: white;
-        color: var(--text-primary);
-    }
-
-    @keyframes fadeIn {
+    /* Animations */
+    @keyframes slideDown {
         from {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(-20px);
         }
 
         to {
@@ -154,413 +123,239 @@
             transform: translateY(0);
         }
     }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    /* List Section */
+    .recent-section {
+        background: white;
+        border-radius: 24px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #0F172A;
+    }
+
+    /* Item List Styling */
+    .inspection-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .inspection-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 16px;
+        transition: all 0.2s ease;
+    }
+
+    .inspection-item:hover {
+        background: white;
+        border-color: #CBD5E1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        transform: translateX(4px);
+    }
+
+    .item-icon {
+        width: 42px;
+        height: 42px;
+        background: #E0E7FF;
+        color: #4338CA;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.25rem;
+    }
+
+    .item-info {
+        flex-grow: 1;
+    }
+
+    .item-title {
+        font-weight: 600;
+        color: #1E293B;
+        font-size: 1rem;
+    }
+
+    .item-meta {
+        font-size: 0.85rem;
+        color: #64748B;
+        margin-top: 0.15rem;
+    }
+
+    /* Status Badges */
+    .status-badge {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        letter-spacing: 0.025em;
+    }
+
+    .status-approved {
+        background: #DCFCE7;
+        color: #166534;
+    }
+
+    .status-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-processing {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 1.5rem 1rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .greeting-text {
+            font-size: 1.5rem;
+        }
+
+        .item-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+    }
 </style>
 
-<div class="admin-wrapper">
-    <!-- Sidebar -->
-    <aside class="admin-sidebar">
-        <h3
-            style="margin-bottom: 2rem; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            <i class="ph-fill ph-clipboard-text" style="color: var(--accent-color);"></i>
-            Campo
-        </h3>
+<div class="dashboard-container">
 
-        <div class="sidebar-header">Principal</div>
-        <ul class="sidebar-menu">
-            <li class="sidebar-item active" id="menu-overview" onclick="showSection('overview', this)">
-                <div class="sidebar-dot"></div> Início
-            </li>
-            <li class="sidebar-item" id="menu-lists" onclick="showSection('lists-section', this)">
-                <div class="sidebar-dot"></div> Histórico
-            </li>
-        </ul>
-
-        <div class="sidebar-header">Meus Locais</div>
-        <div class="card" style="padding: 1rem; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05);">
-            <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Estabelecimentos</div>
-            {% if current_user.establishments %}
-            <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
-                {% for est in current_user.establishments %}
-                <li style="margin-bottom: 0.25rem;">• {{ est.name }}</li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <div class="text-xs text-muted">Nenhum local vinculado</div>
-            {% endif %}
-        </div>
-    </aside>
-
-    <div class="admin-main">
-        <div class="content-wrapper">
-            <!-- 1. Overview (Combined with Upload) -->
-            <div id="overview" class="section-view active">
-                <!-- Modern Header -->
-                <!-- Modern Header - WOW Edition -->
-                <div
-                    style="margin-bottom: 1.5rem; position: relative; overflow: hidden; border-radius: 20px; padding: 1.5rem 2rem; background: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
-                    <!-- Mesh Gradient Background -->
-                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.4; pointer-events: none;
-                    background: radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-                                 radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);">
-                    </div>
-
-                    <div
-                        style="position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center;">
-                        <div style="max-width: 600px;">
-                            <span
-                                style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; background: rgba(99, 102, 241, 0.1); padding: 0.15rem 0.6rem; border-radius: 99px;">
-                                <i class="ph-bold ph-rocket-launch"></i> Painel do Consultor
-                            </span>
-                            <h1
-                                style="font-size: 1.75rem; font-weight: 800; color: #1e293b; letter-spacing: -0.02em; margin: 0; line-height: 1.2; font-family: 'Outfit', sans-serif;">
-                                Olá, {{ current_user.name.split()[0] }} <span
-                                    style="animation: wave 2s infinite; display: inline-block; transform-origin: 70% 70%;">👋</span>
-                            </h1>
-                            <p style="font-size: 0.95rem; color: #64748b; margin-top: 0.4rem; font-weight: 400;">
-                                Você tem <strong style="color: var(--accent-color);">{{
-                                    current_user.establishments|length }}</strong> locais ativos.
-                            </p>
-                        </div>
-
-                        <div style="text-align: right;">
-                            <div
-                                style="background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); padding: 0.5rem 1rem; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.5); margin-bottom: 0.4rem;">
-                                <div style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;">
-                                </div>
-                                Online
-                            </div>
-                            <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 500;">
-                                <script>document.write(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))</script>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <style>
-                    @keyframes wave {
-                        0% {
-                            transform: rotate(0.0deg)
-                        }
-
-                        10% {
-                            transform: rotate(14.0deg)
-                        }
-
-                        20% {
-                            transform: rotate(-8.0deg)
-                        }
-
-                        30% {
-                            transform: rotate(14.0deg)
-                        }
-
-                        40% {
-                            transform: rotate(-4.0deg)
-                        }
-
-                        50% {
-                            transform: rotate(10.0deg)
-                        }
-
-                        60% {
-                            transform: rotate(0.0deg)
-                        }
-
-                        100% {
-                            transform: rotate(0.0deg)
-                        }
-                    }
-                </style>
-
-                <!-- Moved Stats Grid to bottom -->
-
-                <!-- Main Action Area: Upload directly here -->
-                <div class="card" id="tour-upload"
-                    style="margin-bottom: 2rem; border: 2px dashed var(--accent-color); background: #f8fafc;">
-                    <div class="card-body" style="padding: 2.5rem;">
-                        <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
-                            <div style="flex: 1; min-width: 300px;">
-                                <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--primary-color);">Nova
-                                    Vistoria</h2>
-                                <p class="text-muted" style="margin-bottom: 1.5rem;">Carregue o relatório PDF gerado em
-                                    campo. A IA processará os dados e criará as ações corretivas automaticamente.</p>
-
-                                {% if current_user.establishments %}
-                                <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-
-                                    <div class="upload-area" id="dropZone"
-                                        onclick="document.getElementById('fileInput').click()"
-                                        style="background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; text-align: left; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 1rem;">
-                                        <input type="file" name="file" id="fileInput" accept=".pdf"
-                                            style="display: none;">
-
-                                        <div
-                                            style="font-size: 2rem; color: var(--accent-color); background: #eff6ff; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
-                                            <i class="ph-bold ph-upload-simple"></i>
-                                        </div>
-                                        <div style="flex-grow: 1;">
-                                            <h4 style="margin: 0; font-weight: 600; color: var(--text-primary);">
-                                                Selecionar
-                                                Arquivo PDF</h4>
-                                            <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;"
-                                                id="fileName">Nenhum arquivo selecionado</p>
-                                        </div>
-                                        <div class="btn btn-secondary" style="pointer-events: none;">Procurar</div>
-                                    </div>
-
-                                    <button type="submit" class="btn btn-primary w-full" id="submitBtn"
-                                        style="margin-top: 1rem; display: none; width: 100%;">
-                                        <i class="ph-bold ph-paper-plane-right"></i> Enviar para Análise
-                                    </button>
-                                </form>
-                                {% else %}
-                                <div class="alert alert-warning">
-                                    <i class="ph-bold ph-warning-circle"></i>
-                                    Para iniciar, peça ao seu gestor para vincular você a um estabelecimento.
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            <div
-                                style="flex: 1; min-width: 300px; background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color);">
-                                <h4
-                                    style="font-size: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                    <i class="ph-fill ph-clock-counter-clockwise"
-                                        style="color: var(--accent-color);"></i>
-                                    Processamento Recente
-                                </h4>
-                                <div id="recent-activity-placeholder">
-                                    <p class="text-muted text-sm">Nenhuma atividade recente.</p>
-                                </div>
-                                <div style="margin-top: 1rem; text-align: right;">
-                                    <a href="#" onclick="document.getElementById('menu-lists').click()"
-                                        style="font-size: 0.85rem; font-weight: 600; color: var(--primary-color);">Ver
-                                        todo
-                                        o histórico &rarr;</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="stats-grid" id="tour-stats" style="margin-top: 1rem;">
-                        <div class="stat-card" style="padding: 1rem;">
-                            <span class="stat-label" style="font-size: 0.8rem;">Locais Vinculados</span>
-                            <span class="stat-value" style="font-size: 1.5rem;">{{ current_user.establishments|length if
-                                current_user.establishments else 0 }}</span>
-                        </div>
-                        <div class="stat-card" style="padding: 1rem;"
-                            onclick="document.getElementById('menu-lists').click()">
-                            <span class="stat-label" style="font-size: 0.8rem;">Vistorias Concluídas</span>
-                            <span class="stat-value" style="font-size: 1.5rem;" id="stat-processed">-</span>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- REMOVED Separate Upload Section (Merged into Overview) -->
-
-                <!-- 3. My Lists -->
-                <div id="lists-section" class="section-view">
-                    <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Minhas Listas de Verificação</h1>
-
-                    <div class="card" style="min-height: 500px;" id="tour-lists">
-                        <div class="card-header">
-                            <h3 class="card-title">📋 Histórico Completo</h3>
-                        </div>
-
-                        <div id="list-tasks-container" style="padding: 1rem;">
-                            <div class="text-center text-muted" style="padding: 2rem;">
-                                <div class="spinner" style="margin: 0 auto 1rem;"></div>
-                                Carregando suas tarefas...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                </main>
-            </div>
-
-            {% endblock %}
-
-            {% block scripts %}
-            <script>
-                function showSection(sectionId, element) {
-                    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-                    if (element) element.classList.add('active');
-                    document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
-                    document.getElementById(sectionId).classList.add('active');
-                }
-
-                // File Upload Logic
-                const fileInput = document.getElementById('fileInput');
-                const fileName = document.getElementById('fileName');
-                const submitBtn = document.getElementById('submitBtn');
-                const dropZone = document.getElementById('dropZone');
-                const uploadForm = document.getElementById('uploadForm');
-
-                if (fileInput) {
-                    fileInput.addEventListener('change', (e) => {
-                        if (e.target.files.length > 0) {
-                            fileName.textContent = "Selecionado: " + e.target.files[0].name;
-                            submitBtn.style.display = 'block';
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = '<i class="ph-bold ph-paper-plane-right"></i> Enviar Agora';
-                            dropZone.style.borderColor = 'var(--success-color)';
-                            dropZone.style.background = '#f0fdf4';
-                        }
-                    });
-                }
-
-                if (uploadForm) {
-                    uploadForm.addEventListener('submit', (e) => {
-                        submitBtn.disabled = true;
-                        submitBtn.innerHTML = '<div class="spinner-small"></div> Enviando...';
-                        dropZone.style.opacity = '0.7';
-                        dropZone.style.pointerEvents = 'none';
-                    });
-                }
-
-                // Task Polling
-                async function updateLists() {
-                    try {
-                        const response = await fetch('/api/status?v=' + new Date().getTime());
-                        const data = await response.json();
-
-                        const container = document.getElementById('list-tasks-container');
-                        const statProcessed = document.getElementById('stat-processed');
-                        // Update Activity Placeholder as well if needed
-                        const activityPlaceholder = document.getElementById('recent-activity-placeholder');
-
-                        let htmlContent = '';
-                        let totalCount = 0;
-                        // 1. Technical Processing (Jobs)
-                        const recentDiv = document.getElementById('recent-activity-placeholder');
-                        const pendingJobs = data.pending || [];
-
-                        // 2. Business Approval (Waiting Approval)
-                        const inApproval = data.in_approval || [];
-
-                        // Render Combined Recent Activity (Processing + Approval)
-                        if (pendingJobs.length > 0 || inApproval.length > 0) {
-                            let html = '';
-
-                            // Render Processing Jobs
-                            pendingJobs.forEach(job => {
-                                html += `
-                     <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.9rem;">
-                        <div class="spinner" style="width: 16px; height: 16px; border: 2px solid var(--text-light); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                        <div style="flex-grow:1;">
-                            <span style="font-weight: 500; color: var(--text-primary); display:block;">${job.name}</span>
-                            <span style="font-size: 0.75rem; color: var(--text-secondary);">Processando IA...</span>
-                        </div>
-                    </div>`;
-                            });
-
-                            // Render Waiting Approval
-                            inApproval.forEach(item => {
-                                html += `
-                     <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.9rem;">
-                        <i class="ph-fill ph-clock-user" style="color: #f59e0b; font-size: 1.1rem;"></i>
-                        <div style="flex-grow:1;">
-                            <span style="font-weight: 500; color: var(--text-primary); display:block;">${item.name}</span>
-                            <span style="font-size: 0.75rem; color: #f59e0b; font-weight: 600;">Aguardando Gestor</span>
-                        </div>
-                    </div>`;
-                            });
-
-                            recentDiv.innerHTML = html;
-                        } else {
-                            recentDiv.innerHTML = '<p class="text-muted text-sm" style="font-style:italic;">Nenhuma atividade pendente.</p>';
-                        }
-
-                        // 3. Processed (Completed History)
-                        const listContainer = document.getElementById('list-tasks-container');
-                        if (data.processed_raw && data.processed_raw.length > 0) {
-                            listContainer.innerHTML = data.processed_raw.map(item => {
-                                let statusBadge = '';
-                                if (item.status === 'WAITING_APPROVAL' || item.status === 'PENDING_MANAGER_REVIEW') {
-                                    statusBadge = '<span class="badge badge-warning" style="margin-left: 0.5rem;"><i class="ph ph-clock"></i> Em Aprovação</span>';
-                                } else if (item.status === 'APPROVED') {
-                                    statusBadge = '<span class="badge badge-success" style="margin-left: 0.5rem; background: #dcfce7; color: #166534;"><i class="ph ph-check-circle"></i> Aprovado - Verificar</span>';
-                                } else if (item.status === 'PENDING_VERIFICATION') {
-                                    statusBadge = '<span class="badge badge-success" style="margin-left: 0.5rem;"><i class="ph ph-checks"></i> Verificado</span>';
-                                } else if (item.status === 'COMPLETED') {
-                                    statusBadge = '<span class="badge badge-info" style="margin-left: 0.5rem;"><i class="ph ph-check-square"></i> Finalizado</span>';
-                                }
-
-                                return `
-                                <div class="task-item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border-color);">
-                                    <div style="display: flex; align-items: center; gap: 1rem;">
-                                        <div style="background: #ecfdf5; padding: 0.5rem; border-radius: 8px; color: var(--success-color);">
-                                            <i class="ph-bold ph-file-text"></i>
-                                        </div>
-                                        <div>
-                                            <h4 style="margin: 0; font-size: 1rem; font-weight: 600;">
-                                                ${item.name}
-                                                ${statusBadge}
-                                            </h4>
-                                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                                                <i class="ph-bold ph-calendar-blank"></i> ${item.date} • ${item.establishment}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div style="display: flex; gap: 0.5rem;">
-                                        ${item.status === 'APPROVED' ?
-                                        `<a href="${item.review_link}" class="btn btn-primary btn-sm" style="background-color: var(--success-color); border: none;"><i class="ph-bold ph-check-circle"></i> Verificar e Finalizar</a>` :
-                                        `<a href="${item.review_link}" class="btn btn-secondary btn-sm">Ver Detalhes</a>`
-                                    }
-                                        ${item.pdf_link ? `<a href="${item.pdf_link}" class="btn btn-white btn-sm border shadow-sm" target="_blank"><i class="ph ph-download-simple"></i></a>` : ''}
-                                    </div>
-                                </div>
-                            `;
-                            }).join('');
-                            document.getElementById('stat-processed').textContent = data.processed_raw.length;
-                        } else {
-                            listContainer.innerHTML = '<div class="text-center text-muted" style="padding: 2rem;">Nenhuma vistoria Finalizada.</div>';
-                            document.getElementById('stat-processed').textContent = '0';
-                        }
-
-                    } catch (e) { console.error(e); }
-                }
-
-                updateLists();
-                setInterval(updateLists, 10000);
-
-                // Initial Product Tour (Optional)
-                document.addEventListener('DOMContentLoaded', () => {
-                    // Could check for alerts here
-                });
-            </script>
-
-            <style>
-                .spinner {
-                    width: 24px;
-                    height: 24px;
-                    border: 3px solid var(--border-color);
-                    border-top-color: var(--accent-color);
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }
-
-                @keyframes spin {
-                    100% {
-                        transform: rotate(360deg);
-                    }
-                }
-
-                .spinner-small {
-                    width: 16px;
-                    height: 16px;
-                    border: 2px solid rgba(255, 255, 255, 0.3);
-                    border-top-color: white;
-                    border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
-                    display: inline-block;
-                    margin-right: 0.5rem;
-                    vertical-align: middle;
-                }
-            </style>
-        </div>
+    <!-- Header / Hero -->
+    <div class="hero-section">
+        <h1 class="greeting-text">Olá, {{ current_user.name.split(' ')[0] }}! 👋</h1>
+        <p class="date-text">
+            Aqui está o resumo das suas inspeções hoje.
+        </p>
     </div>
+
+    <!-- KPI & Action Grid -->
+    <div class="stats-grid">
+
+        <!-- 1. Primary Action: New Inspection -->
+        <!-- Opens the existing Upload Modal/Page or triggers action -->
+        <div class="stat-card action-card" onclick="window.location.href='/upload'">
+            <div class="action-icon-circle">
+                <i class="fas fa-plus fa-lg"></i>
+            </div>
+            <div>
+                <div class="stat-value">Nova Inspeção</div>
+                <div class="stat-label">Começar agora</div>
+            </div>
+        </div>
+
+        <!-- 2. Pending KPI -->
+        <div class="stat-card">
+            <div style="color: #D97706; margin-bottom: 1rem;">
+                <i class="fas fa-clock fa-2x"></i>
+            </div>
+            <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
+            <div class="stat-label">Em Análise</div>
+        </div>
+
+        <!-- 3. Approved KPI -->
+        <div class="stat-card">
+            <div style="color: #059669; margin-bottom: 1rem;">
+                <i class="fas fa-check-circle fa-2x"></i>
+            </div>
+            <div class="stat-value" style="color: #059669;">{{ stats.approved }}</div>
+            <div class="stat-label">Aprovadas (Total)</div>
+        </div>
+
+    </div>
+
+    <!-- Recent Activity Section -->
+    <div class="recent-section">
+        <div class="section-header">
+            <h2 class="section-title">Últimas Atividades</h2>
+            <button class="btn btn-sm btn-outline-secondary" style="border-radius: 20px;">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+        </div>
+
+        {% if inspections %}
+        <div class="inspection-list">
+            {% for insp in inspections %}
+            <div class="inspection-item" onclick="window.location.href='{{ insp.review_link }}'"
+                style="cursor: pointer;">
+                <div class="item-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+
+                <div class="item-info">
+                    <div class="item-title">{{ insp.name }}</div>
+                    <div class="item-meta">
+                        <i class="fas fa-store-alt" style="margin-right: 4px;"></i> {{ insp.establishment }}
+                        <span style="font-size: 0.7em; margin: 0 6px;">•</span>
+                        <i class="far fa-calendar" style="margin-right: 4px;"></i> {{ insp.date }}
+                    </div>
+                </div>
+
+                <div style="text-align: right;">
+                    {% if 'APPROVED' in insp.status %}
+                    <span class="status-badge status-approved">APROVADO</span>
+                    {% elif 'PENDING' in insp.status or 'WAITING' in insp.status %}
+                    <span class="status-badge status-pending">EM ANÁLISE</span>
+                    {% else %}
+                    <span class="status-badge status-processing">{{ insp.status.replace('_', ' ') }}</span>
+                    {% endif %}
+
+                    <div style="margin-top: 0.5rem; color: #94A3B8; font-size: 0.8rem;">
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div style="text-align: center; padding: 3rem; color: #94A3B8;">
+            <i class="fas fa-clipboard-check fa-3x" style="margin-bottom: 1rem;"></i>
+            <p>Nenhuma inspeção recente encontrada.</p>
+            <button class="btn btn-primary" onclick="window.location.href='/upload'"
+                style="margin-top: 1rem; border-radius: 20px;">
+                Começar Primeira Inspeção
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
 </div>
 {% endblock %}
