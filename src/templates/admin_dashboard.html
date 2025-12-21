@@ -539,8 +539,8 @@
                            <td>${job.company_name || '-'}</td>
                            <td><span class="badge badge-${job.status_color}">${job.status_label}</span></td>
                            <td class="text-sm">
-                               <span style="color: #ea580c;">📉 R$${(job.cost_input || 0).toFixed(4)}</span>
-                               <span style="color: #16a34a;">📈 R$${(job.cost_output || 0).toFixed(4)}</span>
+                               <div style="color: #ea580c; white-space: nowrap;">📉 R$${(job.cost_input || 0).toFixed(4)} <small>(${job.tokens_input} tk)</small></div>
+                               <div style="color: #16a34a; white-space: nowrap;">📈 R$${(job.cost_output || 0).toFixed(4)} <small>(${job.tokens_output} tk)</small></div>
                            </td>
                            <td class="text-sm text-muted">${job.duration ? job.duration + 's' : '-'}</td>
                        </tr>

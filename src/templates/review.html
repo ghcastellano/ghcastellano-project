@@ -83,6 +83,17 @@
             style="padding: 1.5rem; background: rgba(255,255,255,0.4); grid-column: span 2;">
             <h4>Resumo Geral</h4>
             <p>{{ data.resumo_geral }}</p>
+
+            {% if data.pontos_fortes %}
+            <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.05);">
+                <h4 style="color: #16a34a; margin-bottom: 0.5rem;"><i class="ph ph-medal"></i> Pontos Fortes</h4>
+                <ul style="margin: 0; padding-left: 1.2rem; columns: 2;">
+                    {% for ponto in data.pontos_fortes %}
+                    <li style="font-size: 0.9rem; color: #475569; margin-bottom: 0.3rem;">{{ ponto }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
     </div>
 

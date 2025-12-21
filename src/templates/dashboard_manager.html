@@ -263,10 +263,85 @@
                     </div>
                 </div>
 
-                <!-- Quick Actions (Tabs) -->
-                <div class="card" style="margin-top: 2rem;">
+                <!-- � New: Itens em Processamento section -->
+                <div id="home-processing" class="card" style="margin-top: 2.5rem; display: none;">
+                    <div class="card-header" style="background: #f0f9ff; border-bottom: 1px solid #e0f2fe;">
+                        <h3 class="card-title" style="color: #0369a1;"><i
+                                class="ph-bold ph-arrows-clockwise ph-spin"></i> Em Processamento pela IA</h3>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div id="home-processing-list">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🚀 New: Ações Pendentes section -->
+                <div id="home-pendencies" class="card" style="margin-top: 1.5rem; display: none;">
+                    <div class="card-header" style="background: #fff5f5; border-bottom: 1px solid #fee2e2;">
+                        <h3 class="card-title" style="color: #dc2626;"><i class="ph-bold ph-warning-circle"></i> Ações
+                            Pendentes de Validação</h3>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div id="home-pendencies-list">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🔄 New: Itens em Processamento section -->
+                <div id="home-processing" class="card" style="margin-top: 1.5rem; display: none;">
+                    <div class="card-header" style="background: #f0f9ff; border-bottom: 1px solid #e0f2fe;">
+                        <h3 class="card-title" style="color: #0369a1;"><i
+                                class="ph-bold ph-arrows-clockwise ph-spin"></i> Em Processamento pela IA</h3>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div id="home-processing-list">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 📊 Vistorias Realizadas section (Primary Focus) -->
+                <div class="card" style="margin-top: 2rem; min-height: 400px;">
                     <div class="card-header">
-                        <h3 class="card-title">Adicionar Novo</h3>
+                        <h3 class="card-title">Vistorias Realizadas</h3>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <i class="ph-fill ph-circle" style="color: var(--success-color); font-size: 0.6rem;"></i>
+                            Tempo Real
+                        </div>
+                    </div>
+                    <div id="list-pending-container"
+                        style="padding: 1rem; background: #F8FAFC; border-bottom: 1px solid var(--border-color); display:none;">
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Estabelecimento</th>
+                                        <th>Data/Hora</th>
+                                        <th>Status</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="list-processed-tbody">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted" style="padding: 2rem;">
+                                            Carregando vistorias...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions (Tabs) - Move to bottom as secondary -->
+                <div class="card" style="margin-top: 2rem; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+                    <div class="card-header" style="background: transparent;">
+                        <h3 class="card-title" style="font-size: 1rem; color: var(--text-secondary);">Gerenciar Equipe &
+                            Lojas (Cadastro rápido)</h3>
                     </div>
                     <div class="card-body">
                         <style>
@@ -540,48 +615,28 @@
                 </div>
             </div>
 
-            <!-- 3. Inspections List -->
+            <!-- 3. Inspections List (Empty, contents moved to Home) -->
             <div id="inspections" class="section-view">
-                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Vistorias</h1>
-
-                <div class="card" style="min-height: 500px;">
-                    <div class="card-header">
-                        <h3 class="card-title">Histórico e Status</h3>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                            <i class="ph-fill ph-circle" style="color: var(--success-color); font-size: 0.6rem;"></i>
-                            Tempo
-                            Real
-                        </div>
-                    </div>
-                    <!-- Pending List -->
-                    <div id="list-pending-container"
-                        style="padding: 1rem; background: #F8FAFC; border-bottom: 1px solid var(--border-color);">
-                    </div>
-
-                    <!-- Processed List -->
-                    <div class="card-body" style="padding:0;">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>Estabelecimento</th>
-                                    <th>Data/Hora</th>
-                                    <th>Status</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="list-processed-tbody">
-                                <tr>
-                                    <td colspan="4" class="text-center text-muted" style="padding: 2rem;">
-                                        Carregando...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <div style="text-align: center; padding: 4rem 2rem;">
+                    <i class="ph ph-info"
+                        style="font-size: 3rem; color: var(--text-light); margin-bottom: 1rem; display: block;"></i>
+                    <h2 style="color: var(--text-primary);">As vistorias agora estão na Tela Inicial</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 2rem;">Para facilitar seu trabalho, movemos
+                        todo o histórico de vistorias para a página de Visão Geral.</p>
+                    <button class="btn btn-primary"
+                        onclick="showSection('overview', document.getElementById('menu-overview'))">Ir para Tela
+                        Inicial</button>
                 </div>
             </div>
-
+            </td>
+            </tr>
+            </tbody>
+            </table>
         </div>
+</div>
+</div>
+
+</div>
 </div>
 </div>
 
@@ -703,9 +758,32 @@
                 document.getElementById('stat-pending').textContent = '0';
             }
 
-            // Processed
+            // Pending / Processing (Home)
+            const homeProcessing = document.getElementById('home-processing');
+            const homeProcessingList = document.getElementById('home-processing-list');
+
+            if (data.pending && data.pending.length > 0) {
+                homeProcessing.style.display = 'block';
+                homeProcessingList.innerHTML = data.pending.map(item => `
+                    <div style="padding: 1rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: var(--text-primary);">${item.name}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">Iniciado há alguns instantes...</div>
+                        </div>
+                        <span class="badge badge-info">Processando...</span>
+                    </div>
+                `).join('');
+            } else {
+                homeProcessing.style.display = 'none';
+            }
+
+            // Processed & Home Pendencies
             const tbody = document.getElementById('list-processed-tbody');
+            const homePendencies = document.getElementById('home-pendencies');
+            const homeList = document.getElementById('home-pendencies-list');
+
             if (data.processed_raw && data.processed_raw.length > 0) {
+                // Main Table
                 tbody.innerHTML = data.processed_raw.map(item => `
                     <tr>
                         <td>
@@ -725,8 +803,31 @@
                         </td>
                     </tr>
                 `).join('');
+
+                // Home Pendencies (only PENDING_MANAGER_REVIEW or WAITING_APPROVAL)
+                const pendingValidation = data.processed_raw.filter(i =>
+                    i.status === 'PENDING_MANAGER_REVIEW' || i.status === 'WAITING_APPROVAL'
+                );
+
+                if (pendingValidation.length > 0) {
+                    homePendencies.style.display = 'block';
+                    homeList.innerHTML = pendingValidation.map(item => `
+                        <div style="padding: 1rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary);">${item.establishment}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Realizada em ${item.date}</div>
+                            </div>
+                            <a href="${item.review_link}" class="btn btn-sm btn-accent">
+                                <i class="ph ph-check-square-offset"></i> Validar Agora
+                            </a>
+                        </div>
+                    `).join('');
+                } else {
+                    homePendencies.style.display = 'none';
+                }
             } else {
                 tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Nenhuma vistoria encontrada.</td></tr>';
+                homePendencies.style.display = 'none';
             }
         } catch (e) {
             console.error("Erro no polling:", e);
