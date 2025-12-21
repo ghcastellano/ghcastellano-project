@@ -47,7 +47,7 @@ def get_pending_inspections(establishment_id=None):
             session.close()
         return []
 
-def get_processed_inspections_raw(establishment_id=None):
+def get_processed_inspections_raw(company_id=None, establishment_id=None):
     """Busca lista de inspeções para o GESTOR (Tudo que já foi processado ou está em aprovação)."""
     try:
         session = database.db_session()
@@ -66,9 +66,15 @@ def get_processed_inspections_raw(establishment_id=None):
         ).filter(
             Inspection.status.in_(statuses)
         )
-        
         if establishment_id:
             query = query.filter(Inspection.establishment_id == establishment_id)
+        elif company_id:
+            from src.models_db import Visit, User
+            query = query.outerjoin(Inspection.establishment).outerjoin(Inspection.visit).outerjoin(Visit.consultant)
+            query = query.filter(
+                (Establishment.company_id == company_id) | 
+                (User.company_id == company_id)
+            )
             
         inspections = query.order_by(Inspection.created_at.desc()).limit(50).all()
         
@@ -98,7 +104,7 @@ def get_processed_inspections_raw(establishment_id=None):
             session.close()
         return []
 
-def get_consultant_inspections(establishment_id=None):
+def get_consultant_inspections(company_id=None, establishment_id=None):
     """Busca lista de inspeções para o CONSULTOR (Apenas aprovados/em verificação)."""
     try:
         session = database.db_session()
@@ -118,6 +124,13 @@ def get_consultant_inspections(establishment_id=None):
         
         if establishment_id:
             query = query.filter(Inspection.establishment_id == establishment_id)
+        elif company_id:
+            from src.models_db import Visit, User
+            query = query.outerjoin(Inspection.establishment).outerjoin(Inspection.visit).outerjoin(Visit.consultant)
+            query = query.filter(
+                (Establishment.company_id == company_id) | 
+                (User.company_id == company_id)
+            )
         
         inspections = query.order_by(Inspection.created_at.desc()).limit(50).all()
         

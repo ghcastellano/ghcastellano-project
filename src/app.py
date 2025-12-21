@@ -404,12 +404,12 @@ def get_status():
                 # Combine technical jobs with business pending items
                 pending = pending_jobs 
                 
-                processed_raw = get_consultant_inspections(establishment_id=est_id)
+                processed_raw = get_consultant_inspections(company_id=current_user.company_id, establishment_id=est_id)
             else:
                 # Gestor vê tudo ou filtrado
                 pending = get_pending_jobs(company_id=current_user.company_id, allow_all=(current_user.company_id is None)) 
                 pending_approval = [] # Gestor sees everything in processed_raw usually, or we can add specific section too
-                processed_raw = get_processed_inspections_raw(establishment_id=est_uuid)
+                processed_raw = get_processed_inspections_raw(company_id=current_user.company_id, establishment_id=est_uuid)
             
             # Se o banco retornou dados (ou consultor vazio mas ok), usa eles
             if processed_raw is not None:  

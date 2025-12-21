@@ -222,8 +222,9 @@
                                     <td class="text-sm text-muted">{{ company.cnpj or '--' }}</td>
                                     <td><span class="badge badge-success">Ativo</span></td>
                                     <td class="text-right">
-                                        <button class="btn-edit-icon"
-                                            onclick='openEditCompany({{ company.id|tojson }}, {{ company.name|tojson }}, {{ (company.cnpj or "")|tojson }})'>
+                                        <button class="btn-edit-icon" data-id="{{ company.id }}"
+                                            data-name="{{ company.name }}" data-cnpj="{{ company.cnpj or '' }}"
+                                            onclick="openEditCompany(this.dataset.id, this.dataset.name, this.dataset.cnpj)">
                                             <i class="ph-bold ph-pencil-simple"></i>
                                         </button>
                                         <form action="{{ url_for('admin.delete_company', company_id=company.id) }}"
@@ -360,8 +361,10 @@
                                     </td>
                                     <td class="text-right">
                                         <div class="btn-icon-group">
-                                            <button class="btn-icon btn-icon-edit"
-                                                onclick='openEditManager({{ manager.id|tojson }}, {{ manager.name|tojson }}, {{ manager.email|tojson }}, {{ manager.company_id|tojson }})'
+                                            <button class="btn-icon btn-icon-edit" data-id="{{ manager.id }}"
+                                                data-name="{{ manager.name }}" data-email="{{ manager.email }}"
+                                                data-company="{{ manager.company_id or '' }}"
+                                                onclick="openEditManager(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.company)"
                                                 title="Editar">
                                                 <i class="ph-bold ph-pencil-simple"></i>
                                             </button>
