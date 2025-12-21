@@ -152,5 +152,9 @@ def run_migrations(db_session=None): # Renamed to generic
         # For now, let's fix indentation first.
         migration_v11_action_plan_enrichment.upgrade(db_session)
 
+        from src.legacy_migrations import migration_v13_job_enrichment
+        logger.info("🚀 Rodando Migração V13 (Jobs Enrichment)...")
+        migration_v13_job_enrichment.upgrade(db_session)
+
     except Exception as e:
         logger.error(f"❌ Erro ao rodar migrações subsequentes: {e}")

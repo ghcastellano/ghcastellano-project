@@ -35,7 +35,7 @@ class DriveService:
             
             # 2. [NEW] Authenticate as User (OAuth) via Env Var - Fixes Storage Quota
             elif os.getenv('GCP_OAUTH_TOKEN'):
-                import json
+                # import json (Removed to avoid UnboundLocalError)
                 from google.oauth2.credentials import Credentials as UserCredentials
                 logger.info("🔑 Autenticando usando OAuth User Token (GCP_OAUTH_TOKEN)...")
                 info = json.loads(os.getenv('GCP_OAUTH_TOKEN'))
