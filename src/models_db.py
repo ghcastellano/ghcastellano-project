@@ -219,6 +219,7 @@ class ActionPlan(Base):
     # Rich Content (Added in Migration V11)
     summary_text: Mapped[Optional[str]] = mapped_column(Text)
     strengths_text: Mapped[Optional[str]] = mapped_column(Text)
+    stats_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True) # Added V11
 
     # Relacionamentos
     inspection: Mapped["Inspection"] = relationship(back_populates="action_plan")
