@@ -386,16 +386,22 @@ def get_status():
             if current_user.role == UserRole.CONSULTANT:
                 # Consultor vê apenas seus trabalhos
                 # Jobs pendentes (técnico) + Vistorias em Aprovação (negócio)
-                pending_jobs = get_pending_jobs(company_id=current_user.company_id) 
+                try:
+                    my_est_ids = [est.id for est in current_user.establishments] if current_user.establishments else []
+                except: my_est_ids = []
+                
+                pending_jobs = get_pending_jobs(
+                    company_id=current_user.company_id, 
+                    establishment_ids=my_est_ids
+                ) 
                 
                 # Fix: User has no establishment_id, use relationship list
                 est_id = current_user.establishments[0].id if current_user.establishments else None
                 
-                # Fetch Waiting Approval
+                # Fetch Waiting Approval (Legacy View)
                 pending_approval = get_consultant_pending_inspections(establishment_id=est_id)
                 
-                # Combine technical jobs with business pending items for display
-                # Or keep separate? Let's add 'in_approval' key
+                # Combine technical jobs with business pending items
                 pending = pending_jobs 
                 
                 processed_raw = get_consultant_inspections(establishment_id=est_id)

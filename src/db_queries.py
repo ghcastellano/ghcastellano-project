@@ -87,7 +87,7 @@ def get_processed_inspections_raw(establishment_id=None):
                 'date': ai_data.get('data_inspecao', ''),
                 'status': insp.status.value, # Passa status para UI
                 'pdf_link': f"/download_pdf/{insp.drive_file_id}",
-                'review_link': f"/review/{insp.drive_file_id}"
+                'review_link': f"/manager/plan/{insp.drive_file_id}"
             })
         
         session.close()
@@ -261,7 +261,7 @@ def get_batch_inspection_details(drive_file_ids):
         return {}
         return {}
 
-def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False):
+def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, establishment_ids=None):
     """Busca JOBS (tarefas de background) que estão pendentes ou rodando."""
     try:
         session = database.db_session()
@@ -271,15 +271,37 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False):
             Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
         )
         
-        if not company_id and not allow_all:
+        # Security: If not allowing all, user MUST have either company scope or establishment scope
+        if not allow_all and not company_id and not establishment_ids:
+            # Fallback: If no scope provided, return empty (Safety)
+            session.close()
             return []
             
+        filters = []
         if company_id:
-            query = query.filter(Job.company_id == company_id)
-        
-        # If establishment_id is in input_payload (JSONB), we could filter but it's hard in SQLA without specialized operators.
-        # For MVP, Company level is fine (User sees all jobs of their company/scope).
+            filters.append(Job.company_id == company_id)
             
+        if establishment_ids:
+            # JSONB Query: input_payload->>'establishment_id' IN (list of ids)
+            # Use astext for comparison
+            from sqlalchemy import cast, String
+            import json
+            
+            # Cast list to strings for robustness
+            ids_str = [str(uid) for uid in establishment_ids]
+            
+            # Note: We use OR logic? Usually users want to see jobs for their company OR their establishments.
+            # But usually Consultant has no company_id. 
+            # So if we have establishment_ids, we add it as an OR condition if filters exist, or main condition.
+            # Let's use sqlalchemy OR if both present.
+            
+            est_filter = Job.input_payload['establishment_id'].astext.in_(ids_str)
+            filters.append(est_filter)
+            
+        if filters:
+            from sqlalchemy import or_
+            query = query.filter(or_(*filters))
+
         jobs = query.order_by(Job.created_at.desc()).limit(20).all()
         
         result = []
@@ -311,8 +333,8 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False):
                 'status_color': status_color,
                 'created_at': job.created_at.strftime('%H:%M') if job.created_at else '',
                 'company_name': job.company.name if job.company else 'N/A',
-                'cost_input': job.cost_tokens_input / 1000000.0 * 0.150 if job.cost_tokens_input else 0, # GPT-4o-mini approx
-                'cost_output': job.cost_tokens_output / 1000000.0 * 0.600 if job.cost_tokens_output else 0,
+                'cost_input': job.cost_input_brl if job.cost_input_brl > 0 else (job.cost_tokens_input / 1000000.0 * 0.150 * 6.00 if job.cost_tokens_input else 0),
+                'cost_output': job.cost_output_brl if job.cost_output_brl > 0 else (job.cost_tokens_output / 1000000.0 * 0.600 * 6.00 if job.cost_tokens_output else 0),
                 'duration': round(job.execution_time_seconds, 1) if job.execution_time_seconds else 0
             })
             

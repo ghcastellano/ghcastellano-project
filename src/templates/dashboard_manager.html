@@ -464,7 +464,7 @@
                                         <td class="text-right">
                                             <div class="btn-icon-group">
                                                 <button class="btn-action"
-                                                    onclick="openEditConsultant('{{ consultant.id }}', '{{ consultant.name }}', '{{ consultant.email }}')"
+                                                    onclick='openEditConsultant({{ consultant.id|tojson }}, {{ consultant.name|tojson }}, {{ consultant.email|tojson }})'
                                                     title="Editar">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </button>
@@ -517,7 +517,7 @@
                                         <td class="text-right">
                                             <div class="btn-icon-group">
                                                 <button class="btn-action"
-                                                    onclick="openEditEst('{{ est.id }}', '{{ est.name }}', '{{ est.code or '' }}')"
+                                                    onclick='openEditEst({{ est.id|tojson }}, {{ est.name|tojson }}, {{ (est.code or "")|tojson }})'
                                                     title="Editar">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </button>
@@ -717,7 +717,7 @@
                         <td>${getStatusBadge(item.status)}</td>
                         <td>
                             <a href="${item.review_link}" class="btn btn-sm btn-white border shadow-sm">
-                                <i class="ph-bold ph-pencil-simple text-primary"></i> Editar
+                                <i class="ph-bold ph-pencil-simple text-primary"></i> Validar
                             </a>
                         </td>
                     </tr>

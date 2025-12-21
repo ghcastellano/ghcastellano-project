@@ -267,6 +267,10 @@ class Job(Base):
     cost_tokens_input: Mapped[int] = mapped_column(default=0)
     cost_tokens_output: Mapped[int] = mapped_column(default=0)
     execution_time_seconds: Mapped[float] = mapped_column(default=0.0)
+    cost_input_usd: Mapped[float] = mapped_column(default=0.0)
+    cost_output_usd: Mapped[float] = mapped_column(default=0.0)
+    cost_input_brl: Mapped[float] = mapped_column(default=0.0)
+    cost_output_brl: Mapped[float] = mapped_column(default=0.0)
     api_calls_count: Mapped[int] = mapped_column(default=0)
     attempts: Mapped[int] = mapped_column(default=0)
 

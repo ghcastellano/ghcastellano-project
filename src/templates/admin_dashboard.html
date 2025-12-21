@@ -223,7 +223,7 @@
                                     <td><span class="badge badge-success">Ativo</span></td>
                                     <td class="text-right">
                                         <button class="btn-edit-icon"
-                                            onclick="openEditCompany('{{ company.id }}', '{{ company.name }}', '{{ company.cnpj or '' }}')">
+                                            onclick='openEditCompany({{ company.id|tojson }}, {{ company.name|tojson }}, {{ (company.cnpj or "")|tojson }})'>
                                             <i class="ph-bold ph-pencil-simple"></i>
                                         </button>
                                         <form action="{{ url_for('admin.delete_company', company_id=company.id) }}"
@@ -361,7 +361,7 @@
                                     <td class="text-right">
                                         <div class="btn-icon-group">
                                             <button class="btn-icon btn-icon-edit"
-                                                onclick="openEditManager('{{ manager.id }}', '{{ manager.name }}', '{{ manager.email }}', '{{ manager.company_id }}')"
+                                                onclick='openEditManager({{ manager.id|tojson }}, {{ manager.name|tojson }}, {{ manager.email|tojson }}, {{ manager.company_id|tojson }})'
                                                 title="Editar">
                                                 <i class="ph-bold ph-pencil-simple"></i>
                                             </button>
@@ -400,7 +400,7 @@
                                     <th>Tipo</th>
                                     <th>Empresa</th>
                                     <th>Status</th>
-                                    <th>Custos (In/Out)</th>
+                                    <th>Custos (R$ - In/Out)</th>
                                     <th>Duração</th>
                                 </tr>
                             </thead>
@@ -536,12 +536,12 @@
                            <td>${job.company_name || '-'}</td>
                            <td><span class="badge badge-${job.status_color}">${job.status_label}</span></td>
                            <td class="text-sm">
-                               <span style="color: #ea580c;">📉 $${(job.cost_input || 0).toFixed(4)}</span>
-                               <span style="color: #16a34a;">📈 $${(job.cost_output || 0).toFixed(4)}</span>
+                               <span style="color: #ea580c;">📉 R$${(job.cost_input || 0).toFixed(4)}</span>
+                               <span style="color: #16a34a;">📈 R$${(job.cost_output || 0).toFixed(4)}</span>
                            </td>
                            <td class="text-sm text-muted">${job.duration ? job.duration + 's' : '-'}</td>
                        </tr>
-                   `).join('');
+                    `).join('');
                 } else {
                     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Nenhum job em processamento no momento.</td></tr>`;
                 }
