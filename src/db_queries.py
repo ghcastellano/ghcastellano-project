@@ -299,16 +299,17 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
             from sqlalchemy import cast, String
             import json
             
-            # Cast list to strings for robustness
-            ids_str = [str(uid) for uid in establishment_ids]
+            # Cast list to strings for robustness (Fix SQL UUID vs Text error)
+            ids_str = [str(uid) for uid in establishment_ids if uid]
             
             # Note: We use OR logic? Usually users want to see jobs for their company OR their establishments.
             # But usually Consultant has no company_id. 
             # So if we have establishment_ids, we add it as an OR condition if filters exist, or main condition.
             # Let's use sqlalchemy OR if both present.
             
-            est_filter = Job.input_payload['establishment_id'].astext.in_(ids_str)
-            filters.append(est_filter)
+            if ids_str:
+                est_filter = Job.input_payload['establishment_id'].astext.in_(ids_str)
+                filters.append(est_filter)
             
         if filters:
             from sqlalchemy import or_
