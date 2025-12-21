@@ -13,19 +13,23 @@ WEBHOOK_SECRET="${DRIVE_WEBHOOK_TOKEN:-segredo-webhook-drive-dev}"
 echo "🚀 Iniciando Deploy do Serviço com Configuração de Webhook..."
 
 # --- NOVO: Verificação Pré-Deploy (Zero Defect) ---
-echo "🔍 Executando scripts/sanity_check.py..."
-# Tenta usar python3 do sistema ou venv se disponível
-if [ -d ".venv" ]; then
-    source .venv/bin/activate
-    python3 scripts/sanity_check.py
-    deactivate
-else
-    python3 scripts/sanity_check.py
-fi
+if [ "${SKIP_SANITY_CHECK:-0}" != "1" ]; then
+    echo "🔍 Executando scripts/sanity_check.py..."
+    # Tenta usar python3 do sistema ou venv se disponível
+    if [ -d ".venv" ]; then
+        source .venv/bin/activate
+        python3 scripts/sanity_check.py
+        deactivate
+    else
+        python3 scripts/sanity_check.py
+    fi
 
-if [ $? -ne 0 ]; then
-  echo "❌ Sanity Check FALHOU! Deploy abortado para evitar erros em produção."
-  exit 1
+    if [ $? -ne 0 ]; then
+      echo "❌ Sanity Check FALHOU! Deploy abortado para evitar erros em produção."
+      exit 1
+    fi
+else
+    echo "⏩ Pulanado Sanity Check (SKIP_SANITY_CHECK=1)..."
 fi
 # ------------------------------------
 
