@@ -402,7 +402,7 @@
             }
 
             // Task Polling
-            async function updateTasks() {
+            async function updateLists() {
                 try {
                     const response = await fetch('/api/status?v=' + new Date().getTime());
                     const data = await response.json();
