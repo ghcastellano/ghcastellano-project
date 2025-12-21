@@ -35,7 +35,7 @@
     </div>
 
     <!-- Stats/Context -->
-    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 2rem;">
+    <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 2rem;">
         <div class="stat-card">
             <span class="stat-label">Total de Itens</span>
             <span class="stat-value" id="totalItems">{{ plan.items|length }}</span>
@@ -47,8 +47,35 @@
             </span>
         </div>
         <div class="stat-card">
-            <span class="stat-label">Status Atual</span>
-            <span class="badge badge-warning" style="font-size: 1rem;">{{ inspection.status.name }}</span>
+            <span class="stat-label">Pontuação Geral</span>
+            <span class="stat-value" style="color: var(--primary-color);">{{ plan.stats_json.get('score', 0) if
+                plan.stats_json else 0 }}%</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Status</span>
+            <span class="badge badge-warning" style="font-size: 1rem;">{{ inspection.status.value }}</span>
+        </div>
+    </div>
+
+    <!-- Summary & Strengths Section -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Resumo Geral da Inspeção</h3>
+            </div>
+            <div class="card-body">
+                <textarea id="summaryText" class="form-control" rows="5"
+                    style="width: 100%;">{{ plan.summary_text or '' }}</textarea>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Pontos Fortes</h3>
+            </div>
+            <div class="card-body">
+                <textarea id="strengthsText" class="form-control" rows="5" style="width: 100%;"
+                    placeholder="Ex: Higiene impecável, Documentação em dia...">{{ plan.strengths_text or '' }}</textarea>
+            </div>
         </div>
     </div>
 
@@ -75,10 +102,11 @@
             <table class="modern-table" id="planTable">
                 <thead>
                     <tr>
-                        <th style="width: 30%;">Problema Encontrado</th>
-                        <th style="width: 30%;">Ação Corretiva</th>
-                        <th style="width: 15%;">Prazo</th>
-                        <th style="width: 15%;">Prioridade</th>
+                        <th style="width: 25%;">Problema Encontrado</th>
+                        <th style="width: 25%;">Ação Corretiva</th>
+                        <th style="width: 20%;">Base Legal / Prazo IA</th>
+                        <th style="width: 15%;">Prazo Final</th>
+                        <th style="width: 10%;">Prioridade</th>
                         <th style="width: 5%;"></th>
                     </tr>
                 </thead>
@@ -92,6 +120,14 @@
                         </td>
                         <td>
                             <textarea class="form-control item-action" rows="3">{{ item.corrective_action }}</textarea>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <textarea class="form-control item-legal" rows="2"
+                                    placeholder="Base Legal">{{ item.legal_basis }}</textarea>
+                                <span class="text-xs text-muted">Sugestão IA: <strong>{{ item.ai_suggested_deadline or
+                                        'N/A' }}</strong></span>
+                            </div>
                         </td>
                         <td>
                             <input type="date" class="form-control item-deadline" value="{{ item.deadline_date }}">
@@ -298,6 +334,9 @@
                 <textarea class="form-control item-action" rows="3" placeholder="Ação sugerida..."></textarea>
             </td>
             <td>
+                <textarea class="form-control item-legal" rows="2" placeholder="Base Legal"></textarea>
+            </td>
+            <td>
                 <input type="date" class="form-control item-deadline">
             </td>
             <td>
@@ -347,13 +386,17 @@
 
         rows.forEach(row => {
             items.push({
-                id: row.dataset.id || null, // null for new items
+                id: row.dataset.id || null,
                 problem: row.querySelector('.item-problem').value,
                 action: row.querySelector('.item-action').value,
+                legal_basis: row.querySelector('.item-legal').value,
                 deadline: row.querySelector('.item-deadline').value,
                 severity: row.querySelector('.item-severity').value
             });
         });
+
+        const summary_text = document.getElementById('summaryText').value;
+        const strengths_text = document.getElementById('strengthsText').value;
 
         const statusEl = document.getElementById('saveStatus');
         statusEl.textContent = "Salvando...";
@@ -361,6 +404,8 @@
 
         const payload = {
             items,
+            summary_text,
+            strengths_text,
             approve,
             responsible_name: respName,
             responsible_phone: respPhone

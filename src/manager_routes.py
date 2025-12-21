@@ -391,6 +391,12 @@ def save_plan(file_id):
              
         plan = inspection.action_plan
         
+        # Save enriched fields
+        if 'summary_text' in data:
+            plan.summary_text = data.get('summary_text')
+        if 'strengths_text' in data:
+            plan.strengths_text = data.get('strengths_text')
+        
         # Process Items
         items_payload = data.get('items', [])
         current_item_ids = [str(item.id) for item in plan.items]
@@ -404,6 +410,7 @@ def save_plan(file_id):
                 if item and item.action_plan_id == plan.id:
                     item.problem_description = item_data.get('problem')
                     item.corrective_action = item_data.get('action')
+                    item.legal_basis = item_data.get('legal_basis')
                     try:
                         item.severity = SeverityLevel(item_data.get('severity', 'MEDIUM'))
                     except ValueError:
@@ -427,6 +434,7 @@ def save_plan(file_id):
                     action_plan_id=plan.id,
                     problem_description=item_data.get('problem'),
                     corrective_action=item_data.get('action'),
+                    legal_basis=item_data.get('legal_basis'),
                     severity=SeverityLevel(item_data.get('severity', 'MEDIUM')) if item_data.get('severity') in SeverityLevel._member_names_ else SeverityLevel.MEDIUM,
                     status=ActionPlanItemStatus.OPEN,
                     deadline_date=deadline
