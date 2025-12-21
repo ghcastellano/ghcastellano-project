@@ -254,7 +254,20 @@ def dashboard_consultant():
             
         inspections = get_consultant_inspections(company_id=user.company_id)
         
-        return render_template('dashboard_consultant.html', user_role='CONSULTANT', current_user=user, inspections=inspections)
+        # [UX] Calculate Quick Stats for Dashboard
+        from datetime import datetime
+        stats = {
+            'total': len(inspections),
+            'pending': sum(1 for i in inspections if i['status'] in ['PENDING_VERIFICATION', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW']),
+            'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED']),
+            'last_sync': datetime.utcnow().strftime('%H:%M')
+        }
+        
+        return render_template('dashboard_consultant.html', 
+                             user_role='CONSULTANT', 
+                             current_user=user, 
+                             inspections=inspections,
+                             stats=stats)
     finally:
         # Session is scoped, cleanup happens automatically, but best practice:
         pass
