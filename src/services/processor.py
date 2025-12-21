@@ -102,10 +102,17 @@ class ProcessorService:
             file_hash = self.calculate_hash(file_content)
             
             # 4. Generate & Upload
-            output_link = self.generate_pdf(report_data, filename)
-            logger.info("Plano gerado e salvo", link=output_link)
+            output_link = None
+            try:
+                output_link = self.generate_pdf(report_data, filename)
+                logger.info("Plano gerado e salvo", link=output_link)
+            except Exception as pdf_err:
+                 # CRITICAL FIX: Don't block DB save if PDF fails. We can retry PDF later.
+                 logger.error(f"⚠️ PDF Gen Failed (Ignored to save Inspection): {pdf_err}")
+                 import traceback
+                 logger.error(traceback.format_exc())
 
-            # 5. Save to DB
+            # 5. Save to DB (Always save if Analysis succeeded)
             self._save_to_db_logic(report_data, file_id, filename, output_link, file_hash, company_id=company_id, override_est_id=establishment_id)
 
             # Return usage for caller (JobProcessor)
@@ -114,8 +121,10 @@ class ProcessorService:
                 'output_link': output_link
             }
 
-            # 6. Backup
-            self.drive_service.move_file(file_id, self.folder_backup)
+            # 6. Backup (moved inside finally or similar if robustness needed, but OK here)
+            try:
+                self.drive_service.move_file(file_id, self.folder_backup)
+            except: pass
             
         except Exception as e:
             logger.error("Erro processando arquivo", filename=filename, error=str(e))
@@ -210,7 +219,10 @@ class ProcessorService:
 
             return pdf_link
         except Exception as e:
-            logger.error("PDF Gen Error", error=str(e))
+            import traceback
+            import sys
+            logger.error("PDF Gen Error", error=str(e), traceback=traceback.format_exc())
+            # logger.info(f"Modules Loaded: {'fpdf' in sys.modules}, {'pypdf' in sys.modules}")
             raise
 
     def calculate_hash(self, content: bytes) -> str:
