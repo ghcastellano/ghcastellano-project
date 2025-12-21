@@ -12,6 +12,15 @@ data/
 02_PLANOS_GERADOS/
 03_PROCESSADOS_BACKUP/
 99_ERROS/
+*.mp4
+*.zip
+*.tar.gz
+# Strict exclusion of large folders
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
 
 # OS
 .DS_Store
