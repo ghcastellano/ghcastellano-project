@@ -271,7 +271,7 @@
 
         <!-- 1. Primary Action: New Inspection -->
         <!-- Opens the existing Upload Modal/Page or triggers action -->
-        <div class="stat-card action-card" onclick="window.location.href='/upload'">
+        <div class="stat-card action-card" onclick="openUploadModal()">
             <div class="action-icon-circle">
                 <i class="fas fa-plus fa-lg"></i>
             </div>
@@ -357,5 +357,140 @@
         {% endif %}
     </div>
 
+    <!-- Upload Modal Overlay -->
+    <div id="uploadModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content glass-panel" style="max-width: 500px; width: 90%; position: relative;">
+            <button onclick="closeUploadModal()"
+                style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748B;">&times;</button>
+
+            <h2 style="margin-top: 0; margin-bottom: 1.5rem; color: #1E293B;">✨ Novo Relatório</h2>
+
+            <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                <div id="dropZone" class="upload-zone">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
+                    <h3 style="margin: 0; font-weight: 500; color: #334155;">Arraste seu PDF aqui</h3>
+                    <p style="color: #64748b; margin: 0.5rem 0 1.5rem;">ou clique para selecionar</p>
+
+                    <input type="file" name="file" id="fileInput" accept=".pdf" style="display: none;"
+                        onchange="handleFileSelect(this)">
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()"
+                        style="border-radius: 50px; padding: 0.75rem 1.5rem;">
+                        Selecionar Arquivo
+                    </button>
+                </div>
+
+                <!-- Preview -->
+                <div id="filePreview"
+                    style="display: none; margin-top: 1.5rem; background: #F1F5F9; padding: 1rem; border-radius: 12px; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 1.2rem;">📎</span>
+                    <span id="fileName"
+                        style="font-weight: 500; color: #334155; font-size: 0.9rem; flex-grow: 1; margin: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">nome.pdf</span>
+                    <button type="submit" class="btn btn-success"
+                        style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 8px; background: #10B981; color: white; border: none; cursor: pointer;">
+                        Enviar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
+
+<style>
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.2s ease-out;
+    }
+
+    .modal-content {
+        animation: slideUp 0.3s ease-out;
+    }
+
+    .upload-zone {
+        border: 2px dashed #CBD5E1;
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.2s ease;
+        background: rgba(255, 255, 255, 0.5);
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+        border-color: #4F46E5;
+        background: rgba(238, 242, 255, 0.5);
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<script>
+    function openUploadModal() {
+        document.getElementById('uploadModal').style.display = 'flex';
+    }
+
+    function closeUploadModal() {
+        document.getElementById('uploadModal').style.display = 'none';
+    }
+
+    // Close on click outside
+    document.getElementById('uploadModal').addEventListener('click', function (e) {
+        if (e.target === this) closeUploadModal();
+    });
+
+    // File Handling
+    function handleFileSelect(input) {
+        const file = input.files[0];
+        if (file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('filePreview').style.display = 'flex';
+            document.getElementById('dropZone').style.display = 'none'; // Hide drop zone to simplify
+        }
+    }
+
+    // Drag and Drop
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect(fileInput);
+        }
+    });
+</script>
 {% endblock %}
