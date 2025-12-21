@@ -69,6 +69,7 @@ csrf = CSRFProtect(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # --- Migrations (Auto-Run V11 & V12) ---
+database.init_db() # Ensure DB is connected and SessionLocal is ready
 try:
     from src.legacy_migrations import migration_v11_action_plan_enrichment
     migration_v11_action_plan_enrichment.upgrade(database.SessionLocal)
