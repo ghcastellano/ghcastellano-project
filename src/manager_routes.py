@@ -319,7 +319,7 @@ def edit_plan(file_id):
                     inspection = Inspection(
                         drive_file_id=file_id,
                         status=InspectionStatus.PENDING_MANAGER_REVIEW,
-                        client_id=current_user.company_id or uuid.uuid4(), # Fallback
+                        client_id=None, # Legacy field, made nullable in V12
                         establishment_id=est.id if est else None,
                         ai_raw_response=data
                     )

@@ -68,6 +68,15 @@ csrf = CSRFProtect(app)
 # Trust only one proxy by default for Cloud Run
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
+# --- Migrations (Auto-Run V12) ---
+try:
+    from src.legacy_migrations import migration_v12_fix_client_params
+    migration_v12_fix_client_params.upgrade()
+    logger.info("Migration V12 executed successfully.")
+except Exception as e:
+    logger.error(f"Migration V12 Error: {e}")
+# -----------------------------
+
 # Inicializa Flask-Login
 login_manager.init_app(app)
 
