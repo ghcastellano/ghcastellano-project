@@ -777,7 +777,7 @@ def drive_webhook():
     """
     # 1. Verifica Token de Segurança (Evitar Spam)
     token = request.headers.get('X-Goog-Channel-Token')
-    expected_token = os.getenv('DRIVE_WEBHOOK_TOKEN')
+    expected_token = os.getenv('WEBHOOK_SECRET_TOKEN')
     
     if token != expected_token:
         logger.warning(f"Webhook Unauthorized: {token}")
