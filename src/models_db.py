@@ -240,6 +240,8 @@ class ActionPlanItem(Base):
     status: Mapped[ActionPlanItemStatus] = mapped_column(default=ActionPlanItemStatus.OPEN)
     ai_suggested_deadline: Mapped[Optional[str]] = mapped_column(String) # POC compatibility
     
+    sector: Mapped[Optional[str]] = mapped_column(Text) # V14 Grouping
+    
     manager_notes: Mapped[Optional[str]] = mapped_column(Text) # Notas do gestor
 
     # Relacionamento Reverso
