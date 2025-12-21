@@ -380,8 +380,8 @@ def api_jobs_stats():
                 'status': j.status.value,
                 'status_label': j.status.value,
                 'status_color': status_colors.get(j.status, "secondary"),
-                'cost_input': j.cost_input_usd or 0.0,
-                'cost_output': j.cost_output_usd or 0.0,
+                'cost_input': j.cost_input_brl or 0.0,
+                'cost_output': j.cost_output_brl or 0.0,
                 'duration': duration,
                 'created_at': j.created_at.isoformat() if j.created_at else None
             })

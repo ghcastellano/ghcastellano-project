@@ -463,8 +463,10 @@
                                         <td style="color: var(--text-secondary);">{{ consultant.email }}</td>
                                         <td class="text-right">
                                             <div class="btn-icon-group">
-                                                <button class="btn-action"
-                                                    onclick='openEditConsultant({{ consultant.id|tojson }}, {{ consultant.name|tojson }}, {{ consultant.email|tojson }})'
+                                                <button class="btn-action" data-id="{{ consultant.id }}"
+                                                    data-name="{{ consultant.name }}"
+                                                    data-email="{{ consultant.email }}"
+                                                    onclick="openEditConsultant(this.dataset.id, this.dataset.name, this.dataset.email)"
                                                     title="Editar">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </button>
@@ -516,8 +518,9 @@
                                             '-' }}</td>
                                         <td class="text-right">
                                             <div class="btn-icon-group">
-                                                <button class="btn-action"
-                                                    onclick='openEditEst({{ est.id|tojson }}, {{ est.name|tojson }}, {{ (est.code or "")|tojson }})'
+                                                <button class="btn-action" data-id="{{ est.id }}"
+                                                    data-name="{{ est.name }}" data-code="{{ est.code or '' }}"
+                                                    onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code)"
                                                     title="Editar">
                                                     <i class="ph ph-pencil-simple"></i>
                                                 </button>
