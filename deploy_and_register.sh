@@ -30,8 +30,9 @@ fi
 # ------------------------------------
 
 # Constrói a imagem primeiro para garantir que o código esteja atualizado
-echo "🔨 Construindo Imagem do Container..."
-gcloud builds submit --tag "$IMAGE" --project "$PROJECT_ID" .
+# Constrói a imagem com Cache (Kaniko) via cloudbuild.yaml
+echo "🔨 Construindo Imagem do Container (Otimizado with Kaniko)..."
+gcloud builds submit --config cloudbuild.yaml --project "$PROJECT_ID" .
 
 
 # Secret Manager helpers (mantém custo baixo e evita vazar credenciais em env vars)

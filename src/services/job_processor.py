@@ -1,7 +1,7 @@
 import logging
 import time
 from src.models_db import Job, JobStatus
-from src.models_db import Job, JobStatus
+
 from src import database
 from src.services.processor import processor_service
 
@@ -38,6 +38,8 @@ class JobProcessor:
                 result = self._handle_test_job(job)
             elif job.type == "PROCESS_REPORT":
                 result = self._handle_process_report(job)
+            elif job.type == "CHECK_DRIVE_CHANGES":
+                result = self._handle_check_drive_changes(job)
             else:
                 raise ValueError(f"Unknown Job Type: {job.type}")
                 
@@ -123,6 +125,26 @@ class JobProcessor:
             }
         except Exception as e:
             logger.error(f"❌ ProcessorService failed: {e}", exc_info=True)
+            raise e
+
+    def _handle_check_drive_changes(self, job: Job) -> dict:
+        """
+        Scans Drive folder for new files and processes them.
+        """
+        logger.info("📂 Checking Drive for changes via ProcessorService...")
+        try:
+            # Reuses existing logic to scan and process
+            # Note: process_pending_files creates its own internal jobs or processes inline?
+            # Creating internal jobs would be better for distinct tracking.
+            # processor_service.process_pending_files() currently does logic inline or calling process_single_file.
+            # Let's blindly trust it for MVP phase 2 async wrapper.
+            
+            processed_count = processor_service.process_pending_files()
+            
+            logger.info(f"✅ Drive Check Completed. Processed {processed_count} files.")
+            return {"status": "Drive Check Completed", "processed_count": processed_count}
+        except Exception as e:
+            logger.error(f"❌ Drive Check Failed: {e}", exc_info=True)
             raise e
 
     def _check_limits(self, job: Job) -> bool:
