@@ -238,8 +238,21 @@ def root():
 @role_required(UserRole.CONSULTANT)
 def dashboard_consultant():
     from src.db_queries import get_consultant_inspections
-    inspections = get_consultant_inspections(company_id=current_user.company_id)
-    return render_template('dashboard_consultant.html', user_role='CONSULTANT', inspections=inspections)
+    from src.database import get_db, db_session
+    from src.models_db import User
+    
+    # Re-attach user to session to access lazy relationships (establishments)
+    db = next(get_db())
+    try:
+        user = db.merge(current_user) # Attach to current session
+        inspections = get_consultant_inspections(company_id=user.company_id)
+        # Force load establishments while session is open
+        _ = user.establishments 
+        
+        return render_template('dashboard_consultant.html', user_role='CONSULTANT', current_user=user, inspections=inspections)
+    finally:
+        # Session is scoped, cleanup happens automatically, but best practice:
+        pass
 
 # Rota legado (redireciona para root para tratar auth)
 @app.route('/dashboard')
