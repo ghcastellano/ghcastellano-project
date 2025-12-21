@@ -240,16 +240,24 @@ def dashboard_consultant():
     from src.db_queries import get_consultant_inspections
     from src.database import get_db, db_session
     from src.models_db import User
+    from sqlalchemy.orm import joinedload
     
     # Re-attach user to session to access lazy relationships (establishments)
     db = next(get_db())
     try:
-        user = db.merge(current_user) # Attach to current session
+        # Secure Fetch with Eager Loading (Fix DetachedInstanceError)
+        user = db.query(User).options(joinedload(User.establishments)).filter(User.id == current_user.id).first()
+        
+        # Fallback if user not found (should not happen if logged in)
+        if not user:
+            user = current_user 
+            
         inspections = get_consultant_inspections(company_id=user.company_id)
-        # Force load establishments while session is open
-        _ = user.establishments 
         
         return render_template('dashboard_consultant.html', user_role='CONSULTANT', current_user=user, inspections=inspections)
+    finally:
+        # Session is scoped, cleanup happens automatically, but best practice:
+        pass
     finally:
         # Session is scoped, cleanup happens automatically, but best practice:
         pass
