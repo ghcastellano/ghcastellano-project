@@ -237,7 +237,9 @@ def root():
 @login_required
 @role_required(UserRole.CONSULTANT)
 def dashboard_consultant():
-    return render_template('dashboard_consultant.html', user_role='CONSULTANT')
+    from src.db_queries import get_consultant_inspections
+    inspections = get_consultant_inspections(company_id=current_user.company_id)
+    return render_template('dashboard_consultant.html', user_role='CONSULTANT', inspections=inspections)
 
 # Rota legado (redireciona para root para tratar auth)
 @app.route('/dashboard')
