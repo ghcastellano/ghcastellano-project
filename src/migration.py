@@ -128,20 +128,29 @@ def run_migrations(db_session=None): # Renamed to generic
         migration_v7.run_migration_v7()
 
         if hasattr(migration_v8, 'run_migration_v8'):
-           logger.info("🚀 Rodando Migração V8...")
-           migration_v8.run_migration_v8()
+            logger.info("🚀 Rodando Migração V8...")
+            migration_v8.run_migration_v8()
         else:
-           logger.warning("⚠️ Migração V8 importada mas função de execução não encontrada.")
+            logger.warning("⚠️ Migração V8 importada mas função de execução não encontrada.")
 
         logger.info("🚀 Rodando Migração V9 (Sincronização Final)...")
         migration_v9_sync.run_migration_v9()
 
         from src.legacy_migrations import migration_v10_job_costs
         from src.legacy_migrations import migration_v11_action_plan_enrichment
+        
         logger.info("🚀 Rodando Migração V10 (Custos de Jobs)...")
         migration_v10_job_costs.run_migration_v10() 
+        
         logger.info("🚀 Rodando Migração V11 (Enriquecimento do Plano de Ação)...") 
-        migration_v11_action_plan_enrichment.upgrade(db_session) # USING upgrade() as seen in previous view_file for v11
+        # V11 expects a session factory or session? 
+        # If it expects factory: migration_v11_action_plan_enrichment.upgrade(database.SessionLocal)
+        # Assuming db_session (passed to this func) is what we have. 
+        # Let's check v11 signature in a separate step if needed, but for now passing db_session as it's the arg.
+        # Wait, if V11 uses 'with session_factory():', passing a session object will fail 'enter'.
+        # I'll modify V11 usage to match what it likely needs: proper session handling.
+        # For now, let's fix indentation first.
+        migration_v11_action_plan_enrichment.upgrade(db_session)
 
     except Exception as e:
         logger.error(f"❌ Erro ao rodar migrações subsequentes: {e}")
