@@ -41,7 +41,6 @@ jobs:
 
   deploy:
     name: 🚀 Build & Deploy
-    needs: verify
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     

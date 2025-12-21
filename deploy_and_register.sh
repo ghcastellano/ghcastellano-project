@@ -280,111 +280,12 @@ else
     echo "⚠️ GCP_OAUTH_TOKEN não encontrado (Usando Service Account Fallback)"
 fi
 
-# SYNC DATABASE_URL: Garante que o valor do GitHub Secret sobrescreva o Secret Manager (Fonte da Verdade)
-if [ -n "${DATABASE_URL:-}" ]; then
-  if ! gcloud secrets describe "DATABASE_URL" --project "$PROJECT_ID" >/dev/null 2>&1; then
-     gcloud secrets create "DATABASE_URL" --replication-policy=automatic --project "$PROJECT_ID"
-  fi
-  printf "%s" "$DATABASE_URL" | gcloud secrets versions add "DATABASE_URL" --data-file=- --project "$PROJECT_ID" >/dev/null
-  echo "✅ Secret DATABASE_URL sincronizado do GitHub para Secret Manager."
-fi
-
-# SYNC OPENAI_API_KEY
-if [ -n "${OPENAI_API_KEY:-}" ]; then
-  if ! gcloud secrets describe "OPENAI_API_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
-     gcloud secrets create "OPENAI_API_KEY" --replication-policy=automatic --project "$PROJECT_ID"
-  fi
-  printf "%s" "$OPENAI_API_KEY" | gcloud secrets versions add "OPENAI_API_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
-  echo "✅ Secret OPENAI_API_KEY sincronizado do GitHub para Secret Manager."
-fi
-
-# SYNC SECRET_KEY
-if [ -n "${SECRET_KEY:-}" ]; then
-  if ! gcloud secrets describe "SECRET_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
-     gcloud secrets create "SECRET_KEY" --replication-policy=automatic --project "$PROJECT_ID"
-  fi
-  printf "%s" "$SECRET_KEY" | gcloud secrets versions add "SECRET_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
-  echo "✅ Secret SECRET_KEY sincronizado do GitHub para Secret Manager."
-fi
-
-# SYNC WHATSAPP_TOKEN
-if [ -n "${WHATSAPP_TOKEN:-}" ]; then
-  if ! gcloud secrets describe "WHATSAPP_TOKEN" --project "$PROJECT_ID" >/dev/null 2>&1; then
-     gcloud secrets create "WHATSAPP_TOKEN" --replication-policy=automatic --project "$PROJECT_ID"
-  fi
-  printf "%s" "$WHATSAPP_TOKEN" | gcloud secrets versions add "WHATSAPP_TOKEN" --data-file=- --project "$PROJECT_ID" >/dev/null
-  echo "✅ Secret WHATSAPP_TOKEN sincronizado do GitHub para Secret Manager."
-fi
-
-if [ -n "${GCP_SA_KEY:-}" ]; then
-  # Se GCP_SA_KEY foi passada (via CI), salve no Secret Manager para evitar problemas de parsing no deploy
-  # e para garantir segurança.
-  if ! gcloud secrets describe "GCP_SA_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
-     gcloud secrets create "GCP_SA_KEY" --replication-policy=automatic --project "$PROJECT_ID"
-  fi
-  echo "$GCP_SA_KEY" | gcloud secrets versions add "GCP_SA_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
-  echo "✅ Secret GCP_SA_KEY atualizado com sucesso."
-  SECRETS_LIST="${SECRETS_LIST},GCP_SA_KEY=GCP_SA_KEY:latest"
-fi
-
-# SYNC AWS SECRETS: AWS_ACCESS_KEY_ID
-if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
-  if ! gcloud secrets describe "AWS_ACCESS_KEY_ID" --project "$PROJECT_ID" >/dev/null 2>&1; then
-     gcloud secrets create "AWS_ACCESS_KEY_ID" --replication-policy=automatic --project "$PROJECT_ID"
-  fi
-  printf "%s" "$AWS_ACCESS_KEY_ID" | gcloud secrets versions add "AWS_ACCESS_KEY_ID" --data-file=- --project "$PROJECT_ID" >/dev/null
-  echo "✅ Secret AWS_ACCESS_KEY_ID sincronizado."
-fi
-
-# SYNC AWS SECRETS: AWS_SECRET_ACCESS_KEY
-if [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-  if ! gcloud secrets describe "AWS_SECRET_ACCESS_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
-     gcloud secrets create "AWS_SECRET_ACCESS_KEY" --replication-policy=automatic --project "$PROJECT_ID"
-  fi
-  printf "%s" "$AWS_SECRET_ACCESS_KEY" | gcloud secrets versions add "AWS_SECRET_ACCESS_KEY" --data-file=- --project "$PROJECT_ID" >/dev/null
-  echo "✅ Secret AWS_SECRET_ACCESS_KEY sincronizado."
-fi
-
 # --------------------------------------------------------------------------------
-# AUDIT SECRETS (Fonte da Verdade: GitHub)
-# --------------------------------------------------------------------------------
-echo "🛡️  AUDITORIA DE SEGREDOS DO GITHUB (Antes do Deploy):"
-audit_secret "DATABASE_URL"
-audit_secret "OPENAI_API_KEY"
-audit_secret "SECRET_KEY"
-audit_secret "GCP_SA_KEY"
-audit_secret "AWS_ACCESS_KEY_ID"
-audit_secret "AWS_SECRET_ACCESS_KEY"
-audit_secret "WHATSAPP_TOKEN"
-audit_secret "FOLDER_ID_01_ENTRADA_RELATORIOS"
-audit_secret "FOLDER_ID_02_PLANOS_GERADOS"
-audit_secret "FOLDER_ID_03_PROCESSADOS_BACKUP"
-audit_secret "FOLDER_ID_99_ERROS"
-audit_secret "DRIVE_WEBHOOK_TOKEN"
-audit_secret "WHATSAPP_PHONE_ID"
-audit_secret "WHATSAPP_DESTINATION_PHONE"
-audit_secret "APP_PUBLIC_URL"
-audit_secret "GCP_PROJECT_ID"
-audit_secret "GCP_LOCATION"
-audit_secret "AWS_SES_SENDER"
+# SECRETS HANDLING (OPTIMIZED)
+# GitHub Actions already injects secrets as environment variables.
+# We pass them directly to Cloud Run via --set-env-vars or --set-secrets if predefined.
 # --------------------------------------------------------------------------------
 
-# Add AWS Secrets to Deploy List if they exist
-if gcloud secrets describe "AWS_ACCESS_KEY_ID" --project "$PROJECT_ID" >/dev/null 2>&1; then
-  SECRETS_LIST="${SECRETS_LIST},AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID:latest"
-fi
-if gcloud secrets describe "AWS_SECRET_ACCESS_KEY" --project "$PROJECT_ID" >/dev/null 2>&1; then
-  SECRETS_LIST="${SECRETS_LIST},AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY:latest"
-fi
-
-# ADD AWS_SES_SENDER (Optional)
-if [ -n "${AWS_SES_SENDER:-}" ]; then
-  # Passar como Env Var direta é mais simples, já que não é secreto (é um email)
-  # Mas para consistência, podemos passar via --set-env-vars no comando final
-  echo "📧 Configurando Remetente de Email: $AWS_SES_SENDER"
-fi
-
-# Deploy Consolidado (Evita sobrescrever variáveis entre comandos)
 echo "🚀 Executando deploy consolidado..."
 gcloud run deploy $SERVICE_NAME \
   --image $IMAGE \
@@ -404,7 +305,10 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars "AWS_SES_SENDER=${AWS_SES_SENDER:-noreply@inspetorai.com}" \
   --set-env-vars "WHATSAPP_PHONE_ID=${WHATSAPP_PHONE_ID:-}" \
   --set-env-vars "WHATSAPP_DESTINATION_PHONE=${WHATSAPP_DESTINATION_PHONE:-}" \
-  --set-secrets "$SECRETS_LIST"
+  --set-env-vars "DATABASE_URL=${DATABASE_URL}" \
+  --set-env-vars "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+  --set-env-vars "SECRET_KEY=${SECRET_KEY}" \
+  --set-env-vars "WHATSAPP_TOKEN=${WHATSAPP_TOKEN}"
 
 echo "✅ Deploy do serviço web concluído."
 
