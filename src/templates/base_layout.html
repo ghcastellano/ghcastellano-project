@@ -3,135 +3,320 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>{{ relatorio.titulo }}</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Relatório de Inspeção Sanitária</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+
+            @bottom-center {
+                content: "Página " counter(page);
+                font-family: 'Helvetica', sans-serif;
+                font-size: 9pt;
+                color: #64748b;
+            }
+        }
+
+        body {
+            font-family: 'Helvetica', sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            font-size: 10pt;
+        }
+
+        /* Header */
+        .header {
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .header-title {
+            font-size: 24pt;
+            font-weight: bold;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .header-meta {
+            text-align: right;
+            font-size: 9pt;
+            color: #64748b;
+        }
+
+        /* Section Titles */
+        h2 {
+            font-size: 14pt;
+            color: #0f172a;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        /* Executive Summary */
+        .summary-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 10pt;
+            text-align: justify;
+        }
+
+        /* Stats Grid */
+        .stats-container {
+            display: flex;
+            /* WeasyPrint supports flex restrictedly, usually table/float is safer for PDFs but let's try table layout for robustness if needed. Weasyprint 53+ supports Grid/Flex better. */
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .stat-box {
+            flex: 1;
+            padding: 1rem;
+            text-align: center;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .stat-box:last-child {
+            border-right: none;
+        }
+
+        .stat-number {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #3b82f6;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 8pt;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 1px;
+        }
+
+        /* Items Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-size: 8pt;
+            text-transform: uppercase;
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 2px solid #cbd5e1;
+        }
+
+        td {
+            padding: 0.8rem 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+            font-size: 9pt;
+        }
+
+        .item-id {
+            color: #94a3b8;
+            font-size: 8pt;
+            font-weight: bold;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 7pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-critical {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-high {
+            background: #ffedd5;
+            color: #9a3412;
+        }
+
+        .badge-medium {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+
+        .badge-low {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .legal-citation {
+            font-size: 8pt;
+            color: #64748b;
+            font-style: italic;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .deadline-box {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #ef4444;
+            margin-top: 4px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 3rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+            font-size: 8pt;
+            color: #94a3b8;
+            text-align: center;
+        }
+    </style>
 </head>
 
 <body>
 
-    <header>
-        <h1>Plano de Ação - Acompanhamento</h1>
-        <div class="subtitle-box">
-            <span class="meta-item"><strong>Estabelecimento:</strong> {{ relatorio.estabelecimento }}</span> |
-            <span class="meta-item"><strong>Checklist Base:</strong> {{ relatorio.data_inspecao }}</span> |
-            <span class="meta-item"><strong>Plano de Ação Gerado em:</strong> {{ data_geracao }}</span>
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <div class="header-title">Planos de Ação</div>
+            <div style="font-size: 12pt; color: #475569;">{{ relatorio.estabelecimento or 'Estabelecimento Não
+                Identificado' }}</div>
         </div>
-    </header>
-
-    <div class="section-box">
-        <h2 class="blue-header">Resumo do Plano de Ação</h2>
-
-        <p><strong>Resumo Geral:</strong> {{ relatorio.resumo_geral }}</p>
-
-        {% if relatorio.pontos_fortes %}
-        <p><strong>Destaques Positivos:</strong> {{ relatorio.pontos_fortes|join(', ') }}</p>
-        {% endif %}
-
-        <p class="aproveitamento-geral"><strong>Aproveitamento Geral:</strong> {{
-            "%.1f"|format(relatorio.pontuacao_geral) }}%</p>
-
-        <!-- Tabela de Pontuação -->
-        <table class="score-table">
-            <thead>
-                <tr>
-                    <th style="width: 50%;">Área</th>
-                    <th style="width: 25%;">Nota / Máximo</th>
-                    <th style="width: 25%;">Aproveitamento</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for topico in relatorio.detalhe_pontuacao %}
-                <tr>
-                    <td><strong>{{ topico.topico }}</strong></td>
-                    <td>{{ "%.2f"|format(topico.pontos_obtidos) }} / {{ "%.2f"|format(topico.pontos_possiveis) }}</td>
-                    <td>{{ "%.1f"|format(topico.percentual) }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="header-meta">
+            Data da Inspeção: {{ relatorio.data_inspecao }}<br>
+            Relatório Gerado: {{ data_geracao }}
+        </div>
     </div>
 
-    <!-- Tabela de Ações Corretivas por Tópico -->
-    {% for topico_nome in relatorio.detalhe_pontuacao|map(attribute='topico') %}
+    <!-- Executive Summary -->
+    {% if relatorio.resumo_geral %}
+    <h2>Resumo Executivo</h2>
+    <div class="summary-box">
+        {{ relatorio.resumo_geral }}
+    </div>
+    {% endif %}
 
-    <!-- Filtra NCs deste tópico (approximated, since NC model doesn't explicitly store topic, we might group by generic or list all if no topic link) -->
-    <!-- Na prática atual, o modelo NC não tem 'topico'. Vou listar TODAS se não conseguir filtrar, ou assumir um agrupamento se o prompt gerasse -->
-    <!-- Como o prompt atual não garante 'topico' na NC, vou mostrar uma seção geral se não houver agrupamento, mas idealmente deveria agrupar. -->
-    <!-- Vou assumir que o usuário quer ver TUDO numa tabela só se não tivermos metadados de tópico na NC. -->
-    <!-- Mas o design pede "Área: Cozinha..." -->
-    <!-- Vou iterar sobre as NCs e tentar agrupar dinamicamente ou mostrar tudo numa única seção "Plano de Ação Detalhado" se faltar dados. -->
+    <!-- Stats -->
+    <div class="stats-container">
+        <div class="stat-box">
+            <span class="stat-number">{{ relatorio.pontuacao_geral }}%</span>
+            <span class="stat-label">Pontuação Geral</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-number">{{ relatorio.nao_conformidades|length }}</span>
+            <span class="stat-label">Itens a Corrigir</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-number" style="color: #ef4444;">
+                <!-- Counting Critical items if possible, else generic -->
+                {{ relatorio.nao_conformidades | length }}
+            </span>
+            <span class="stat-label">Não Conformidades</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-number" style="color: #22c55e;">
+                {{ relatorio.pontos_fortes|length if relatorio.pontos_fortes else 0 }}
+            </span>
+            <span class="stat-label">Pontos Fortes</span>
+        </div>
+    </div>
 
-    {% endfor %}
+    <!-- Strengths -->
+    {% if relatorio.pontos_fortes %}
+    <h2>Destaques Positivos</h2>
+    <ul style="list-style: none; padding: 0;">
+        {% for ponto in relatorio.pontos_fortes %}
+        <li style="margin-bottom: 0.5rem; padding-left: 1.5rem; position: relative;">
+            <span style="position: absolute; left: 0; color: #22c55e;">✔</span>
+            {{ ponto }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
 
-    <!-- Como o modelo atual de NC não tem o campo 'topico' explicitamente linkado na struct NaoConformidade (tem item, legislacao...), vou criar uma única grande tabela por enquanto ou agrupar se conseguir deduzir. -->
-    <!-- Vou usar uma abordagem de Tabela Única de Ações para simplificar, já que não tenho o vínculo NC->Topico garantido no JSON output agora. -->
-
-    <h2 class="blue-header-large"
-        style="margin-top: 2rem; border-bottom: 2px solid #ccc; padding-bottom: 10px; color: #0056b3;">Detalhamento das
-        Não Conformidades</h2>
-
-    <table class="action-table">
+    <!-- Detailed Items -->
+    <h2>Plano de Ação Corretiva</h2>
+    <table>
         <thead>
             <tr>
-                <th style="width: 20%;">Item</th>
+                <th style="width: 5%;">#</th>
+                <th style="width: 35%;">Não Conformidade</th>
+                <th style="width: 30%;">Ação Corretiva & Base Legal</th>
+                <th style="width: 15%;">Prazo</th>
                 <th style="width: 15%;">Status</th>
-                <th style="width: 35%;">Plano de Ação Inicial</th>
-                <th style="width: 30%;">Acompanhamento</th>
             </tr>
         </thead>
         <tbody>
-            {% for nc in relatorio.nao_conformidades %}
+            {% for item in relatorio.nao_conformidades %}
             <tr>
-                <!-- Item -->
-                <td style="font-weight: bold; font-size: 0.95em;">
-                    {{ nc.item }}
+                <td><span class="item-id">{{ loop.index }}</span></td>
+                <td>
+                    <strong>{{ item.item }}</strong><br>
+                    <span style="color: #475569;">{{ item.descricao }}</span>
                 </td>
-
-                <!-- Status -->
-                <td class="status-cell">
-                    <span class="status-text {{ 'partial' if 'Parcialmente' in nc.status_item else 'non-compliant' }}">
-                        {{ nc.status_item }}
-                    </span>
-                </td>
-
-                <!-- Plano Inicial -->
-                <td class="plan-cell">
-                    {% for acao in nc.acoes_corretivas %}
-                    <div style="margin-bottom: 4px;">
-                        <strong>Ação:</strong> {{ acao.descricao }}
-                    </div>
-                    <div style="margin-bottom: 4px;">
-                        <strong>Prazo:</strong> {{ acao.prazo_sugerido }}
+                <td>
+                    {% for acao in item.acoes_corretivas %}
+                    <div style="margin-bottom: 0.5rem;">
+                        Build: {{ acao.descricao }}
                     </div>
                     {% endfor %}
-                    <div style="margin-top: 8px;">
-                        <strong>Legal:</strong> {{ nc.legislacao_relacionada }}
-                    </div>
-                </td>
 
-                <!-- Acompanhamento -->
-                <td class="followup-cell">
-                    {% if nc.is_corrected %}
-                    <div class="followup-box corrected">
-                        <strong>Visita de {{ data_geracao }} [Corrigido]</strong>
-                        <p><em>Notas: {{ nc.correction_notes }}</em></p>
-                    </div>
-                    {% else %}
-                    <div class="followup-box pending">
-                        <strong>Visita de {{ data_geracao }} [Pendente]</strong>
-                        <p><em>Notas: {{ nc.correction_notes or 'Item ainda não regularizado.' }}</em></p>
-                    </div>
+                    {% if item.legislacao_relacionada %}
+                    <span class="legal-citation">⚖ {{ item.legislacao_relacionada }}</span>
                     {% endif %}
+                </td>
+                <td>
+                    {% for acao in item.acoes_corretivas %}
+                    <!-- Check for prazo_sugerido -->
+                    {% if acao.prazo_sugerido %}
+                    <div class="deadline-box">🕒 {{ acao.prazo_sugerido }}</div>
+                    {% endif %}
+                    {% endfor %}
+                </td>
+                <td>
+                    <!-- Severity/Priority Badge -->
+                    {% set severity = 'MEDIUM' %}
+                    {% if item.acoes_corretivas and item.acoes_corretivas[0].prioridade == 'Alta' %}
+                    {% set severity = 'HIGH' %}
+                    {% endif %}
+
+                    <span class="badge badge-{% if severity == 'HIGH' %}critical{% else %}medium{% endif %}">
+                        {{ item.status_item or 'Pendente' }}
+                    </span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                    Nenhuma não conformidade encontrada. Parabéns!
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <footer
-        style="margin-top: 50px; text-align: center; font-size: 0.8em; color: #777; border-top: 1px solid #ddd; padding-top: 10px;">
-        <p>Relatório gerado via MVP Inspeção Sanitária (AI Powered)</p>
-    </footer>
+    <div class="footer">
+        Gerado automaticamente por InspetorAI - Tecnologia para Segurança Alimentar
+    </div>
 
 </body>
 

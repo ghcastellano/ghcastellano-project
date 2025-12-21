@@ -234,6 +234,7 @@ class ActionPlanItem(Base):
     
     severity: Mapped[SeverityLevel] = mapped_column(default=SeverityLevel.MEDIUM)
     status: Mapped[ActionPlanItemStatus] = mapped_column(default=ActionPlanItemStatus.OPEN)
+    ai_suggested_deadline: Mapped[Optional[str]] = mapped_column(String) # POC compatibility
     
     manager_notes: Mapped[Optional[str]] = mapped_column(Text) # Notas do gestor
 
@@ -278,6 +279,11 @@ class Job(Base):
     input_payload: Mapped[dict] = mapped_column(JSONB, nullable=True)
     result_payload: Mapped[dict] = mapped_column(JSONB, nullable=True)
     error_log: Mapped[Optional[str]] = mapped_column(Text)
+
+    # POC Rich Data
+    summary_text = Column(String)
+    strengths_text = Column(String) # For comma-separated or text block
+    stats_json = Column(JSONB) # For compliance counts
 
     # Relationships
     company: Mapped["Company"] = relationship()

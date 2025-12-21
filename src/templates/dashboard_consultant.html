@@ -480,8 +480,10 @@
                                 let statusBadge = '';
                                 if (item.status === 'WAITING_APPROVAL' || item.status === 'PENDING_MANAGER_REVIEW') {
                                     statusBadge = '<span class="badge badge-warning" style="margin-left: 0.5rem;"><i class="ph ph-clock"></i> Em Aprovação</span>';
-                                } else if (item.status === 'APPROVED' || item.status === 'PENDING_VERIFICATION') {
-                                    statusBadge = '<span class="badge badge-success" style="margin-left: 0.5rem;"><i class="ph ph-check"></i> Aprovado</span>';
+                                } else if (item.status === 'APPROVED') {
+                                    statusBadge = '<span class="badge badge-success" style="margin-left: 0.5rem; background: #dcfce7; color: #166534;"><i class="ph ph-check-circle"></i> Aprovado - Verificar</span>';
+                                } else if (item.status === 'PENDING_VERIFICATION') {
+                                    statusBadge = '<span class="badge badge-success" style="margin-left: 0.5rem;"><i class="ph ph-checks"></i> Verificado</span>';
                                 } else if (item.status === 'COMPLETED') {
                                     statusBadge = '<span class="badge badge-info" style="margin-left: 0.5rem;"><i class="ph ph-check-square"></i> Finalizado</span>';
                                 }
@@ -503,7 +505,10 @@
                                         </div>
                                     </div>
                                     <div style="display: flex; gap: 0.5rem;">
-                                        <a href="${item.review_link}" class="btn btn-secondary btn-sm">Ver Detalhes</a>
+                                        ${item.status === 'APPROVED' ?
+                                        `<a href="${item.review_link}" class="btn btn-primary btn-sm" style="background-color: var(--success-color); border: none;"><i class="ph-bold ph-check-circle"></i> Verificar e Finalizar</a>` :
+                                        `<a href="${item.review_link}" class="btn btn-secondary btn-sm">Ver Detalhes</a>`
+                                    }
                                         ${item.pdf_link ? `<a href="${item.pdf_link}" class="btn btn-white btn-sm border shadow-sm" target="_blank"><i class="ph ph-download-simple"></i></a>` : ''}
                                     </div>
                                 </div>

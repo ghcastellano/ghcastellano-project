@@ -131,7 +131,8 @@ def get_consultant_inspections(company_id=None, establishment_id=None):
             query = query.outerjoin(Inspection.establishment).outerjoin(Inspection.visit).outerjoin(Visit.consultant)
             query = query.filter(
                 (Establishment.company_id == company_id) | 
-                (User.company_id == company_id)
+                (User.company_id == company_id) |
+                (Inspection.status == InspectionStatus.APPROVED)
             )
         
         inspections = query.order_by(Inspection.created_at.desc()).limit(50).all()

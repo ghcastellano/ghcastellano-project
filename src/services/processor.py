@@ -172,13 +172,19 @@ class ProcessorService:
             raise ValueError("PDF vazio ou sem texto detectável.")
 
         prompt = """
-        Você é um Engenheiro Sanitário Sênior. Analise o TEXTO do relatório.
-        Objetivos:
-        1. Identificar Não Conformidades e Parcialmente Conformes.
-        2. Ignorar itens resolvidos.
-        3. Propor ações (RDC 216).
-        4. Resumir.
-        Responda JSON Schema.
+        Você é um Engenheiro Sanitário Sênior e Auditor de Segurança Alimentar. 
+        Analise o TEXTO extraído do relatório de inspeção e gere um Plano de Ação detalhado.
+        
+        DIRETRIZES CRÍTICAS:
+        1. IDENTIFICAÇÃO: Ignore itens "Conformes" ou "Resolvidos". Foque apenas em "Não Conforme" ou "Parcialmente Conforme".
+        2. BASE LEGAL: Para cada item, cite a legislação específica (ex: RDC 216/04, CVS 5/13, Portaria 2619, etc.). Seja preciso.
+        3. AÇÃO CORRETIVA: Proponha soluções técnicas realistas e imediatas.
+        4. PRAZO SUGERIDO: Estime um prazo sugerido baseado no risco (ex: "Imediato", "24h", "7 dias", "15 dias").
+        5. RESUMO GERAL: Crie um resumo executivo de 2-3 parágrafos sobre o estado sanitário geral.
+        6. PONTOS FORTES: Liste pelo menos 3 pontos onde o estabelecimento se destaca positivamente.
+        7. ESTATÍSTICAS: Conte o total de itens, conformes e não conformes.
+
+        Siga rigorosamente o JSON Schema fornecido.
         """
         
         try:
@@ -341,6 +347,18 @@ class ProcessorService:
                 
             action_plan.final_pdf_drive_id = pdf_drive_id
             action_plan.final_pdf_public_link = output_link
+            
+            # Save POC Rich Data
+            action_plan.summary_text = report_data.resumo_geral
+            action_plan.strengths_text = ", ".join(report_data.pontos_fortes) if report_data.pontos_fortes else ""
+            
+            # Simple Stats Calculation
+            total = len(report_data.nao_conformidades)
+            action_plan.stats_json = {
+                "total_items": total,
+                "score": report_data.pontuacao_geral
+            }
+            
             session.flush()
             
             # Items (Clear old and re-add for simplicity of 'sync')
@@ -362,6 +380,7 @@ class ProcessorService:
                     problem_description=f"{item.item}: {item.descricao}",
                     corrective_action=correction_text,
                     legal_basis=item.legislacao_relacionada or "",
+                    ai_suggested_deadline=item.acoes_corretivas[0].prazo_sugerido if item.acoes_corretivas else "Imediato",
                     severity=sev,
                     status=ActionPlanItemStatus.OPEN
                 )
