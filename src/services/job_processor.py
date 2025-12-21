@@ -106,27 +106,15 @@ class JobProcessor:
             result = processor_service.process_single_file(
                 {'id': file_id, 'name': filename}, 
                 company_id=job.company_id, # Tenant Context
-                establishment_id=est_uuid
+                establishment_id=est_uuid,
+                job=job
             )
             
             logger.info("✅ processor_service returned successfully.")
 
-            # Update Job Costs
-            if result and 'usage' in result:
-                usage = result['usage']
-                job.cost_tokens_input = usage.get('prompt_tokens', 0)
-                job.cost_tokens_output = usage.get('completion_tokens', 0)
-                
-                # Pricing gpt-4o-mini (Check OpenAI Pricing page - 2024)
-                # Input: $0.15 / 1M tokens -> 0.00000015
-                # Output: $0.60 / 1M tokens -> 0.00000060
-                PRICE_IN = 0.15 / 1_000_000
-                PRICE_OUT = 0.60 / 1_000_000
-                
-                job.cost_input_usd = job.cost_tokens_input * PRICE_IN
-                job.cost_output_usd = job.cost_tokens_output * PRICE_OUT
-                
-                logger.info(f"💰 Costs tracked: In={job.cost_tokens_input} (${job.cost_input_usd:.6f}), Out={job.cost_tokens_output} (${job.cost_output_usd:.6f})")
+            # Usage is already updated inside process_single_file(job=job)
+            # We can still log for confirmation
+            logger.info(f"💰 Costs summary: In={job.cost_tokens_input} (${job.cost_input_usd:.6f}), Out={job.cost_tokens_output} (${job.cost_output_usd:.6f})")
             
             return {
                 "status": "Processed via ProcessorService", 

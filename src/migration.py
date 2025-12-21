@@ -136,5 +136,9 @@ def run_migrations(db_session=None): # Renamed to generic
         logger.info("🚀 Rodando Migração V9 (Sincronização Final)...")
         migration_v9_sync.run_migration_v9()
 
+        from src.legacy_migrations import migration_v10_job_costs
+        logger.info("🚀 Rodando Migração V10 (Custos de Jobs)...")
+        migration_v10_job_costs.run_migration_v10()
+
     except Exception as e:
         logger.error(f"❌ Erro ao rodar migrações subsequentes: {e}")

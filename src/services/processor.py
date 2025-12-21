@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from src import models # Corrected import path
 from src.services.drive_service import drive_service
 from src import database
-from src.models_db import Client, Inspection, ActionPlan, ActionPlanItem, InspectionStatus, SeverityLevel, ActionPlanItemStatus
+from src.models_db import Client, Inspection, ActionPlan, ActionPlanItem, InspectionStatus, SeverityLevel, ActionPlanItemStatus, Job
 
 # Configuração de Logs
 logger = structlog.get_logger()
@@ -84,7 +84,7 @@ class ProcessorService:
             logger.error(f"Erro no processamento em lote: {e}")
             return 0
 
-    def process_single_file(self, file_meta, company_id: Optional[uuid.UUID] = None, establishment_id: Optional[uuid.UUID] = None):
+    def process_single_file(self, file_meta, company_id: Optional[uuid.UUID] = None, establishment_id: Optional[uuid.UUID] = None, job: Optional[Job] = None):
         file_id = file_meta['id']
         filename = file_meta['name']
         logger.info("Processando Arquivo Único", filename=filename, id=file_id, company_id=company_id, est_id=establishment_id)
@@ -98,6 +98,27 @@ class ProcessorService:
             report_data = analysis_result['data']
             usage = analysis_result['usage']
             
+            # Update Job Metrics immediately (even if next steps fail)
+            if job:
+                job.cost_tokens_input = usage.get('prompt_tokens', 0)
+                job.cost_tokens_output = usage.get('completion_tokens', 0)
+                
+                PRICE_IN = 0.15 / 1_000_000
+                PRICE_OUT = 0.60 / 1_000_000
+                job.cost_input_usd = job.cost_tokens_input * PRICE_IN
+                job.cost_output_usd = job.cost_tokens_output * PRICE_OUT
+                
+                # BRL conversion (Fixed rate for now: 6.00)
+                USD_BRL_RATE = 6.00
+                job.cost_input_brl = job.cost_input_usd * USD_BRL_RATE
+                job.cost_output_brl = job.cost_output_usd * USD_BRL_RATE
+                
+                # Flush to ensure if we crash later, some record of cost might remain? 
+                # (Assuming nested transaction or just prepared for commit)
+                try:
+                    database.db_session.flush()
+                except: pass
+
             # 3. Hash
             file_hash = self.calculate_hash(file_content)
             
@@ -254,8 +275,18 @@ class ProcessorService:
         try:
             # 1. Resolve Establishment
             from src.models_db import Establishment, Company, User
-            target_est = None
             
+            # CHECK FOR DUPLICITY (Robustness)
+            existing = session.query(Inspection).filter_by(drive_file_id=file_id).first()
+            if existing:
+                logger.info(f"♻️ Inspection for {file_id} already exists. Updating...")
+                inspection = existing
+                # Update status if needed, or just keep as is.
+            else:
+                inspection = Inspection(drive_file_id=file_id)
+                session.add(inspection)
+            
+            target_est = None
             if override_est_id:
                 target_est = session.query(Establishment).get(override_est_id)
             
@@ -264,15 +295,10 @@ class ProcessorService:
                 raw_name = report_data.estabelecimento.strip()
                 clean_name = self.normalize_name(raw_name)
                 
-                # Try Exact Match on Clean Name (assuming DB has clean names or we match gently)
-                # Ideally DB names should be clean. For now, we try matching against 'name' column.
-                
                 candidates = session.query(Establishment).filter(
                     Establishment.company_id == company_id
                 ).all()
                 
-                # In-memory fuzzy match (better than limited SQL like on encrypted/messy data)
-                # or just iterate and normalize data
                 for cand in candidates:
                     if self.normalize_name(cand.name) == clean_name:
                         target_est = cand
@@ -282,18 +308,15 @@ class ProcessorService:
                     # Auto-Register New Establishment
                     logger.info(f"🆕 Auto-Registering new Establishment: {clean_name} (Raw: {raw_name})")
                     target_est = Establishment(
-                        name=clean_name, # Storing Clean Name!
+                        name=clean_name, 
                         company_id=company_id,
                         drive_folder_id="" 
                     )
                     session.add(target_est)
-                    session.flush() # Get ID
+                    session.flush() 
             
-            # If still no establishment (e.g. no company_id context?), we might have a problem.
-            # Fallback to Legacy Client behavior ONLY if absolutely necessary, but preferably fail or use dummy.
             if not target_est:
                  logger.warning("Construction of Establishment failed (No context).")
-                 # For MVP safety, skip saving if we can't link, or save as Orphan (nullable).
             
             est_id = target_est.id if target_est else None
 
@@ -301,51 +324,37 @@ class ProcessorService:
             file_web_link = "" 
             pdf_drive_id = "pending_search" 
 
-            # Create Inspection (V3 Model)
-            inspection = Inspection(
-                establishment_id=est_id,
-                # client_id=None, # Deprecated
-                drive_file_id=file_id,
-                drive_web_link=file_web_link,
-                file_hash=file_hash,
-                status=InspectionStatus.WAITING_APPROVAL,
-                ai_raw_response=report_data.model_dump() # Pydantic v2
-            )
-            session.add(inspection)
+            # Update Inspection
+            inspection.establishment_id = est_id
+            inspection.drive_web_link = file_web_link
+            inspection.file_hash = file_hash
+            inspection.status = InspectionStatus.WAITING_APPROVAL
+            inspection.ai_raw_response = report_data.model_dump()
+            
             session.flush()
             
-            action_plan = ActionPlan(
-                inspection_id=inspection.id,
-                final_pdf_drive_id=pdf_drive_id,
-                final_pdf_public_link=output_link
-            )
-            session.add(action_plan)
+            # Action Plan (Upsert logic)
+            action_plan = session.query(ActionPlan).filter_by(inspection_id=inspection.id).first()
+            if not action_plan:
+                action_plan = ActionPlan(inspection_id=inspection.id)
+                session.add(action_plan)
+                
+            action_plan.final_pdf_drive_id = pdf_drive_id
+            action_plan.final_pdf_public_link = output_link
             session.flush()
             
-            # Items
+            # Items (Clear old and re-add for simplicity of 'sync')
+            session.query(ActionPlanItem).filter_by(action_plan_id=action_plan.id).delete()
+            
             severity_map = {"Crítico": SeverityLevel.CRITICAL, "Alto": SeverityLevel.HIGH, "Médio": SeverityLevel.MEDIUM, "Baixo": SeverityLevel.LOW}
             
             for item in report_data.nao_conformidades:
-                # Parse item status if available in model, else assume OPEN
-                # item is NaoConformidade model
-                # Check mapping
-                # The model NaoConformidade has field 'status_item'.
-                # But ActionPlanItemStatus is OPEN/RESOLVED.
-                # Logic: If 'Conforme', maybe don't add? But prompt asked to ignore resolved.
-                # So all present here are deficiencies.
-                
-                # Determine severity. 'item' doesn't have severity field in NaoConformidade model? 
-                # Wait, let's check NaoConformidade model in previous turn.
-                # It has `acoes_corretivas` list. `AcaoCorretiva` has `prioridade`.
-                # We can map Priority -> Severity.
-                
                 sev = SeverityLevel.MEDIUM
                 if item.acoes_corretivas:
                     prio = item.acoes_corretivas[0].prioridade
                     if prio == "Alta": sev = SeverityLevel.HIGH
                     elif prio == "Baixa": sev = SeverityLevel.LOW
                 
-                # correction action text
                 correction_text = "\n".join([ac.descricao for ac in item.acoes_corretivas])
                 
                 plan_item = ActionPlanItem(
@@ -364,7 +373,8 @@ class ProcessorService:
         except Exception as e:
             logger.error(f"DB Save Error: {e}")
             session.rollback()
-            # Don't raise, continue flow
+            raise e # RE-RAISE to notify JobProcessor!
+
             
             
 # Instantiate Singleton Safely at Module Level
