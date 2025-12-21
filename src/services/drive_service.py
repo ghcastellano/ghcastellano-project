@@ -33,13 +33,21 @@ class DriveService:
                 self.creds = Credentials.from_service_account_file(
                     self.credentials_file, scopes=self.scopes)
             
-            # 2. Tenta carregar da Env Var GCP_SA_KEY (Prod / GitHub Actions)
+            # 2. [NEW] Authenticate as User (OAuth) via Env Var - Fixes Storage Quota
+            elif os.getenv('GCP_OAUTH_TOKEN'):
+                import json
+                from google.oauth2.credentials import Credentials as UserCredentials
+                logger.info("🔑 Autenticando usando OAuth User Token (GCP_OAUTH_TOKEN)...")
+                info = json.loads(os.getenv('GCP_OAUTH_TOKEN'))
+                self.creds = UserCredentials.from_authorized_user_info(info, self.scopes)
+
+            # 3. Tenta carregar da Env Var GCP_SA_KEY (Prod / GitHub Actions)
             elif os.getenv('GCP_SA_KEY'):
                 logger.info("🔑 Autenticando usando JSON em Env Var (GCP_SA_KEY)...")
                 info = json.loads(os.getenv('GCP_SA_KEY'))
                 self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
                 
-            # 3. Fallback para Default Credentials (Cloud Run Identity)
+            # 4. Fallback para Default Credentials (Cloud Run Identity)
             else:
                 logger.info("☁️ Usando Default Credentials (ADC/Cloud Run Identity)...")
                 self.creds, _ = google.auth.default(scopes=self.scopes)

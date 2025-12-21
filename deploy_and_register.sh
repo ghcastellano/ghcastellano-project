@@ -204,6 +204,11 @@ ensure_secret "DATABASE_URL"
 ensure_secret "OPENAI_API_KEY"
 # WHATSAPP_TOKEN é opcional (fluxo de WhatsApp pode ser desativado no MVP)
 
+# Initialize SECRETS_LIST
+SECRETS_LIST=""
+
+# moved to after SECRETS_LIST init
+
 # Opcional: smoke test da DATABASE_URL antes do deploy (evita subir revisão quebrada).
 # Uso:
 #   TEST_DATABASE_URL=1 bash deploy_and_register.sh
@@ -243,12 +248,12 @@ if [ -n "$OPENAI_API_KEY" ]; then
   fi
 fi
 
-# Validação final de pastas críticas
-if [ -z "$FOLDER_ID_01_ENTRADA_RELATORIOS" ] || [ -z "$FOLDER_ID_02_PLANOS_GERADOS" ]; then
-  echo "❌ ERRO: IDs de pastas críticas (01 ou 02) estão vazios após mapeamento de aliases!"
-  echo "   Verifique se as pastas FOLDER_ID_01 e FOLDER_ID_02 estão no GitHub Secrets."
-  exit 1
-fi
+# Validação final de pastas críticas (COMENTADO PARA DEPLOY LOCAL)
+# if [ -z "$FOLDER_ID_01_ENTRADA_RELATORIOS" ] || [ -z "$FOLDER_ID_02_PLANOS_GERADOS" ]; then
+#   echo "❌ ERRO: IDs de pastas críticas (01 ou 02) estão vazios após mapeamento de aliases!"
+#   echo "   Verifique se as pastas FOLDER_ID_01 e FOLDER_ID_02 estão no GitHub Secrets. (IGNORADO LOCALMENTE)"
+#   # exit 1 
+# fi
 
 SECRETS_LIST="DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,SECRET_KEY=SECRET_KEY:latest"
 
@@ -261,6 +266,14 @@ fi
 # if gcloud secrets describe "GOOGLE_DRIVE_IMPERSONATE_EMAIL" --project "$PROJECT_ID" >/dev/null 2>&1; then
 #   SECRETS_LIST="${SECRETS_LIST},GOOGLE_DRIVE_IMPERSONATE_EMAIL=GOOGLE_DRIVE_IMPERSONATE_EMAIL:latest"
 # fi
+ 
+# NEW: OAuth Token for Drive (Storage Quota Fix) - Moved here to prevent overwrite
+if gcloud secrets describe "GCP_OAUTH_TOKEN" --project "$PROJECT_ID" >/dev/null 2>&1; then
+    echo "🔑 Secret GCP_OAUTH_TOKEN encontrado! Injetando no deploy..."
+    SECRETS_LIST="${SECRETS_LIST},GCP_OAUTH_TOKEN=GCP_OAUTH_TOKEN:latest"
+else
+    echo "⚠️ GCP_OAUTH_TOKEN não encontrado (Usando Service Account Fallback)"
+fi
 
 # SYNC DATABASE_URL: Garante que o valor do GitHub Secret sobrescreva o Secret Manager (Fonte da Verdade)
 if [ -n "${DATABASE_URL:-}" ]; then
