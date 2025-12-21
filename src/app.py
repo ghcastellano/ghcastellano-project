@@ -540,7 +540,7 @@ def download_pdf_route(json_id):
     except Exception as e:
         return f"Erro download: {e}", 500
 
-@app.route('/review/<file_id>') # file_id aqui é o ID do JSON no Drive
+@app.route('/review/<file_id>') # file_id aqui é o ID do JSON no Drive (ou drive_file_id na table inspections)
 @login_required
 def review_page(file_id):
     if not drive_service:
@@ -548,42 +548,102 @@ def review_page(file_id):
         return redirect(url_for('dashboard'))
 
     try:
-        data = drive_service.read_json(file_id)
+        # 1. Tenta carregar do Banco de Dados (Fonte da Verdade Validada)
+        from src.database import get_db
+        from src.models_db import Inspection, ActionPlan, ActionPlanItemStatus
+        db = database.db_session
         
-        # Fetch Establishment Info for Approval Modal
-        establishment_info = None
-        try:
-            from src.database import get_db
-            from src.models_db import Establishment
-            db = database.db_session
-            est_name = data.get('estabelecimento')
-            if est_name:
-                establishment_info = db.query(Establishment).filter_by(name=est_name).first()
-                # Force load contacts if lazy loading issues (though SQLA usually handles it in template if session open, but we close session)
-                # Since session is closed in finally block (or here manual close loop?), better to eager load or convert to list
-                if establishment_info:
-                    print(f"Estabelecimento encontrado: {establishment_info.name}, Contatos: {len(establishment_info.contacts)}")
+        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+        data = {}
+        contacts_list = []
+        is_validated = False
+
+        if inspection and inspection.action_plan:
+            plan = inspection.action_plan
+            is_validated = True
             
-            # Note: We keep session open? No, db acts as scoped usually but here we derived it.
-            # safe approach: pass establishment_info but ensure contacts are accessed before close, 
-            # OR pass list of contacts explicitly.
-            contacts_list = []
-            if establishment_info:
-                contacts_list = [{'name': c.name, 'phone': c.phone, 'id': c.id} for c in establishment_info.contacts]
-                # Fallback: if no contacts but we have responsible_name on est
-                if not contacts_list and establishment_info.responsible_name:
-                     contacts_list.append({'name': establishment_info.responsible_name, 'phone': establishment_info.responsible_phone, 'id': 'default'})
+            # --- ADAPTER: DB Object -> Template Dict ---
             
-            # db.close() handled by teardown
-        except Exception as db_e:
-            logger.error(f"Error fetching establishment for review: {db_e}")
-            contacts_list = []
+            # Pontos Fortes (DB stores as text block or list? Model says Text. Template wants list?)
+            # Model: strengths_text = Column(String)
+            # Template: {% for ponto in data.pontos_fortes %}
+            # Logic: Split by newline if text
+            p_fortes = []
+            if plan.strengths_text:
+                p_fortes = [p.strip() for p in plan.strengths_text.split('\n') if p.strip()]
+            
+            # Items
+            nao_conformidades = []
+            for item in plan.items:
+                # Severity Color Logic (Template expects specific CSS classes or inline logic?)
+                # Template uses: status-{{ nc.status_item...slugify }} and custom badges.
+                # Let's map strict DB status/severity to Template expectations
+                
+                # Correction status
+                is_corrected = item.status == ActionPlanItemStatus.RESOLVED
+                
+                nc_dict = {
+                    'id': str(item.id), # UUID to string
+                    'item': item.problem_description, # Title/Item Name
+                    'descricao': item.problem_description, # Description
+                    'status_item': "Não Conforme", # Legacy Label
+                    'gravidade': item.severity.name if hasattr(item.severity, 'name') else str(item.severity),
+                    'acoes_corretivas': [{'descricao': item.corrective_action, 'prazo_sugerido': item.ai_suggested_deadline or str(item.deadline_date or 'N/A')}],
+                    'is_corrected': is_corrected,
+                    'correction_notes': item.manager_notes, # Reusing field for correction notes? Or add new field?
+                    # correction_notes in template usually comes from consultant input. 
+                    # Model ActionPlanItem has 'manager_notes', but we might need 'consultant_notes'?
+                    # Checking migration... we didn't add consultant_notes. 
+                    # We can use manager_notes temporarily or assuming 'correction_notes' is just local JS state?
+                    # Wait, template: name="notes_{{ nc.id }}". 
+                    # Where is this saved? /api/save_review/{file_id}
+                }
+                nao_conformidades.append(nc_dict)
+                
+            stats = plan.stats_json or {}
+            
+            data = {
+                'estabelecimento': inspection.establishment.name if inspection.establishment else "Estabelecimento",
+                'data_inspecao': inspection.created_at.strftime('%d/%m/%Y'),
+                'pontuacao_geral': stats.get('score', 0),
+                'detalhe_pontuacao': stats.get('topics', []), # Assuming stats_json has 'topics' list
+                'resumo_geral': plan.summary_text,
+                'pontos_fortes': p_fortes,
+                'nao_conformidades': nao_conformidades
+            }
+            
+            # Contacts
+            if inspection.establishment:
+                contacts_list = [{'name': c.name, 'phone': c.phone, 'id': str(c.id)} for c in inspection.establishment.contacts]
+                if not contacts_list and inspection.establishment.responsible_name:
+                     contacts_list.append({'name': inspection.establishment.responsible_name, 'phone': inspection.establishment.responsible_phone, 'id': 'default'})
+
+        else:
+            # 2. Fallback: Drive (Legado / Não Processado)
+            print(f"⚠️ Review fallback to Drive for {file_id}")
+            data = drive_service.read_json(file_id)
+            
+            # Fetch Establishment Info for Approval Modal (Best Effort)
+            establishment_info = None
+            try:
+                from src.models_db import Establishment
+                est_name = data.get('estabelecimento')
+                if est_name:
+                    establishment_info = db.query(Establishment).filter_by(name=est_name).first()
+                    if establishment_info:
+                        contacts_list = [{'name': c.name, 'phone': c.phone, 'id': str(c.id)} for c in establishment_info.contacts]
+                        if not contacts_list and establishment_info.responsible_name:
+                             contacts_list.append({'name': establishment_info.responsible_name, 'phone': establishment_info.responsible_phone, 'id': 'default'})
+            except Exception as db_e:
+                logger.error(f"Error fetching establishment for review (fallback): {db_e}")
 
         return render_template('review.html', file_id=file_id, data=data, 
-                             establishment=establishment_info, 
-                             contacts=contacts_list)
+                             establishment=None,  # Not used in template? Used in modal? Template uses 'contacts'
+                             contacts=contacts_list,
+                             is_validated=is_validated)
+                             
     except Exception as e:
-        logger.error(f"Erro ao abrir Review {file_id}: {e}")
+        logger.error(f"Erro ao abrir Review {file_id}: {e}", exc_info=True)
         return f"<h1>Erro ao abrir revisão</h1><p>{str(e)}</p><p><a href='/'>Voltar</a></p>", 500
 
 from src.services.approval_service import approval_service

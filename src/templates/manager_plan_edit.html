@@ -43,7 +43,13 @@
         <div class="stat-card">
             <span class="stat-label">Itens Críticos</span>
             <span class="stat-value" style="color: var(--danger-color);">
-                {{ plan.items | selectattr('severity', 'equalto', 'CRITICAL') | list | length }}
+                {% set critical_count = 0 %}
+                {% for item in plan.items %}
+                {% if item.severity.name == 'CRITICAL' or item.severity == 'CRITICAL' %}
+                {% set critical_count = critical_count + 1 %}
+                {% endif %}
+                {% endfor %}
+                {{ critical_count }}
             </span>
         </div>
         <div class="stat-card">
@@ -135,13 +141,14 @@
                         <td>
                             <select class="form-control item-severity severity-select"
                                 data-severity="{{ item.severity.name }}">
-                                <option value="LOW" {% if item.severity.name=='LOW' %}selected{% endif %}>Baixa</option>
-                                <option value="MEDIUM" {% if item.severity.name=='MEDIUM' %}selected{% endif %}>Média
-                                </option>
-                                <option value="HIGH" {% if item.severity.name=='HIGH' %}selected{% endif %}>Alta
-                                </option>
-                                <option value="CRITICAL" {% if item.severity.name=='CRITICAL' %}selected{% endif %}>
-                                    Crítica</option>
+                                <option value="LOW" {% if item.severity.name=='LOW' or item.severity=='LOW' %}selected{%
+                                    endif %}>Baixa</option>
+                                <option value="MEDIUM" {% if item.severity.name=='MEDIUM' or item.severity=='MEDIUM'
+                                    %}selected{% endif %}>Média</option>
+                                <option value="HIGH" {% if item.severity.name=='HIGH' or item.severity=='HIGH'
+                                    %}selected{% endif %}>Alta</option>
+                                <option value="CRITICAL" {% if item.severity.name=='CRITICAL' or
+                                    item.severity=='CRITICAL' %}selected{% endif %}>Crítica</option>
                             </select>
                         </td>
                         <td class="text-center">
