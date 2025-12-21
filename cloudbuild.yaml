@@ -1,0 +1,7 @@
+steps:
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - '--destination=gcr.io/$PROJECT_ID/mvp-web'
+      - '--cache=true'
+      - '--cache-ttl=24h'
+timeout: 1200s

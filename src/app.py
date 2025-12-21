@@ -715,16 +715,28 @@ def drive_webhook():
     # 'sync' é o teste inicial, 'add'/'update'/'trash' são eventos
     logger.info(f"Webhook Received: {resource_state}")
 
-    if resource_state in ['add', 'update', 'chagne']: # 'change' typo fix if needed
-        # Dispara processamento em Thread para não bloquear o Google
-        # Google espera 200 OK rápido.
+    if resource_state in ['add', 'update', 'chagne', 'change']:
+        # Dispara processamento via Cloud Tasks (Job System)
         try:
-            from src.services.processor import processor_service
-            thread = threading.Thread(target=processor_service.process_pending_files)
-            thread.start()
-            logger.info("Webhook: Processing triggered in background.")
+            from src.models_db import Job, JobStatus
+            from src import database
+            from src.services.cloud_tasks import cloud_tasks_service
+            
+            # Create Job
+            job = Job(
+                type="CHECK_DRIVE_CHANGES",
+                status=JobStatus.PENDING,
+                input_payload={"trigger": "webhook", "resource_state": resource_state}
+            )
+            database.db_session.add(job)
+            database.db_session.commit()
+            
+            # Enqueue Task
+            cloud_tasks_service.create_http_task(payload={"job_id": job.id})
+            
+            logger.info(f"Webhook: Job {job.id} enqueued to Cloud Tasks.")
         except Exception as e:
-            logger.error(f"Webhook Trigger Error: {e}")
+            logger.error(f"Webhook Trigger Error: {e}", exc_info=True)
     
     return jsonify({'success': True}), 200
 
