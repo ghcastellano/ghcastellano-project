@@ -113,6 +113,36 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 99px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-info {
+        background: #e0f2fe;
+        color: #075985;
+    }
+
+    .badge-white {
+        background: white;
+        color: var(--text-primary);
+    }
+
     @keyframes fadeIn {
         from {
             opacity: 0;
@@ -167,43 +197,39 @@
                 <!-- Modern Header -->
                 <!-- Modern Header - WOW Edition -->
                 <div
-                    style="margin-bottom: 2.5rem; position: relative; overflow: hidden; border-radius: 24px; padding: 3rem 2.5rem; background: white; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);">
+                    style="margin-bottom: 1.5rem; position: relative; overflow: hidden; border-radius: 20px; padding: 1.5rem 2rem; background: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
                     <!-- Mesh Gradient Background -->
-                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.6; pointer-events: none;
-                    background: radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-                                radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);">
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.4; pointer-events: none;
+                    background: radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+                                 radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);">
                     </div>
 
                     <div
-                        style="position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end;">
+                        style="position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center;">
                         <div style="max-width: 600px;">
                             <span
-                                style="font-size: 0.875rem; font-weight: 700; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; background: rgba(99, 102, 241, 0.1); padding: 0.25rem 0.75rem; border-radius: 99px;">
+                                style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; background: rgba(99, 102, 241, 0.1); padding: 0.15rem 0.6rem; border-radius: 99px;">
                                 <i class="ph-bold ph-rocket-launch"></i> Painel do Consultor
                             </span>
                             <h1
-                                style="font-size: 3rem; font-weight: 800; color: #1e293b; letter-spacing: -0.03em; margin: 0; line-height: 1.1; font-family: 'Outfit', sans-serif;">
+                                style="font-size: 1.75rem; font-weight: 800; color: #1e293b; letter-spacing: -0.02em; margin: 0; line-height: 1.2; font-family: 'Outfit', sans-serif;">
                                 Olá, {{ current_user.name.split()[0] }} <span
                                     style="animation: wave 2s infinite; display: inline-block; transform-origin: 70% 70%;">👋</span>
                             </h1>
-                            <p
-                                style="font-size: 1.15rem; color: #64748b; margin-top: 1rem; font-weight: 400; line-height: 1.6;">
-                                Pronto para hoje? Você tem <strong style="color: var(--accent-color);">{{
+                            <p style="font-size: 0.95rem; color: #64748b; margin-top: 0.4rem; font-weight: 400;">
+                                Você tem <strong style="color: var(--accent-color);">{{
                                     current_user.establishments|length }}</strong> locais ativos.
-                                Inicie uma nova vistoria abaixo.
                             </p>
                         </div>
 
-                        <div style="text-align: right; display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="text-align: right;">
                             <div
-                                style="background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); padding: 0.75rem 1.25rem; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 0.75rem; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.5);">
-                                <div
-                                    style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);">
+                                style="background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); padding: 0.5rem 1rem; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.5); margin-bottom: 0.4rem;">
+                                <div style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;">
                                 </div>
-                                Sistema Operacional
+                                Online
                             </div>
-                            <div style="font-size: 0.9rem; color: #94a3b8; font-weight: 500;">
-                                <i class="ph-bold ph-calendar-blank" style="color: var(--accent-color);"></i>
+                            <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 500;">
                                 <script>document.write(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))</script>
                             </div>
                         </div>
@@ -246,25 +272,7 @@
                     }
                 </style>
 
-                <div class="stats-grid" id="tour-stats" style="margin-bottom: 2rem;">
-                    <div class="stat-card">
-                        <span class="stat-label">Estabelecimentos Vinculados</span>
-                        <span class="stat-value">{{ current_user.establishments|length if current_user.establishments
-                            else 0
-                            }}</span>
-                        <div class="stat-trend trend-up">
-                            <i class="ph-bold ph-storefront"></i> Meus Locais
-                        </div>
-                    </div>
-                    <!-- Removed Total Stats to focus on action, or keep if useful. Keep for now -->
-                    <div class="stat-card" onclick="document.getElementById('menu-lists').click()">
-                        <span class="stat-label">Vistorias Realizadas</span>
-                        <span class="stat-value" id="stat-processed">-</span>
-                        <div class="stat-trend trend-up">
-                            <i class="ph-bold ph-check-circle"></i> Ver Histórico
-                        </div>
-                    </div>
-                </div>
+                <!-- Moved Stats Grid to bottom -->
 
                 <!-- Main Action Area: Upload directly here -->
                 <div class="card" id="tour-upload"
@@ -334,100 +342,111 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-            </div>
-
-            <!-- REMOVED Separate Upload Section (Merged into Overview) -->
-
-            <!-- 3. My Lists -->
-            <div id="lists-section" class="section-view">
-                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Minhas Listas de Verificação</h1>
-
-                <div class="card" style="min-height: 500px;" id="tour-lists">
-                    <div class="card-header">
-                        <h3 class="card-title">📋 Histórico Completo</h3>
+                    <div class="stats-grid" id="tour-stats" style="margin-top: 1rem;">
+                        <div class="stat-card" style="padding: 1rem;">
+                            <span class="stat-label" style="font-size: 0.8rem;">Locais Vinculados</span>
+                            <span class="stat-value" style="font-size: 1.5rem;">{{ current_user.establishments|length if
+                                current_user.establishments else 0 }}</span>
+                        </div>
+                        <div class="stat-card" style="padding: 1rem;"
+                            onclick="document.getElementById('menu-lists').click()">
+                            <span class="stat-label" style="font-size: 0.8rem;">Vistorias Concluídas</span>
+                            <span class="stat-value" style="font-size: 1.5rem;" id="stat-processed">-</span>
+                        </div>
                     </div>
 
-                    <div id="list-tasks-container" style="padding: 1rem;">
-                        <div class="text-center text-muted" style="padding: 2rem;">
-                            <div class="spinner" style="margin: 0 auto 1rem;"></div>
-                            Carregando suas tarefas...
+                </div>
+
+                <!-- REMOVED Separate Upload Section (Merged into Overview) -->
+
+                <!-- 3. My Lists -->
+                <div id="lists-section" class="section-view">
+                    <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Minhas Listas de Verificação</h1>
+
+                    <div class="card" style="min-height: 500px;" id="tour-lists">
+                        <div class="card-header">
+                            <h3 class="card-title">📋 Histórico Completo</h3>
+                        </div>
+
+                        <div id="list-tasks-container" style="padding: 1rem;">
+                            <div class="text-center text-muted" style="padding: 2rem;">
+                                <div class="spinner" style="margin: 0 auto 1rem;"></div>
+                                Carregando suas tarefas...
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                </main>
             </div>
 
-            </main>
-        </div>
+            {% endblock %}
 
-        {% endblock %}
+            {% block scripts %}
+            <script>
+                function showSection(sectionId, element) {
+                    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+                    if (element) element.classList.add('active');
+                    document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
+                    document.getElementById(sectionId).classList.add('active');
+                }
 
-        {% block scripts %}
-        <script>
-            function showSection(sectionId, element) {
-                document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-                if (element) element.classList.add('active');
-                document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
-                document.getElementById(sectionId).classList.add('active');
-            }
+                // File Upload Logic
+                const fileInput = document.getElementById('fileInput');
+                const fileName = document.getElementById('fileName');
+                const submitBtn = document.getElementById('submitBtn');
+                const dropZone = document.getElementById('dropZone');
+                const uploadForm = document.getElementById('uploadForm');
 
-            // File Upload Logic
-            const fileInput = document.getElementById('fileInput');
-            const fileName = document.getElementById('fileName');
-            const submitBtn = document.getElementById('submitBtn');
-            const dropZone = document.getElementById('dropZone');
-            const uploadForm = document.getElementById('uploadForm');
+                if (fileInput) {
+                    fileInput.addEventListener('change', (e) => {
+                        if (e.target.files.length > 0) {
+                            fileName.textContent = "Selecionado: " + e.target.files[0].name;
+                            submitBtn.style.display = 'block';
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="ph-bold ph-paper-plane-right"></i> Enviar Agora';
+                            dropZone.style.borderColor = 'var(--success-color)';
+                            dropZone.style.background = '#f0fdf4';
+                        }
+                    });
+                }
 
-            if (fileInput) {
-                fileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        fileName.textContent = "Selecionado: " + e.target.files[0].name;
-                        submitBtn.style.display = 'block';
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<i class="ph-bold ph-paper-plane-right"></i> Enviar Agora';
-                        dropZone.style.borderColor = 'var(--success-color)';
-                        dropZone.style.background = '#f0fdf4';
-                    }
-                });
-            }
+                if (uploadForm) {
+                    uploadForm.addEventListener('submit', (e) => {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<div class="spinner-small"></div> Enviando...';
+                        dropZone.style.opacity = '0.7';
+                        dropZone.style.pointerEvents = 'none';
+                    });
+                }
 
-            if (uploadForm) {
-                uploadForm.addEventListener('submit', (e) => {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<div class="spinner-small"></div> Enviando...';
-                    dropZone.style.opacity = '0.7';
-                    dropZone.style.pointerEvents = 'none';
-                });
-            }
+                // Task Polling
+                async function updateLists() {
+                    try {
+                        const response = await fetch('/api/status?v=' + new Date().getTime());
+                        const data = await response.json();
 
-            // Task Polling
-            async function updateLists() {
-                try {
-                    const response = await fetch('/api/status?v=' + new Date().getTime());
-                    const data = await response.json();
+                        const container = document.getElementById('list-tasks-container');
+                        const statProcessed = document.getElementById('stat-processed');
+                        // Update Activity Placeholder as well if needed
+                        const activityPlaceholder = document.getElementById('recent-activity-placeholder');
 
-                    const container = document.getElementById('list-tasks-container');
-                    const statProcessed = document.getElementById('stat-processed');
-                    // Update Activity Placeholder as well if needed
-                    const activityPlaceholder = document.getElementById('recent-activity-placeholder');
+                        let htmlContent = '';
+                        let totalCount = 0;
+                        // 1. Technical Processing (Jobs)
+                        const recentDiv = document.getElementById('recent-activity-placeholder');
+                        const pendingJobs = data.pending || [];
 
-                    let htmlContent = '';
-                    let totalCount = 0;
-                    // 1. Technical Processing (Jobs)
-                    const recentDiv = document.getElementById('recent-activity-placeholder');
-                    const pendingJobs = data.pending || [];
+                        // 2. Business Approval (Waiting Approval)
+                        const inApproval = data.in_approval || [];
 
-                    // 2. Business Approval (Waiting Approval)
-                    const inApproval = data.in_approval || [];
+                        // Render Combined Recent Activity (Processing + Approval)
+                        if (pendingJobs.length > 0 || inApproval.length > 0) {
+                            let html = '';
 
-                    // Render Combined Recent Activity (Processing + Approval)
-                    if (pendingJobs.length > 0 || inApproval.length > 0) {
-                        let html = '';
-
-                        // Render Processing Jobs
-                        pendingJobs.forEach(job => {
-                            html += `
+                            // Render Processing Jobs
+                            pendingJobs.forEach(job => {
+                                html += `
                      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.9rem;">
                         <div class="spinner" style="width: 16px; height: 16px; border: 2px solid var(--text-light); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
                         <div style="flex-grow:1;">
@@ -435,11 +454,11 @@
                             <span style="font-size: 0.75rem; color: var(--text-secondary);">Processando IA...</span>
                         </div>
                     </div>`;
-                        });
+                            });
 
-                        // Render Waiting Approval
-                        inApproval.forEach(item => {
-                            html += `
+                            // Render Waiting Approval
+                            inApproval.forEach(item => {
+                                html += `
                      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.9rem;">
                         <i class="ph-fill ph-clock-user" style="color: #f59e0b; font-size: 1.1rem;"></i>
                         <div style="flex-grow:1;">
@@ -447,81 +466,96 @@
                             <span style="font-size: 0.75rem; color: #f59e0b; font-weight: 600;">Aguardando Gestor</span>
                         </div>
                     </div>`;
-                        });
+                            });
 
-                        recentDiv.innerHTML = html;
-                    } else {
-                        recentDiv.innerHTML = '<p class="text-muted text-sm" style="font-style:italic;">Nenhuma atividade pendente.</p>';
-                    }
+                            recentDiv.innerHTML = html;
+                        } else {
+                            recentDiv.innerHTML = '<p class="text-muted text-sm" style="font-style:italic;">Nenhuma atividade pendente.</p>';
+                        }
 
-                    // 3. Processed (Completed History)
-                    const listContainer = document.getElementById('list-tasks-container');
-                    if (data.processed_raw && data.processed_raw.length > 0) {
-                        listContainer.innerHTML = data.processed_raw.map(item => `
-                <div class="task-item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border-color);">
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <div style="background: #ecfdf5; padding: 0.5rem; border-radius: 8px; color: var(--success-color);">
-                            <i class="ph-bold ph-check-circle"></i>
-                        </div>
-                        <div>
-                            <h4 style="margin: 0; font-size: 1rem; font-weight: 600;">${item.name}</h4>
-                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                                <i class="ph-bold ph-calendar-blank"></i> ${item.date} • ${item.establishment}
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <a href="${item.review_link}" class="btn btn-secondary btn-sm">Ver Detalhes</a>
-                    </div>
-                </div>
-                `).join('');
-                        document.getElementById('stat-processed').textContent = data.processed_raw.length;
-                    } else {
-                        listContainer.innerHTML = '<div class="text-center text-muted" style="padding: 2rem;">Nenhuma vistoria Finalizada.</div>';
-                        document.getElementById('stat-processed').textContent = '0';
-                    }
+                        // 3. Processed (Completed History)
+                        const listContainer = document.getElementById('list-tasks-container');
+                        if (data.processed_raw && data.processed_raw.length > 0) {
+                            listContainer.innerHTML = data.processed_raw.map(item => {
+                                let statusBadge = '';
+                                if (item.status === 'WAITING_APPROVAL' || item.status === 'PENDING_MANAGER_REVIEW') {
+                                    statusBadge = '<span class="badge badge-warning" style="margin-left: 0.5rem;"><i class="ph ph-clock"></i> Em Aprovação</span>';
+                                } else if (item.status === 'APPROVED' || item.status === 'PENDING_VERIFICATION') {
+                                    statusBadge = '<span class="badge badge-success" style="margin-left: 0.5rem;"><i class="ph ph-check"></i> Aprovado</span>';
+                                } else if (item.status === 'COMPLETED') {
+                                    statusBadge = '<span class="badge badge-info" style="margin-left: 0.5rem;"><i class="ph ph-check-square"></i> Finalizado</span>';
+                                }
 
-                } catch (e) { console.error(e); }
-            }
+                                return `
+                                <div class="task-item" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="background: #ecfdf5; padding: 0.5rem; border-radius: 8px; color: var(--success-color);">
+                                            <i class="ph-bold ph-file-text"></i>
+                                        </div>
+                                        <div>
+                                            <h4 style="margin: 0; font-size: 1rem; font-weight: 600;">
+                                                ${item.name}
+                                                ${statusBadge}
+                                            </h4>
+                                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                                <i class="ph-bold ph-calendar-blank"></i> ${item.date} • ${item.establishment}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <a href="${item.review_link}" class="btn btn-secondary btn-sm">Ver Detalhes</a>
+                                        ${item.pdf_link ? `<a href="${item.pdf_link}" class="btn btn-white btn-sm border shadow-sm" target="_blank"><i class="ph ph-download-simple"></i></a>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                            }).join('');
+                            document.getElementById('stat-processed').textContent = data.processed_raw.length;
+                        } else {
+                            listContainer.innerHTML = '<div class="text-center text-muted" style="padding: 2rem;">Nenhuma vistoria Finalizada.</div>';
+                            document.getElementById('stat-processed').textContent = '0';
+                        }
 
-            updateLists();
-            setInterval(updateLists, 10000);
-
-            // Initial Product Tour (Optional)
-            document.addEventListener('DOMContentLoaded', () => {
-                // Could check for alerts here
-            });
-        </script>
-
-        <style>
-            .spinner {
-                width: 24px;
-                height: 24px;
-                border: 3px solid var(--border-color);
-                border-top-color: var(--accent-color);
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
-
-            @keyframes spin {
-                100% {
-                    transform: rotate(360deg);
+                    } catch (e) { console.error(e); }
                 }
-            }
 
-            .spinner-small {
-                width: 16px;
-                height: 16px;
-                border: 2px solid rgba(255, 255, 255, 0.3);
-                border-top-color: white;
-                border-radius: 50%;
-                animation: spin 0.8s linear infinite;
-                display: inline-block;
-                margin-right: 0.5rem;
-                vertical-align: middle;
-            }
-        </style>
+                updateLists();
+                setInterval(updateLists, 10000);
+
+                // Initial Product Tour (Optional)
+                document.addEventListener('DOMContentLoaded', () => {
+                    // Could check for alerts here
+                });
+            </script>
+
+            <style>
+                .spinner {
+                    width: 24px;
+                    height: 24px;
+                    border: 3px solid var(--border-color);
+                    border-top-color: var(--accent-color);
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+
+                @keyframes spin {
+                    100% {
+                        transform: rotate(360deg);
+                    }
+                }
+
+                .spinner-small {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    border-top-color: white;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    display: inline-block;
+                    margin-right: 0.5rem;
+                    vertical-align: middle;
+                }
+            </style>
+        </div>
     </div>
-</div>
 </div>
 {% endblock %}
