@@ -307,8 +307,8 @@ fi
 if [ -n "${GCP_SA_KEY:-}" ]; then
   SECRETS_LIST="${SECRETS_LIST},GCP_SA_KEY=GCP_SA_KEY:latest"
 fi
-# Drive Webhook Token
-SECRETS_LIST="${SECRETS_LIST},DRIVE_WEBHOOK_TOKEN=DRIVE_WEBHOOK_TOKEN:latest"
+# Drive Webhook Token (Pass as Env Var since it might not exist in Secret Manager)
+# SECRETS_LIST="${SECRETS_LIST},DRIVE_WEBHOOK_TOKEN=DRIVE_WEBHOOK_TOKEN:latest"
 
 
 echo "🚀 Executando deploy consolidado..."
@@ -319,6 +319,8 @@ gcloud run deploy $SERVICE_NAME \
   --max-instances 2 \
   --concurrency 20 \
   --set-env-vars "APP_PUBLIC_URL=$PUBLIC_URL" \
+  --set-env-vars "DRIVE_WEBHOOK_TOKEN=$WEBHOOK_SECRET" \
+  --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
   --set-env-vars "FOLDER_ID_01_ENTRADA_RELATORIOS=${FOLDER_ID_01_ENTRADA_RELATORIOS}" \
   --set-env-vars "FOLDER_ID_02_PLANOS_GERADOS=${FOLDER_ID_02_PLANOS_GERADOS}" \
