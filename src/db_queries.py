@@ -108,11 +108,13 @@ def get_consultant_inspections(company_id=None, establishment_id=None):
     """Busca lista de inspeções para o CONSULTOR (Apenas aprovados/em verificação)."""
     try:
         session = database.db_session()
-        # Consultor vê: APPROVED, PENDING_VERIFICATION, COMPLETED
+        # Consultor vê: APPROVED, PENDING_VERIFICATION, COMPLETED, WAITING_APPROVAL, PENDING_MANAGER_REVIEW
         statuses = [
             InspectionStatus.APPROVED,
             InspectionStatus.PENDING_VERIFICATION,
-            InspectionStatus.COMPLETED
+            InspectionStatus.COMPLETED,
+            InspectionStatus.WAITING_APPROVAL,
+            InspectionStatus.PENDING_MANAGER_REVIEW
         ]
         
         query = session.query(Inspection).options(
