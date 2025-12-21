@@ -16,8 +16,10 @@ data/
 *.zip
 *.tar.gz
 # Strict exclusion of large folders
+# Strict exclusion of large folders
 venv/
 .venv/
+.tmp_venv/
 env/
 __pycache__/
 *.pyc
