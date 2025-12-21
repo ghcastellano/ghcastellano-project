@@ -258,9 +258,6 @@ def dashboard_consultant():
     finally:
         # Session is scoped, cleanup happens automatically, but best practice:
         pass
-    finally:
-        # Session is scoped, cleanup happens automatically, but best practice:
-        pass
 
 # Rota legado (redireciona para root para tratar auth)
 @app.route('/dashboard')
