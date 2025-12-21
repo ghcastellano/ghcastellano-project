@@ -359,10 +359,10 @@ def api_jobs_stats():
         for j in jobs:
             # Calc Duration
             duration = None
-            if j.started_at and j.completed_at:
-                duration = round((j.completed_at - j.started_at).total_seconds(), 2)
-            elif j.started_at:
-                duration = round((datetime.utcnow() - j.started_at).total_seconds(), 2)
+            if j.created_at and j.finished_at:
+                duration = round((j.finished_at - j.created_at).total_seconds(), 2)
+            elif j.created_at:
+                duration = round((datetime.utcnow() - j.created_at).total_seconds(), 2)
                 
             # Maps status to color badge
             status_colors = {
@@ -382,6 +382,8 @@ def api_jobs_stats():
                 'status_color': status_colors.get(j.status, "secondary"),
                 'cost_input': j.cost_input_brl or 0.0,
                 'cost_output': j.cost_output_brl or 0.0,
+                'tokens_input': j.cost_tokens_input or 0,
+                'tokens_output': j.cost_tokens_output or 0,
                 'duration': duration,
                 'created_at': j.created_at.isoformat() if j.created_at else None
             })
