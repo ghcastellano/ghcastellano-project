@@ -110,6 +110,7 @@ jobs:
           export FOLDER_ID_99="${{ secrets.FOLDER_ID_99 }}"
           export GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
           export GCP_LOCATION="${{ secrets.GCP_LOCATION }}"
+          export GCP_OAUTH_TOKEN="${{ secrets.GCP_OAUTH_TOKEN }}"
           
           # Run Deploy
           ./deploy_and_register.sh
