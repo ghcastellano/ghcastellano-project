@@ -364,6 +364,9 @@ def edit_plan(file_id):
                 
         # Reload to ensure relationships
         db.refresh(inspection)
+
+        # Blocking check: If approved, we might want to show a read-only view or just warn.
+        # But for now, the template will handle the UI side, we just pass the info.
         
         return render_template('manager_plan_edit.html', inspection=inspection, plan=inspection.action_plan)
         
@@ -389,6 +392,10 @@ def save_plan(file_id):
         if not inspection or not inspection.action_plan:
              return jsonify({'error': 'Plan not found'}), 404
              
+        # Rule: Forbidden if already approved
+        if inspection.status == InspectionStatus.APPROVED:
+            return jsonify({'error': 'Este plano já foi aprovado e não pode mais ser editado.'}), 403
+
         plan = inspection.action_plan
         
         # Save enriched fields
@@ -468,10 +475,10 @@ def save_plan(file_id):
                 clean_phone = "".join(filter(str.isdigit, resp_phone))
                 if len(clean_phone) <= 11: clean_phone = "55" + clean_phone # Assume BR if no DDI
                 
-                # Link Logic: Public Link (Future) or Manager View Link (MVP)
-                # MVP: Send just the text notification or link to download route
-                # Assuming /download_pdf/<id> exists from app.py
-                msg = f"Olá {resp_name or 'Responsável'}, seu Plano de Ação para {inspection.establishment.name} foi aprovado. Acesso: {url_for('download_pdf_route', json_id=file_id, _external=True)}"
+                # Link Logic: Use download_revised_pdf specifically
+                # Note: json_id is file_id in this context
+                download_url = url_for('download_revised_pdf', file_id=file_id, _external=True)
+                msg = f"Olá {resp_name or 'Responsável'}, seu Plano de Ação para {inspection.establishment.name} foi aprovado. Acesso: {download_url}"
                 import urllib.parse
                 whatsapp_link = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
             

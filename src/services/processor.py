@@ -173,14 +173,18 @@ class ProcessorService:
         Sua tarefa é analisar o texto do relatório de auditoria e transformá-lo em um CHECKLIST DE PLANO DE AÇÃO ESTRUTURADO.
         
         DIRETRIZES:
-        1. Identifique o Estabelecimento e crie um Resumo Geral robusto indicando as principais áreas críticas e nota estimada (se houver).
-        2. Agrupe os itens não conformes por ÁREA FÍSICA (ex: 'Cozinha', 'Estoque Seco', 'Vestiários').
-        3. Para cada Não Conformidade:
-           - Status deve ser 'Não Conforme'.
+        1. Identifique o Estabelecimento e crie um Resumo Geral robusto indicando as principais áreas críticas.
+        2. Calcule ou extraia a PONTUAÇÃO GERAL e o APROVEITAMENTO GERAL do estabelecimento do relatório.
+        3. Para cada ÁREA FÍSICA (ex: 'Cozinha', 'Estoque Seco', 'Vestiários'):
+           - Crie um 'resumo_area' curto e informativo.
+           - Extraia 'pontuacao_obtida', 'pontuacao_maxima' e calcule o 'aproveitamento' (%).
+           - Agrupe os itens não conformes.
+        4. Para cada Não Conformidade:
+           - Status deve ser 'Não Conforme' ou 'Parcialmente Conforme'.
            - Observação: Descreva detalhadamente a evidência encontrada.
            - Fundamento Legal: Cite a legislação específica.
            - Ação Corretiva Gerada: Como auditor, sugira a correção técnica IMEDIATA.
-           - Prazo Sugerido: Estime o prazo baseado no risco (Imediato, 24h, 7 dias).
+           - Prazo Sugerido: Estime o prazo baseado no risco (Imediato - risco iminente, 24 horas - prioridade alta, 7 dias - operacional, 15 dias - estrutural leve, 30 dias - melhoria). Escolha o mais adequado, não use apenas 'Imediato'.
         
         Sua resposta deve ser APENAS o objeto JSON compatível com o schema abaixo.
         IMPORTANTE: Os valores dentro do JSON devem ser texto puro (sem markdown).
@@ -237,7 +241,7 @@ class ProcessorService:
             _, pdf_link = self.drive_service.upload_file(temp_pdf, self.folder_out, output_filename)
             
             # Upload JSON
-            with open(temp_json, "w") as f:
+            with open(temp_json, "w", encoding="utf-8") as f:
                 f.write(data.model_dump_json(indent=2))
             self.drive_service.upload_file(temp_json, self.folder_out, json_filename)
             
@@ -307,6 +311,7 @@ class ProcessorService:
                     session.flush() 
             
             est_id = target_est.id if target_est else None
+            logger.info(f"📍 Target Establishment: {target_est.name if target_est else 'None'} (ID: {est_id})")
             
             # Update Inspection
             inspection.establishment_id = est_id
@@ -315,12 +320,14 @@ class ProcessorService:
             inspection.ai_raw_response = report_data.model_dump()
             
             session.flush()
+            logger.info(f"✅ Inspection {inspection.id} updated/created")
             
             # Action Plan (Upsert)
             action_plan = session.query(ActionPlan).filter_by(inspection_id=inspection.id).first()
             if not action_plan:
                 action_plan = ActionPlan(inspection_id=inspection.id)
                 session.add(action_plan)
+                logger.info("🆕 ActionPlan created")
                 
             action_plan.final_pdf_public_link = output_link
             
@@ -334,15 +341,18 @@ class ProcessorService:
             sector_stats = {}
             
             # Clear old items (if re-processing)
-            session.query(ActionPlanItem).filter_by(action_plan_id=action_plan.id).delete()
+            deleted_count = session.query(ActionPlanItem).filter_by(action_plan_id=action_plan.id).delete()
+            logger.info(f"🗑️ Deleted {deleted_count} old items")
             
             # ITERATE AREAS (The User's Nested Structure)
+            logger.info(f"🔍 Iterating {len(report_data.areas_inspecionadas)} areas")
             for area in report_data.areas_inspecionadas:
                 area_nc_count = 0
+                logger.info(f"  📂 Area: {area.nome_area} ({len(area.itens)} items)")
                 for item in area.itens:
                     total_items += 1
                     
-                    is_nc = "não conforme" in item.status.lower()
+                    is_nc = "não conforme" in item.status.lower() or "parcialmente" in item.status.lower()
                     status_db = ActionPlanItemStatus.OPEN if is_nc else ActionPlanItemStatus.RESOLVED
                     
                     if is_nc:
@@ -350,13 +360,12 @@ class ProcessorService:
                         area_nc_count += 1
                     
                     # Determine Severity (Default based on logic or Prompt could give it)
-                    # Prompt didn't ask for severity, so we infer or default to HIGH for NCs
                     severity = SeverityLevel.HIGH if is_nc else SeverityLevel.LOW
                     
                     db_item = ActionPlanItem(
                         id=uuid.uuid4(),
                         action_plan=action_plan,
-                        problem_description=f"**{item.item_verificado}**: {item.observacao}",
+                        problem_description=f"{item.item_verificado}: {item.observacao}",
                         sector=area.nome_area, # VITAL: Use Area Name as Sector
                         severity=severity,
                         status=status_db,
@@ -366,17 +375,27 @@ class ProcessorService:
                     )
                     session.add(db_item)
                 
-                sector_stats[area.nome_area] = {"nc_count": area_nc_count}
+                sector_stats[area.nome_area] = {
+                    "nc_count": area_nc_count,
+                    "resumo_area": area.resumo_area,
+                    "pontuacao": area.pontuacao_obtida,
+                    "maximo": area.pontuacao_maxima,
+                    "aproveitamento": area.aproveitamento
+                }
             
             # Save Stats to JSON
             action_plan.stats_json = {
                 "total_items": total_items,
                 "total_nc": total_nc,
+                "score": report_data.pontuacao_geral,
+                "max_score": report_data.pontuacao_maxima_geral,
+                "percentage": report_data.aproveitamento_geral,
                 "by_sector": sector_stats
             }
+            logger.info(f"📊 Stats generated: {total_items} items, {total_nc} NCs")
             
             session.commit()
-            logger.info("DB Save Success (ChecklistSanitario Structure)")
+            logger.info("✅ DB Save Success (ChecklistSanitario Structure)")
             
         except Exception as e:
             logger.error(f"DB Save Error: {e}")

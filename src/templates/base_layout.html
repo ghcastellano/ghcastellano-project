@@ -123,13 +123,62 @@
     <!-- Executive Summary -->
     <div class="summary-box">
         <h3 style="margin-top:0; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">Resumo Executivo</h3>
-        <p>{{ relatorio.resumo_geral }}</p>
 
-        {% if relatorio.pontos_fortes %}
-        <h4 style="margin-bottom:5px; margin-top:10px;">Destaques Positivos</h4>
-        <p>{{ relatorio.pontos_fortes }}</p>
-        {% endif %}
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+            <div style="width: 65%;">
+                <p style="margin-top: 0;">{{ relatorio.resumo_geral }}</p>
+                {% if relatorio.pontos_fortes %}
+                <h4 style="margin-bottom:5px; margin-top:10px; color: #16a34a;">Destaques Positivos</h4>
+                <p style="margin-top: 0;">{{ relatorio.pontos_fortes }}</p>
+                {% endif %}
+            </div>
+            <div style="width: 30%; text-align: center; border-left: 1px solid #e2e8f0; padding-left: 15px;">
+                <div style="font-size: 8pt; color: #64748b; text-transform: uppercase; font-weight: bold;">
+                    Aproveitamento Geral</div>
+                <div
+                    style="font-size: 24pt; font-weight: bold; color: {% if relatorio.aproveitamento_geral >= 90 %}#16a34a{% elif relatorio.aproveitamento_geral >= 70 %}#ca8a04{% else %}#dc2626{% endif %};">
+                    {{ relatorio.aproveitamento_geral }}%
+                </div>
+                <div style="font-size: 8pt; color: #64748b;">
+                    Nota: {{ relatorio.pontuacao_geral }} de {{ relatorio.pontuacao_maxima }}
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Area Breakdown Table -->
+    {% if relatorio.detalhe_pontuacao %}
+    <div style="margin-bottom: 2rem;">
+        <h3 style="color: #0369a1; border-bottom: 1px solid #0369a1; padding-bottom: 3px; font-size: 12pt;">Resumo do
+            Desempenho por Área</h3>
+        <table style="border: 1px solid #e2e8f0;">
+            <thead>
+                <tr style="background: #f8fafc;">
+                    <th style="width: 50%;">Área / Setor</th>
+                    <th style="width: 25%; text-align: center;">Nota / Máximo</th>
+                    <th style="width: 25%; text-align: center;">Aproveitamento</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sector_name, stats in relatorio.detalhe_pontuacao.items() %}
+                <tr>
+                    <td>
+                        <div style="font-weight: bold; color: #0f172a;">{{ sector_name }}</div>
+                        <div style="font-size: 7.5pt; color: #475569; margin-top: 2px;">{{ stats.resumo_area }}</div>
+                    </td>
+                    <td style="text-align: center; vertical-align: middle;">
+                        {{ stats.pontuacao }} / {{ stats.maximo }}
+                    </td>
+                    <td
+                        style="text-align: center; vertical-align: middle; font-weight: bold; color: {% if stats.aproveitamento >= 90 %}#16a34a{% elif stats.aproveitamento >= 70 %}#ca8a04{% else %}#dc2626{% endif %};">
+                        {{ stats.aproveitamento }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 
     <!-- Items by Area -->
     {% for area in relatorio.areas_inspecionadas %}
@@ -153,8 +202,8 @@
                         <span style="font-size:7pt; color:#64748b;">{{ item.fundamento_legal }}</span>
                     </td>
                     <td>
-                        {% if 'Não Conforme' in item.status %}
-                        <span class="status-nc">NÃO CONFORME</span>
+                        {% if 'Não Conforme' in item.status or 'Parcialmente' in item.status %}
+                        <span class="status-nc">{{ item.status|upper }}</span>
                         {% else %}
                         <span class="status-ok">{{ item.status }}</span>
                         {% endif %}
