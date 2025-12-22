@@ -274,7 +274,7 @@ def dashboard_consultant():
         from datetime import datetime
         stats = {
             'total': len(inspections),
-            'pending': sum(1 for i in inspections if i['status'] in ['PENDING_VERIFICATION', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW']),
+            'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_VERIFICATION', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW']),
             'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED']),
             'last_sync': datetime.utcnow().strftime('%H:%M')
         }
@@ -295,17 +295,18 @@ def dashboard_legacy():
 
 def get_friendly_error_message(e):
     msg = str(e).lower()
-    if "quota" in msg or "insufficient storage" in msg or "403" in msg:
-        return "Erro de Permissão ou Quota no Google Drive. Contate o suporte técnico."
+    # DEBUG: Expose full error to user for diagnosis
+    if "quota" in msg or "insufficient storage" in msg:
+        return f"Erro de COTA no Drive (Cheio). Detalhes: {msg}"
+    if "403" in msg:
+        return f"Erro de PERMISSÃO (403). O token pode não ter acesso à pasta. Detalhes: {msg}"
     if "token" in msg or "expired" in msg:
-        return "Sessão de conexão expirada. Contate o suporte."
+        return f"Sessão expirada ou Token inválido. Detalhes: {msg}"
     if "not found" in msg or "404" in msg:
-        return "Recurso não encontrado no sistema."
+        return "Recurso não encontrado (404)."
     if "pdf" in msg or "corrupt" in msg:
-        return "O arquivo PDF parece estar corrompido ou não é válido."
-    if "timeout" in msg:
-        return "O processamento demorou muito. Tente novamente mais tarde."
-    return f"Erro no processamento: {msg}"
+        return "Arquivo PDF inválido/corrompido."
+    return f"Erro processamento: {msg}"
 
 @app.route('/upload', methods=['POST'])
 @login_required
@@ -600,9 +601,25 @@ def download_pdf_route(json_id):
         files = results.get('files', [])
         
         if not files:
-            return "PDF não encontrado", 404
+            # Fuzzy match: same base name but maybe different casing or prefix
+            base_name = pdf_name.replace('.pdf', '')
+            query_fuzzy = f"'{FOLDER_OUT}' in parents and name contains '{base_name}' and trashed=false"
+            results_fuzzy = drive_service.service.files().list(
+                q=query_fuzzy, fields='files(id, name)', supportsAllDrives=True, includeItemsFromAllDrives=True
+            ).execute()
+            files_fuzzy = results_fuzzy.get('files', [])
+            if files_fuzzy:
+                # Pick the one that ends with .pdf
+                pdf_files = [f for f in files_fuzzy if f['name'].lower().endswith('.pdf')]
+                if pdf_files:
+                    pdf_id = pdf_files[0]['id']
+                else:
+                    return "PDF não encontrado (Fuzzy)", 404
+            else:
+                return "PDF não encontrado", 404
+        else:
+            pdf_id = files[0]['id']
             
-        pdf_id = files[0]['id']
         file_content = drive_service.download_file(pdf_id)
         
         return send_file(
@@ -680,9 +697,11 @@ def review_page(file_id):
                 'estabelecimento': inspection.establishment.name if inspection.establishment else "Estabelecimento",
                 'data_inspecao': inspection.created_at.strftime('%d/%m/%Y'),
                 'pontuacao_geral': stats.get('score', 0),
-                'detalhe_pontuacao': stats.get('topics', []), # Assuming stats_json has 'topics' list
+                'pontuacao_maxima': stats.get('max_score', 0),
+                'aproveitamento_geral': stats.get('percentage', 0),
                 'resumo_geral': plan.summary_text,
                 'pontos_fortes': p_fortes,
+                'detalhe_pontuacao': stats.get('by_sector', {}), 
                 'nao_conformidades': nao_conformidades
             }
             
@@ -746,6 +765,31 @@ def _handle_service_call(file_id, is_approval):
         logger.error(f"Erro no controller: {e}")
         return jsonify({'error': "Erro interno"}), 500
 
+@app.route('/api/save_review/<file_id>', methods=['POST'])
+@login_required
+def save_review(file_id):
+    """Salva revisões feitas pelo consultor no Plano de Ação."""
+    try:
+        from src.models_db import ActionPlanItem, ActionPlanItemStatus
+        db = database.db_session
+        updates = request.json
+        
+        for item_id_str, data in updates.items():
+            item = db.query(ActionPlanItem).get(uuid.UUID(item_id_str))
+            if item:
+                if 'is_corrected' in data:
+                    item.status = ActionPlanItemStatus.RESOLVED if data['is_corrected'] else ActionPlanItemStatus.OPEN
+                if 'correction_notes' in data:
+                    # Usando manager_notes como campo genérico para notas de correção se não houver um específico
+                    item.manager_notes = data['correction_notes']
+        
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Erro ao salvar revisão {file_id}: {e}")
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/admin/api/jobs')
 @login_required
 @role_required(UserRole.ADMIN)
@@ -757,19 +801,68 @@ def admin_api_jobs():
 
 @app.route('/download_revised_pdf/<file_id>')
 def download_revised_pdf(file_id):
-    """Gera um novo PDF baseado no estado atual do JSON (inclui correções do usuário)."""
+    """Gera um novo PDF baseado no estado atual do Banco (preferencial) ou Drive."""
     if not drive_service or not pdf_service:
         return "Serviços indisponíveis", 500
         
     try:
-        # 1. Ler dados atuais
-        data = drive_service.read_json(file_id)
+        from src.models_db import Inspection
+        db = database.db_session
+        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+        
+        data = {}
+        if inspection and inspection.action_plan:
+            plan = inspection.action_plan
+            stats = plan.stats_json or {}
+            
+            # Format data to match base_layout.html expectations
+            # Also include the new rich stats
+            data = {
+                'nome_estabelecimento': inspection.establishment.name if inspection.establishment else "Estabelecimento",
+                'data_inspecao': inspection.created_at.strftime('%d/%m/%Y'),
+                'resumo_geral': plan.summary_text,
+                'pontos_fortes': plan.strengths_text,
+                'pontuacao_geral': stats.get('score', 0),
+                'pontuacao_maxima': stats.get('max_score', 0),
+                'aproveitamento_geral': stats.get('percentage', 0),
+                'detalhe_pontuacao': stats.get('by_sector', {}),
+                'areas_inspecionadas': [] # We'll fill this below
+            }
+            
+            # Group items by area for the template
+            areas_map = {}
+            for item in plan.items:
+                area_name = item.area or "Geral"
+                if area_name not in areas_map:
+                    areas_map[area_name] = []
+                
+                areas_map[area_name].append({
+                    'item_verificado': item.problem_description,
+                    'status': item.status.value if hasattr(item.status, 'value') else str(item.status),
+                    'observacao': item.problem_description,
+                    'fundamento_legal': item.fundamento_legal,
+                    'acao_corretiva_sugerida': item.corrective_action,
+                    'prazo_sugerido': item.ai_suggested_deadline or str(item.deadline_date or '')
+                })
+            
+            for area_name, items in areas_map.items():
+                data['areas_inspecionadas'].append({
+                    'nome_area': area_name,
+                    'itens': items
+                })
+        else:
+            # Fallback to Drive
+            logger.info(f"⚠️ PDF generation fallback to Drive for {file_id}")
+            data = drive_service.read_json(file_id)
+            # Ensure keys match (Drive JSON might use different keys)
+            if 'estabelecimento' in data and 'nome_estabelecimento' not in data:
+                data['nome_estabelecimento'] = data['estabelecimento']
         
         # 2. Gerar PDF em memória
         pdf_bytes = pdf_service.generate_pdf_bytes(data)
         
         # 3. Retornar arquivo
-        filename = f"Plano_Revisado_{data.get('estabelecimento', 'Relatorio').replace(' ', '_')}.pdf"
+        filename = f"Plano_Revisado_{data.get('nome_estabelecimento', 'Relatorio').replace(' ', '_')}.pdf"
         
         return send_file(
             io.BytesIO(pdf_bytes),

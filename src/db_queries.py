@@ -108,8 +108,9 @@ def get_consultant_inspections(company_id=None, establishment_id=None):
     """Busca lista de inspeções para o CONSULTOR (Apenas aprovados/em verificação)."""
     try:
         session = database.db_session()
-        # Consultor vê: APPROVED, PENDING_VERIFICATION, COMPLETED, WAITING_APPROVAL, PENDING_MANAGER_REVIEW
+        # Consultor vê: PROCESSING, APPROVED, PENDING_VERIFICATION, COMPLETED, WAITING_APPROVAL, PENDING_MANAGER_REVIEW
         statuses = [
+            InspectionStatus.PROCESSING,
             InspectionStatus.APPROVED,
             InspectionStatus.PENDING_VERIFICATION,
             InspectionStatus.COMPLETED,
@@ -280,7 +281,7 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
         # Filter for active jobs
         from src.models_db import Job, JobStatus
         query = session.query(Job).filter(
-            Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
+            Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.FAILED, JobStatus.COMPLETED])
         )
         
         # Security: If not allowing all, user MUST have either company scope or establishment scope

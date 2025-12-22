@@ -280,17 +280,7 @@ else
     echo "⚠️ GCP_OAUTH_TOKEN não encontrado (Usando Service Account Fallback)"
 fi
 
-# --------------------------------------------------------------------------------
-# SECRETS HANDLING (OPTIMIZED)
-# We assume secrets refer to Secret Manager versions existing in the project.
-# We build the list statically to avoid slow 'gcloud secrets describe' calls.
-# --------------------------------------------------------------------------------
 
-# Core Info Secrets
-SECRETS_LIST="DATABASE_URL=DATABASE_URL:latest"
-SECRETS_LIST="${SECRETS_LIST},OPENAI_API_KEY=OPENAI_API_KEY:latest"
-SECRETS_LIST="${SECRETS_LIST},SECRET_KEY=SECRET_KEY:latest"
-SECRETS_LIST="${SECRETS_LIST},WHATSAPP_TOKEN=WHATSAPP_TOKEN:latest"
 
 # Folder IDs (Still passed as Env Vars for simplicity, or could be Secrets)
 # For now, we kept them as Env Vars in the previous logic, sticking to that.

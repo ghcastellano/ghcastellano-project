@@ -387,9 +387,10 @@
                     <span style="font-size: 1.2rem;">📎</span>
                     <span id="fileName"
                         style="font-weight: 500; color: #334155; font-size: 0.9rem; flex-grow: 1; margin: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">nome.pdf</span>
-                    <button type="submit" class="btn btn-success"
+                    <button type="submit" id="btnSubmitUpload" class="btn btn-success"
                         style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 8px; background: #10B981; color: white; border: none; cursor: pointer;">
-                        Enviar
+                        <span id="btnText">Enviar</span>
+                        <span id="btnSpinner" style="display: none;"><i class="fas fa-spinner fa-spin"></i></span>
                     </button>
                 </div>
             </form>
@@ -450,6 +451,14 @@
 <script>
     function openUploadModal() {
         document.getElementById('uploadModal').style.display = 'flex';
+        // Reset form state
+        document.getElementById('uploadForm').reset();
+        document.getElementById('fileName').textContent = '';
+        document.getElementById('filePreview').style.display = 'none';
+        document.getElementById('dropZone').style.display = 'block';
+        document.getElementById('btnSubmitUpload').disabled = false;
+        document.getElementById('btnText').style.display = 'inline';
+        document.getElementById('btnSpinner').style.display = 'none';
     }
 
     function closeUploadModal() {
@@ -491,6 +500,16 @@
             fileInput.files = e.dataTransfer.files;
             handleFileSelect(fileInput);
         }
+    });
+    // Submit logic
+    document.getElementById('uploadForm').addEventListener('submit', function () {
+        const btn = document.getElementById('btnSubmitUpload');
+        const text = document.getElementById('btnText');
+        const spinner = document.getElementById('btnSpinner');
+
+        btn.disabled = true;
+        text.style.display = 'none';
+        spinner.style.display = 'inline-block';
     });
 </script>
 {% endblock %}

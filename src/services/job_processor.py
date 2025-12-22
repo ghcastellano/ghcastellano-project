@@ -34,6 +34,9 @@ class JobProcessor:
         
         try:
             # Dispatcher
+            job.status = JobStatus.PROCESSING
+            database.db_session.commit() # Intermediary save for visibility
+
             if job.type == "TEST_JOB":
                 result = self._handle_test_job(job)
             elif job.type == "PROCESS_REPORT":
@@ -51,9 +54,21 @@ class JobProcessor:
         except Exception as e:
             # Failure
             job.status = JobStatus.FAILED
-            job.error_log = str(e)
+            job.error_log = f"{type(e).__name__}: {str(e)}"
             logger.error(f"❌ Job {job.id} FAILED: {e}")
-            job.attempts += 1 # Simple increment (Cloud Tasks has its own retry policy, this is application level tracking)
+            job.attempts += 1 
+
+            # Update Inspection Status to REJECTED if it was a PROCESS_REPORT job
+            if job.type == "PROCESS_REPORT" and job.input_payload:
+                file_id = job.input_payload.get('file_id')
+                if file_id:
+                    try:
+                        from src.models_db import Inspection, InspectionStatus
+                        inspection = database.db_session.query(Inspection).filter_by(drive_file_id=file_id).first()
+                        if inspection:
+                            inspection.status = InspectionStatus.REJECTED
+                    except Exception as insp_err:
+                        logger.error(f"Failed to update inspection status: {insp_err}")
             
         finally:
             # Metrics
