@@ -1,33 +1,20 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
-class AcaoCorretiva(BaseModel):
-    descricao: str = Field(description="Descrição da ação a ser tomada.")
-    prioridade: str = Field(description="Alta, Média ou Baixa")
-    prazo_sugerido: str = Field(description="Prazo sugerido (ex: Imediato, 7 dias)")
+class ChecklistItem(BaseModel):
+    item_verificado: str = Field(description="O requisito ou item específico que foi inspecionado.")
+    status: str = Field(description="O status do item, deve ser 'Conforme' ou 'Não Conforme' ou 'Parcialmente Conforme'.")
+    observacao: str = Field(description="Descrição detalhada da evidência encontrada e do problema.")
+    fundamento_legal: str = Field(description="A base legal para a não conformidade, citando a legislação relevante (ex: 'RDC 216/2004 item 4.1.1').")
+    acao_corretiva_sugerida: str = Field(description="Ação corretiva técnica sugerida para resolver o problema.")
+    prazo_sugerido: str = Field(description="Prazo sugerido para correção (ex: 'Imediato', '24h', '7 dias').")
 
-class NaoConformidade(BaseModel):
-    item: str = Field(description="Nome do item avaliado (ex: Higiene Pessoal)")
-    setor: Optional[str] = Field(description="Setor ou área onde o problema foi encontrado (ex: Cozinha, Estoque)")
-    descricao: str = Field(description="Descrição do problema encontrado")
-    legislacao_relacionada: Optional[str] = Field(description="Artigo da RDC 216 ou legislação pertinente")
-    acoes_corretivas: List[AcaoCorretiva] = Field(description="Lista de ações corretivas sugeridas")
-    status_item: str = Field(description="Status na vistoria (ex: Não Conforme, Parcialmente Conforme)")
-    is_corrected: bool = Field(default=False, description="Se o item foi corrigido em relação à visita anterior")
-    correction_notes: Optional[str] = Field(default=None, description="Notas sobre a correção ou pendência")
+class AreaInspecao(BaseModel):
+    nome_area: str = Field(description="Nome da área física inspecionada (ex: 'Cozinha', 'Depósito', 'Vestiários').")
+    itens: List[ChecklistItem] = Field(description="Lista de itens verificados nesta área. Incluir APENAS itens com não conformidades.")
 
-class TopicoPontuacao(BaseModel):
-    topico: str = Field(description="Nome do tópico ou área (ex: Edificação, Equipamentos)")
-    pontos_obtidos: float = Field(description="Pontos ganhos")
-    pontos_possiveis: float = Field(description="Máximo de pontos")
-    percentual: float = Field(description="Aproveitamento percentual")
-
-class RelatorioInspecao(BaseModel):
-    titulo: str = Field(default="Relatório de Inspeção Sanitária", description="Título do relatório")
-    estabelecimento: str = Field(description="Nome do estabelecimento identificado")
-    data_inspecao: str = Field(description="Data da vistoria (DD/MM/AAAA)")
-    pontuacao_geral: float = Field(description="Nota de 0 a 100")
-    resumo_geral: str = Field(description="Breve resumo da situação geral")
-    pontos_fortes: List[str] = Field(default_factory=list, description="Destaques positivos encontrados")
-    detalhe_pontuacao: List[TopicoPontuacao] = Field(default_factory=list, description="Detalhamento de pontos por área")
-    nao_conformidades: List[NaoConformidade]
+class ChecklistSanitario(BaseModel):
+    nome_estabelecimento: str = Field(description="Nome do estabelecimento que foi auditado.")
+    resumo_geral: str = Field(description="Um parágrafo resumindo o resultado geral da inspeção, destacando as principais áreas de preocupação.")
+    pontos_fortes: str = Field(description="Lista de pontos positivos e boas práticas observadas.", default="")
+    areas_inspecionadas: List[AreaInspecao] = Field(description="Lista de áreas inspecionadas com seus respectivos itens.")

@@ -124,7 +124,7 @@ class DriveService:
         return json.loads(content.decode('utf-8'))
 
     def upload_file(self, file_path, folder_id, filename=None):
-        """Faz upload de um arquivo local para o Drive."""
+        """Faz upload de um arquivo local para o Drive com Retry Logic."""
         if not self.service: raise Exception("Drive Service Unavailable")
         
         if not filename:
@@ -135,20 +135,37 @@ class DriveService:
             'name': filename,
             'parents': [folder_id]
         }
-        media = MediaFileUpload(file_path, resumable=True)
         
-        with self.lock:
-            file = self.service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id, webViewLink',
-                supportsAllDrives=True
-            ).execute()
+        # Retry Logic (3 Attempts)
+        import time
+        import random
+        max_retries = 3
         
-        # Sharing is usually not needed in Shared Drives (permissions inherited), but kept for safe measure
-        # self._share_file(file.get('id'))
-        
-        return file.get('id'), file.get('webViewLink')
+        for attempt in range(max_retries):
+            try:
+                # Re-create MediaFileUpload for each attempt to reset stream position
+                media = MediaFileUpload(file_path, resumable=True)
+                
+                with self.lock:
+                    file = self.service.files().create(
+                        body=file_metadata,
+                        media_body=media,
+                        fields='id, webViewLink',
+                        supportsAllDrives=True
+                    ).execute()
+                
+                # Success
+                return file.get('id'), file.get('webViewLink')
+
+            except Exception as e:
+                logger.warning(f"⚠️ Upload attempt {attempt+1}/{max_retries} failed for {filename}: {str(e)}")
+                if attempt == max_retries - 1:
+                    logger.error(f"❌ Upload failed permanently for {filename}")
+                    raise e
+                
+                # Exponential Backoff + Jitter
+                wait_time = (2 ** attempt) + random.uniform(0, 1)
+                time.sleep(wait_time)
 
     def update_file(self, file_id, new_content_str):
         """Atualiza o conteúdo de um arquivo existente (ex: JSON)."""

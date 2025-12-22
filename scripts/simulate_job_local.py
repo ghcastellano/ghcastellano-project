@@ -64,45 +64,39 @@ def run_simulation():
 
     # Mock OpenAI
     mock_openai_response = MagicMock()
-    # Mocking the parsed object structure
-    # Expected: RelatorioInspecao(estabelecimento=..., nao_conformidades=[...])
     
-    # Create valid mock Pydantic model structure
-    from pydantic import BaseModel
-    from typing import List, Optional
+    # Create valid mock Pydantic model structure matching src.models.ChecklistSanitario
+    from src.models import ChecklistSanitario, AreaInspecao, ChecklistItem
     
-    class AcaoCorretiva(BaseModel):
-        descricao: str
-        prioridade: str
-        prazo_sugerido: str
-        
-    class NaoConformidade(BaseModel):
-        item: str
-        descricao: str
-        legislacao_relacionada: Optional[str] = None
-        acoes_corretivas: List[AcaoCorretiva]
-        status_item: str
-        
-    class RelatorioInspecao(BaseModel):
-        estabelecimento: str
-        data_inspecao: str
-        pontuacao_geral: int
-        nao_conformidades: List[NaoConformidade]
-        resumo_geral: str
-        
-    mock_data = RelatorioInspecao(
-        estabelecimento="Padaria Tio Joao",
-        data_inspecao="20/12/2025",
-        pontuacao_geral=85,
-        resumo_geral="Bom estado geral, apenas ajustes menores.",
-        nao_conformidades=[
-            NaoConformidade(
-                item="Higiene Pessoal",
-                descricao="Funcionário sem touca.",
-                legislacao_relacionada="RDC 216",
-                status_item="Não Conforme",
-                acoes_corretivas=[
-                    AcaoCorretiva(descricao="Usar touca.", prioridade="Alta", prazo_sugerido="Imediato")
+    mock_data = ChecklistSanitario(
+        nome_estabelecimento="Padaria Tio Joao",
+        resumo_geral="Bom estado geral, apenas ajustes menores na cozinha.",
+        pontos_fortes="Equipe treinada, documentação em dia.",
+        areas_inspecionadas=[
+            AreaInspecao(
+                nome_area="Cozinha",
+                itens=[
+                    ChecklistItem(
+                        item_verificado="Higiene Pessoal",
+                        status="Não Conforme",
+                        observacao="Funcionário sem touca.",
+                        fundamento_legal="RDC 216",
+                        acao_corretiva_sugerida="Usar touca.",
+                        prazo_sugerido="Imediato"
+                    )
+                ]
+            ),
+             AreaInspecao(
+                nome_area="Estoque",
+                itens=[
+                    ChecklistItem(
+                        item_verificado="Temperatura",
+                        status="Conforme",
+                        observacao="Adequada",
+                        fundamento_legal="",
+                        acao_corretiva_sugerida="",
+                        prazo_sugerido=""
+                    )
                 ]
             )
         ]
