@@ -404,6 +404,9 @@ def upload_file():
 
             except Exception as e:
                 friendly_msg = get_friendly_error_message(e)
+                if "broken pipe" in str(e).lower():
+                    friendly_msg = "A conexão foi interrompida durante o envio. Verifique sua internet e tente novamente."
+                
                 logger.error(f"Falha no arquivo {file.filename}: {e}")
                 flash(f"Erro no arquivo {file.filename}: {friendly_msg}", 'error')
                 falha += 1
@@ -477,12 +480,16 @@ def get_status():
             # Se o banco retornou dados (ou consultor vazio mas ok), usa eles
             if processed_raw is not None:  
                 def list_errors():
-                    # Improve error mapping here or just return raw names
-                    files = drive_service.list_files(FOLDER_ERROR, extension='.pdf')
-                    mapped_errors = []
-                    for f in files[:10]:
-                        mapped_errors.append({'name': f['name'], 'error': 'Erro no processamento (Verificar logs)'})
-                    return mapped_errors
+                    try:
+                        # Improve error mapping here or just return raw names
+                        files = drive_service.list_files(FOLDER_ERROR, extension='.pdf')
+                        mapped_errors = []
+                        for f in files[:10]:
+                            mapped_errors.append({'name': f['name'], 'error': 'Erro no processamento (Verificar logs)'})
+                        return mapped_errors
+                    except Exception as e:
+                        logger.error(f"Erro listando falhas no Drive: {e}")
+                        return []
                 
                 return jsonify({
                     'pending': pending,
@@ -501,12 +508,16 @@ def get_status():
     # Idealmente, filtrar aqui também, mas JSON do drive não tem status fácil.
     
     def list_pending():
-        files = drive_service.list_files(FOLDER_IN, extension='.pdf')
-        return [{'name': f['name']} for f in files[:10]]
+        try:
+            files = drive_service.list_files(FOLDER_IN, extension='.pdf')
+            return [{'name': f['name']} for f in files[:10]]
+        except: return []
 
     def list_errors():
-        files = drive_service.list_files(FOLDER_ERROR, extension='.pdf')
-        return [{'name': f['name']} for f in files[:10]]
+        try:
+            files = drive_service.list_files(FOLDER_ERROR, extension='.pdf')
+            return [{'name': f['name']} for f in files[:10]]
+        except: return []
 
     def list_processed_raw():
         try:

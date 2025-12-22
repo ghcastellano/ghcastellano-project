@@ -3,16 +3,16 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Relatório de Inspeção Sanitária</title>
+    <title>Plano de Ação Sanitária</title>
     <style>
         @page {
             size: A4;
-            margin: 2cm;
+            margin: 1.5cm;
 
             @bottom-center {
                 content: "Página " counter(page);
                 font-family: 'Helvetica', sans-serif;
-                font-size: 9pt;
+                font-size: 8pt;
                 color: #64748b;
             }
         }
@@ -20,303 +20,158 @@
         body {
             font-family: 'Helvetica', sans-serif;
             color: #1e293b;
-            line-height: 1.5;
-            font-size: 10pt;
+            line-height: 1.4;
+            font-size: 9pt;
         }
 
-        /* Header */
         .header {
             border-bottom: 2px solid #0f172a;
             padding-bottom: 1rem;
             margin-bottom: 2rem;
             display: flex;
             justify-content: space-between;
-            align-items: flex-end;
         }
 
         .header-title {
-            font-size: 24pt;
+            font-size: 18pt;
             font-weight: bold;
             color: #0f172a;
             text-transform: uppercase;
-            letter-spacing: -0.5px;
         }
 
         .header-meta {
             text-align: right;
-            font-size: 9pt;
+            font-size: 8pt;
             color: #64748b;
         }
 
-        /* Section Titles */
-        h2 {
-            font-size: 14pt;
-            color: #0f172a;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 0.5rem;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-        }
-
-        /* Executive Summary */
         .summary-box {
             background-color: #f8fafc;
-            border-left: 4px solid #3b82f6;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-            font-size: 10pt;
-            text-align: justify;
-        }
-
-        /* Stats Grid */
-        .stats-container {
-            display: flex;
-            /* WeasyPrint supports flex restrictedly, usually table/float is safer for PDFs but let's try table layout for robustness if needed. Weasyprint 53+ supports Grid/Flex better. */
-            justify-content: space-between;
-            margin-bottom: 2rem;
             border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            overflow: hidden;
-            background: #fff;
-        }
-
-        .stat-box {
-            flex: 1;
             padding: 1rem;
-            text-align: center;
-            border-right: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            border-radius: 4px;
         }
 
-        .stat-box:last-child {
-            border-right: none;
+        .area-section {
+            margin-top: 1.5rem;
+            break-inside: avoid;
         }
 
-        .stat-number {
-            font-size: 20pt;
+        .area-title {
+            background-color: #e2e8f0;
+            padding: 0.5rem;
+            font-size: 11pt;
             font-weight: bold;
-            color: #3b82f6;
-            display: block;
+            color: #0f172a;
+            border-left: 4px solid #3b82f6;
+            margin-bottom: 0.5rem;
         }
 
-        .stat-label {
-            font-size: 8pt;
-            text-transform: uppercase;
-            color: #64748b;
-            letter-spacing: 1px;
-        }
-
-        /* Items Table */
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1rem;
+            margin-bottom: 1rem;
+            font-size: 8.5pt;
         }
 
         th {
             background-color: #f1f5f9;
-            color: #475569;
-            font-size: 8pt;
-            text-transform: uppercase;
-            padding: 0.5rem;
             text-align: left;
-            border-bottom: 2px solid #cbd5e1;
+            padding: 8px;
+            border-bottom: 2px solid #e2e8f0;
+            font-weight: bold;
+            color: #334155;
         }
 
         td {
-            padding: 0.8rem 0.5rem;
+            padding: 8px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: top;
-            font-size: 9pt;
         }
 
-        .item-id {
-            color: #94a3b8;
-            font-size: 8pt;
+        .status-nc {
+            color: #dc2626;
             font-weight: bold;
         }
 
-        .badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
+        .status-ok {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        .label {
             font-size: 7pt;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .badge-critical {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .badge-high {
-            background: #ffedd5;
-            color: #9a3412;
-        }
-
-        .badge-medium {
-            background: #fef9c3;
-            color: #854d0e;
-        }
-
-        .badge-low {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .legal-citation {
-            font-size: 8pt;
             color: #64748b;
-            font-style: italic;
-            margin-top: 4px;
-            display: block;
-        }
-
-        .deadline-box {
-            font-size: 8pt;
+            text-transform: uppercase;
             font-weight: bold;
-            color: #ef4444;
-            margin-top: 4px;
-        }
-
-        /* Footer */
-        .footer {
-            margin-top: 3rem;
-            padding-top: 1rem;
-            border-top: 1px solid #e2e8f0;
-            font-size: 8pt;
-            color: #94a3b8;
-            text-align: center;
+            display: block;
+            margin-bottom: 2px;
         }
     </style>
 </head>
 
 <body>
-
-    <!-- Header -->
     <div class="header">
-        <div>
-            <div class="header-title">Planos de Ação</div>
-            <div style="font-size: 12pt; color: #475569;">{{ relatorio.estabelecimento or 'Estabelecimento Não
-                Identificado' }}</div>
-        </div>
+        <div class="header-title">Plano de Ação Sanitária</div>
         <div class="header-meta">
-            Data da Inspeção: {{ relatorio.data_inspecao }}<br>
-            Relatório Gerado: {{ data_geracao }}
+            Gerado em: {{ data_geracao }}<br>
+            Estabelecimento: {{ relatorio.nome_estabelecimento }}
         </div>
     </div>
 
     <!-- Executive Summary -->
-    {% if relatorio.resumo_geral %}
-    <h2>Resumo Executivo</h2>
     <div class="summary-box">
-        {{ relatorio.resumo_geral }}
-    </div>
-    {% endif %}
+        <h3 style="margin-top:0; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">Resumo Executivo</h3>
+        <p>{{ relatorio.resumo_geral }}</p>
 
-    <!-- Stats -->
-    <div class="stats-container">
-        <div class="stat-box">
-            <span class="stat-number">{{ relatorio.pontuacao_geral }}%</span>
-            <span class="stat-label">Pontuação Geral</span>
-        </div>
-        <div class="stat-box">
-            <span class="stat-number">{{ relatorio.nao_conformidades|length }}</span>
-            <span class="stat-label">Itens a Corrigir</span>
-        </div>
-        <div class="stat-box">
-            <span class="stat-number" style="color: #ef4444;">
-                <!-- Counting Critical items if possible, else generic -->
-                {{ relatorio.nao_conformidades | length }}
-            </span>
-            <span class="stat-label">Não Conformidades</span>
-        </div>
-        <div class="stat-box">
-            <span class="stat-number" style="color: #22c55e;">
-                {{ relatorio.pontos_fortes|length if relatorio.pontos_fortes else 0 }}
-            </span>
-            <span class="stat-label">Pontos Fortes</span>
-        </div>
+        {% if relatorio.pontos_fortes %}
+        <h4 style="margin-bottom:5px; margin-top:10px;">Destaques Positivos</h4>
+        <p>{{ relatorio.pontos_fortes }}</p>
+        {% endif %}
     </div>
 
-    <!-- Strengths -->
-    {% if relatorio.pontos_fortes %}
-    <h2>Destaques Positivos</h2>
-    <ul style="list-style: none; padding: 0;">
-        {% for ponto in relatorio.pontos_fortes %}
-        <li style="margin-bottom: 0.5rem; padding-left: 1.5rem; position: relative;">
-            <span style="position: absolute; left: 0; color: #22c55e;">✔</span>
-            {{ ponto }}
-        </li>
-        {% endfor %}
-    </ul>
-    {% endif %}
+    <!-- Items by Area -->
+    {% for area in relatorio.areas_inspecionadas %}
+    <div class="area-section">
+        <div class="area-title">{{ area.nome_area|upper }}</div>
 
-    <!-- Detailed Items -->
-    <h2>Plano de Ação Corretiva</h2>
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 35%;">Não Conformidade</th>
-                <th style="width: 30%;">Ação Corretiva & Base Legal</th>
-                <th style="width: 15%;">Prazo</th>
-                <th style="width: 15%;">Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in relatorio.nao_conformidades %}
-            <tr>
-                <td><span class="item-id">{{ loop.index }}</span></td>
-                <td>
-                    <strong>{{ item.item }}</strong><br>
-                    <span style="color: #475569;">{{ item.descricao }}</span>
-                </td>
-                <td>
-                    {% for acao in item.acoes_corretivas %}
-                    <div style="margin-bottom: 0.5rem;">
-                        Build: {{ acao.descricao }}
-                    </div>
-                    {% endfor %}
-
-                    {% if item.legislacao_relacionada %}
-                    <span class="legal-citation">⚖ {{ item.legislacao_relacionada }}</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% for acao in item.acoes_corretivas %}
-                    <!-- Check for prazo_sugerido -->
-                    {% if acao.prazo_sugerido %}
-                    <div class="deadline-box">🕒 {{ acao.prazo_sugerido }}</div>
-                    {% endif %}
-                    {% endfor %}
-                </td>
-                <td>
-                    <!-- Severity/Priority Badge -->
-                    {% set severity = 'MEDIUM' %}
-                    {% if item.acoes_corretivas and item.acoes_corretivas[0].prioridade == 'Alta' %}
-                    {% set severity = 'HIGH' %}
-                    {% endif %}
-
-                    <span class="badge badge-{% if severity == 'HIGH' %}critical{% else %}medium{% endif %}">
-                        {{ item.status_item or 'Pendente' }}
-                    </span>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="5" style="text-align: center; color: #94a3b8; padding: 2rem;">
-                    Nenhuma não conformidade encontrada. Parabéns!
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <div class="footer">
-        Gerado automaticamente por InspetorAI - Tecnologia para Segurança Alimentar
+        <table>
+            <thead>
+                <tr>
+                    <th width="25%">Item / Requisito</th>
+                    <th width="35%">Evidência (Problema)</th>
+                    <th width="25%">Ação Corretiva Sugerida</th>
+                    <th width="15%">Prazo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in area.itens %}
+                <tr>
+                    <td>
+                        <strong>{{ item.item_verificado }}</strong><br>
+                        <span style="font-size:7pt; color:#64748b;">{{ item.fundamento_legal }}</span>
+                    </td>
+                    <td>
+                        {% if 'Não Conforme' in item.status %}
+                        <span class="status-nc">NÃO CONFORME</span>
+                        {% else %}
+                        <span class="status-ok">{{ item.status }}</span>
+                        {% endif %}
+                        <div style="margin-top:4px;">{{ item.observacao }}</div>
+                    </td>
+                    <td>
+                        {{ item.acao_corretiva_sugerida }}
+                    </td>
+                    <td style="text-align:center;">
+                        <strong>{{ item.prazo_sugerido }}</strong>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
+    {% endfor %}
 
 </body>
 
