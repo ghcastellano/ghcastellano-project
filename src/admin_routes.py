@@ -390,6 +390,10 @@ def api_jobs_stats():
             
         return jsonify({'jobs': job_list})
     except Exception as e:
+        import traceback
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"❌ Erro em api_jobs_stats: {str(e)}\n{traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
     finally:
         db.close()
