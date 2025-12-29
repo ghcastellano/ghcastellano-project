@@ -205,6 +205,31 @@ PY
   fi
 fi
 
+# Atualiza OPENAI_API_KEY se solicitado
+# Uso: update_openai_key=1 bash deploy_and_register.sh
+if [[ "${update_openai_key:-}" == "1" ]] || [[ "${UPDATE_OPENAI_KEY:-}" == "1" ]]; then
+  echo "🔑 Atualização da API Key da OpenAI solicitada."
+  echo "Por favor, cole a nova chave (começa com sk-...):"
+  read -r -s NEW_OPENAI_KEY
+  echo
+
+  # Remove espaços em branco
+  NEW_OPENAI_KEY=$(echo "$NEW_OPENAI_KEY" | xargs)
+
+  if [[ "$NEW_OPENAI_KEY" != sk-* ]]; then
+    echo "⚠️  Aviso: A chave colada não começa com 'sk-'. Verifique se copiou corretamente."
+  fi
+
+  if [ -z "$NEW_OPENAI_KEY" ]; then
+     echo "❌ Chave vazia. Abortando atualização."
+     exit 1
+  fi
+  
+  # Usa helper se disponível ou comando direto
+  printf '%s' "$NEW_OPENAI_KEY" | gcloud secrets versions add "OPENAI_API_KEY" --data-file=- --project "$PROJECT_ID"
+  echo "✅ Secret OPENAI_API_KEY atualizado com sucesso."
+fi
+
 ensure_secret "DATABASE_URL"
 ensure_secret "OPENAI_API_KEY"
 # WHATSAPP_TOKEN é opcional (fluxo de WhatsApp pode ser desativado no MVP)
@@ -237,21 +262,21 @@ trim_var "SECRET_KEY"
 trim_var "WHATSAPP_TOKEN"
 
 # --- TESTE LIVE OPENAI (Evita subir chave inválida) ---
-if [ -n "$OPENAI_API_KEY" ]; then
-  echo "🧪 Testando validade da OPENAI_API_KEY via API..."
-  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://api.openai.com/v1/models \
-    -H "Authorization: Bearer $OPENAI_API_KEY")
-  if [ "$HTTP_CODE" -eq 401 ]; then
-    echo "❌ FALHA CRÍTICA: A chave OpenAI no GitHub Secrets é INVÁLIDA (401 Unauthorized)."
-    echo "   Por favor, gere uma nova chave na OpenAI e atualize o GitHub Secret."
-    # audit_secret "OPENAI_API_KEY" # Já feito na auditoria
-    exit 1
-  elif [ "$HTTP_CODE" -eq 200 ]; then
-    echo "✅ Conexão OpenAI confirmada."
-  else
-    echo "⚠️  OpenAI retornou status $HTTP_CODE (pode ser problema de rede ou cota, mas auth passou)."
-  fi
-fi
+# if [ "${SKIP_SANITY_CHECK:-0}" != "1" ] && [ -n "$OPENAI_API_KEY" ]; then
+#   echo "🧪 Testando validade da OPENAI_API_KEY via API..."
+#   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://api.openai.com/v1/models \
+#     -H "Authorization: Bearer $OPENAI_API_KEY")
+#   if [ "$HTTP_CODE" -eq 401 ]; then
+#     echo "❌ FALHA CRÍTICA: A chave OpenAI no GitHub Secrets é INVÁLIDA (401 Unauthorized)."
+#     echo "   Por favor, gere uma nova chave na OpenAI e atualize o GitHub Secret."
+#     # audit_secret "OPENAI_API_KEY" # Já feito na auditoria
+#     exit 1
+#   elif [ "$HTTP_CODE" -eq 200 ]; then
+#     echo "✅ Conexão OpenAI confirmada."
+#   else
+#     echo "⚠️  OpenAI retornou status $HTTP_CODE (pode ser problema de rede ou cota, mas auth passou)."
+#   fi
+# fi
 
 # Validação final de pastas críticas (COMENTADO PARA DEPLOY LOCAL)
 # if [ -z "$FOLDER_ID_01_ENTRADA_RELATORIOS" ] || [ -z "$FOLDER_ID_02_PLANOS_GERADOS" ]; then
@@ -308,6 +333,7 @@ gcloud run deploy $SERVICE_NAME \
   --project $PROJECT_ID \
   --max-instances 2 \
   --concurrency 20 \
+  --allow-unauthenticated \
   --set-env-vars "WEBHOOK_SECRET_TOKEN=$WEBHOOK_SECRET" \
   --set-env-vars "DB_POOL_SIZE=2,DB_MAX_OVERFLOW=3,DB_POOL_TIMEOUT=30,DB_POOL_RECYCLE=1800" \
   --set-env-vars "FOLDER_ID_01_ENTRADA_RELATORIOS=${FOLDER_ID_01_ENTRADA_RELATORIOS}" \

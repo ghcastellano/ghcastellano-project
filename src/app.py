@@ -653,85 +653,26 @@ def review_page(file_id):
             plan = inspection.action_plan
             is_validated = True
             
-            # --- ADAPTER: DB Object -> Template Dict ---
-            
-            # Pontos Fortes (DB stores as text block or list? Model says Text. Template wants list?)
-            # Model: strengths_text = Column(String)
-            # Template: {% for ponto in data.pontos_fortes %}
-            # Logic: Split by newline if text
-            p_fortes = []
-            if plan.strengths_text:
-                p_fortes = [p.strip() for p in plan.strengths_text.split('\n') if p.strip()]
-            
-            # Items
-            nao_conformidades = []
-            for item in plan.items:
-                # Severity Color Logic (Template expects specific CSS classes or inline logic?)
-                # Template uses: status-{{ nc.status_item...slugify }} and custom badges.
-                # Let's map strict DB status/severity to Template expectations
-                
-                # Correction status
-                is_corrected = item.status == ActionPlanItemStatus.RESOLVED
-                
-                nc_dict = {
-                    'id': str(item.id), # UUID to string
-                    'item': item.problem_description, # Title/Item Name
-                    'descricao': item.problem_description, # Description
-                    'status_item': "Não Conforme", # Legacy Label
-                    'gravidade': item.severity.name if hasattr(item.severity, 'name') else str(item.severity),
-                    'acoes_corretivas': [{'descricao': item.corrective_action, 'prazo_sugerido': item.ai_suggested_deadline or str(item.deadline_date or 'N/A')}],
-                    'is_corrected': is_corrected,
-                    'correction_notes': item.manager_notes, # Reusing field for correction notes? Or add new field?
-                    # correction_notes in template usually comes from consultant input. 
-                    # Model ActionPlanItem has 'manager_notes', but we might need 'consultant_notes'?
-                    # Checking migration... we didn't add consultant_notes. 
-                    # We can use manager_notes temporarily or assuming 'correction_notes' is just local JS state?
-                    # Wait, template: name="notes_{{ nc.id }}". 
-                    # Where is this saved? /api/save_review/{file_id}
-                }
-                nao_conformidades.append(nc_dict)
-                
-            stats = plan.stats_json or {}
-            
-            data = {
-                'estabelecimento': inspection.establishment.name if inspection.establishment else "Estabelecimento",
-                'data_inspecao': inspection.created_at.strftime('%d/%m/%Y'),
-                'pontuacao_geral': stats.get('score', 0),
-                'pontuacao_maxima': stats.get('max_score', 0),
-                'aproveitamento_geral': stats.get('percentage', 0),
-                'resumo_geral': plan.summary_text,
-                'pontos_fortes': p_fortes,
-                'detalhe_pontuacao': stats.get('by_sector', {}), 
-                'nao_conformidades': nao_conformidades
-            }
-            
-            # Contacts
+            # Contacts (for Email Modal)
             if inspection.establishment:
                 contacts_list = [{'name': c.name, 'phone': c.phone, 'id': str(c.id)} for c in inspection.establishment.contacts]
                 if not contacts_list and inspection.establishment.responsible_name:
                      contacts_list.append({'name': inspection.establishment.responsible_name, 'phone': inspection.establishment.responsible_phone, 'id': 'default'})
 
-        else:
-            # 2. Fallback: Drive (Legado / Não Processado)
-            print(f"⚠️ Review fallback to Drive for {file_id}")
-            data = drive_service.read_json(file_id)
+            # Users list for Email Modal (Fetch all users for now, or just company users)
+            from src.models_db import User
+            users_list = db.query(User).filter(User.company_id == inspection.client_id).all() # Or company_id
             
-            # Fetch Establishment Info for Approval Modal (Best Effort)
-            establishment_info = None
-            try:
-                from src.models_db import Establishment
-                est_name = data.get('estabelecimento')
-                if est_name:
-                    establishment_info = db.query(Establishment).filter_by(name=est_name).first()
-                    if establishment_info:
-                        contacts_list = [{'name': c.name, 'phone': c.phone, 'id': str(c.id)} for c in establishment_info.contacts]
-                        if not contacts_list and establishment_info.responsible_name:
-                             contacts_list.append({'name': establishment_info.responsible_name, 'phone': establishment_info.responsible_phone, 'id': 'default'})
-            except Exception as db_e:
-                logger.error(f"Error fetching establishment for review (fallback): {db_e}")
+        else:
+            # Fallback for unproccessed/legacy items is harder with new template.
+            # Ideally we show a "Not Ready" or "Legacy View" page.
+            # For this refactor, we assume data exists or we show empty state in template.
+            flash("Este relatório ainda não foi processado completamente para a nova visualização.", "warning")
+            pass
 
-        return render_template('review.html', file_id=file_id, data=data, 
-                             establishment=None,  # Not used in template? Used in modal? Template uses 'contacts'
+        return render_template('review.html', 
+                             inspection=inspection, 
+                             users=users_list if 'users_list' in locals() else [],
                              contacts=contacts_list,
                              is_validated=is_validated)
                              

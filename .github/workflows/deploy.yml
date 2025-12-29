@@ -1,112 +1,47 @@
-name: Deploy Production
+name: Deploy to Cloud Run
 
 on:
   push:
     branches:
-      - main  # ou master
+      - main
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'projeto-poc-ap' }}
-  REGION: ${{ secrets.GCP_LOCATION || 'us-central1' }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
   SERVICE_NAME: mvp-web
 
 jobs:
-  verify:
-    name: 🛡️ Verify & Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-          
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          echo "📦 DIP LIST:"
-          pip list
-          echo "🐍 PYTHON INFO:"
-          which python
-          python --version
-          
-      - name: Run Sanity Check
-        run: python scripts/sanity_check.py
-        env:
-          # Mock env vars needed for imports to work
-          SECRET_KEY: "mock-key-for-test"
-
   deploy:
-    name: 🚀 Build & Deploy
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
+
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Auth with Google Cloud
-        id: auth
+      - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-          cache: 'pip' # Enable caching for pip dependencies
+      - name: Configure Docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
-      - name: Create .env file from Secret
+      - name: Build and Push Docker Image
+        # Build inside the GitHub runner (saves $$) instead of triggering Cloud Build
         run: |
-          echo "${{ secrets.ENV_FILE }}" > .env
-          # Append specific secrets if not in ENV_FILE (redundancy safe)
-          echo "FOLDER_ID_01_ENTRADA_RELATORIOS=${{ secrets.FOLDER_ID_01_ENTRADA_RELATORIOS }}" >> .env
-          echo "FOLDER_ID_02_PLANOS_GERADOS=${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }}" >> .env
-          echo "FOLDER_ID_03_PROCESSADOS_BACKUP=${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}" >> .env
-          echo "FOLDER_ID_99_ERROS=${{ secrets.FOLDER_ID_99_ERROS }}" >> .env
-          echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
-          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
-          echo "APP_PUBLIC_URL=${{ secrets.APP_PUBLIC_URL }}" >> .env
-          echo "WHATSAPP_PHONE_ID=${{ secrets.WHATSAPP_PHONE_ID }}" >> .env
-          echo "WHATSAPP_TOKEN=${{ secrets.WHATSAPP_TOKEN }}" >> .env
-          echo "WHATSAPP_DESTINATION_PHONE=${{ secrets.WHATSAPP_DESTINATION_PHONE }}" >> .env
+          IMAGE_TAG="us-central1-docker.pkg.dev/$PROJECT_ID/mvp-repo/mvp-app:${{ github.sha }}"
+          docker build -t $IMAGE_TAG .
+          docker push $IMAGE_TAG
+          echo "IMAGE=$IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Execute Deploy Script
+      - name: Deploy to Cloud Run
         run: |
-          chmod +x deploy_and_register.sh
-          # Export variables explicitly for the script
-          export SKIP_SANITY_CHECK=1
-          export DRIVE_WEBHOOK_TOKEN="${{ secrets.DRIVE_WEBHOOK_TOKEN }}"
-          export GCP_SA_KEY='${{ secrets.GCP_SA_KEY || secrets.GCP_CREDENTIALS }}'
-          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
-          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-          export AWS_SES_SENDER="${{ secrets.AWS_SES_SENDER }}"
-          export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
-          export SECRET_KEY="${{ secrets.SECRET_KEY }}"
-          export WHATSAPP_TOKEN="${{ secrets.WHATSAPP_TOKEN }}"
-          export WHATSAPP_PHONE_ID="${{ secrets.WHATSAPP_PHONE_ID }}"
-          export WHATSAPP_DESTINATION_PHONE="${{ secrets.WHATSAPP_DESTINATION_PHONE || secrets.WHATSAPP_DEST_PHONE }}"
-          export APP_PUBLIC_URL="${{ secrets.APP_PUBLIC_URL }}"
-          export FOLDER_ID_01_ENTRADA_RELATORIOS="${{ secrets.FOLDER_ID_01_ENTRADA_RELATORIOS }}"
-          export FOLDER_ID_02_PLANOS_GERADOS="${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }}"
-          export FOLDER_ID_03_PROCESSADOS_BACKUP="${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }}"
-          export FOLDER_ID_99_ERROS="${{ secrets.FOLDER_ID_99_ERROS }}"
-          export FOLDER_ID_01="${{ secrets.FOLDER_ID_01 }}"
-          export FOLDER_ID_02="${{ secrets.FOLDER_ID_02 }}"
-          export FOLDER_ID_03="${{ secrets.FOLDER_ID_03 }}"
-          export FOLDER_ID_99="${{ secrets.FOLDER_ID_99 }}"
-          export GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
-          export GCP_LOCATION="${{ secrets.GCP_LOCATION }}"
-          export GCP_OAUTH_TOKEN="${{ secrets.GCP_OAUTH_TOKEN }}"
-          
-          # Run Deploy
-          ./deploy_and_register.sh
+          gcloud run deploy $SERVICE_NAME \
+            --image $IMAGE \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}"

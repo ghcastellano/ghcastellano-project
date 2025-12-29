@@ -96,394 +96,577 @@
                 <tr>
                     <td style="padding: 1rem; border: 1px solid #e2e8f0;">
                         <div style="font-weight: 700; color: #1e293b; margin-bottom: 0.4rem;">{{ sector_name }}</div>
-                        <div style="font-size: 0.85rem; color: #64748b; line-height: 1.4;">{{ stats.resumo_area }}</div>
-                    </td>
-                    <td style="padding: 1rem; border: 1px solid #e2e8f0; vertical-align: middle;">
-                        {{ stats.pontuacao }} / {{ stats.maximo }}
-                    </td>
-                    <td
-                        style="padding: 1rem; border: 1px solid #e2e8f0; vertical-align: middle; font-weight: 600; color: {% if stats.aproveitamento >= 90 %}#16a34a{% elif stats.aproveitamento >= 70 %}#ca8a04{% else %}#dc2626{% endif %};">
-                        {{ stats.aproveitamento }}%
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Items List -->
-    <div>
-        <h3 class="section-title">Itens para Correção</h3>
-        <form id="reviewForm">
-            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-
-                {# V2 Structure: Areas -> Items #}
-                {% if data.areas_inspecionadas %}
-                {% for area in data.areas_inspecionadas %}
-                {% for item in area.itens %}
-                {# Show ONLY non-conformities #}
-                {% if 'não conforme' in item.status.lower() or 'parcialmente' in item.status.lower() %}
-                <div class="nc-card status-{{ item.status|slugify }}"
-                    style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid {% if 'parcialmente' in item.status.lower() %}#fbbf24{% else %}#ef4444{% endif %};">
-
-                    <div class="nc-header"
-                        style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-                        <div class="nc-title" style="flex: 1;">
-                            <span
-                                style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
-                                {{ area.nome_area }}
-                            </span>
-                            <h4 style="margin: 0.2rem 0 0 0; font-size: 1.1rem;">{{ item.item_verificado }}</h4>
-                        </div>
-                        <span class="status-badge-item"
-                            style="padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; background: #fee2e2; color: #991b1b;">
-                            {{ item.status }}
-                        </span>
-                    </div>
-
-                    <div class="nc-body">
-                        <div style="margin-bottom: 1rem;">
-                            <strong>Problema:</strong>
-                            <p style="margin-top: 0.2rem; color: #475569;">{{ item.observacao }}</p>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h1 class="mb-1 h2">Detalhes do Plano de Ação</h1>
+                                <p class="text-muted mb-0">
+                                    <strong>{{ inspection.establishment.name }}</strong> -
+                                    <i class="bi bi-calendar-check"></i> Checklist Base de {{
+                                    inspection.inspection_date.strftime('%d/%m/%Y') if inspection.inspection_date else
+                                    'N/A' }}
+                                </p>
+                            </div>
+                            <a href="{{ url_for('routes.establishment_detail', establishment_id=inspection.establishment_id) }}"
+                                class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
                         </div>
 
-                        {% if item.fundamento_legal %}
-                        <div style="margin-bottom: 1rem; font-size: 0.85rem; color: #64748b;">
-                            <i class="ph-bold ph-gavel"></i> {{ item.fundamento_legal }}
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Resumo do Plano de Ação</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Resumo Geral:</strong> {{ inspection.resumo_geral or 'N/A' }}</p>
+                                <hr>
+                                <div class="row align-items-center">
+                                    <div class="col-md-4 text-center border-end">
+                                        <h4>Aproveitamento Geral</h4>
+                                        <p
+                                            class="display-4 fw-bold {% if inspection.aproveitamento_geral is not none and inspection.aproveitamento_geral < 75 %}text-danger{% elif inspection.aproveitamento_geral is not none and inspection.aproveitamento_geral < 90 %}text-warning{% else %}text-success{% endif %}">
+                                            {{ "%.1f"|format(inspection.aproveitamento_geral) if
+                                            inspection.aproveitamento_geral is not none else 'N/A' }}%
+                                        </p>
+                                        <small class="text-muted">Nota: {{ inspection.score_geral_obtido or 'N/A' }} /
+                                            Máx: {{ inspection.score_geral_maximo or 'N/A' }}</small>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h5>Desempenho por Área (Clique para navegar)</h5>
+                                        <ul class="list-group list-group-flush">
+                                            {% for area_result in inspection.area_results|sort(attribute='order') %}
+                                            <li
+                                                class="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <a href="#area-{{ area_result.id }}"
+                                                        class="text-decoration-none"><strong>{{ area_result.nome_area
+                                                            }}</strong></a><br>
+                                                    <small class="text-muted">{{ area_result.notes or 'N/A'
+                                                        }}</small><br>
+                                                    <small class="text-muted">Nota: {{ area_result.score_obtido or 'N/A'
+                                                        }} / Máx: {{ area_result.score_maximo or 'N/A' }}</small>
+                                                </div>
+                                                <span
+                                                    class="badge fs-6 rounded-pill {% if area_result.aproveitamento is not none and area_result.aproveitamento < 75 %}bg-danger{% elif area_result.aproveitamento is not none and area_result.aproveitamento < 90 %}bg-warning{% else %}bg-success{% endif %}">
+                                                    {{ "%.1f"|format(area_result.aproveitamento) if
+                                                    area_result.aproveitamento is not none else 'N/A' }}%
+                                                </span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body d-flex flex-wrap justify-content-start align-items-center gap-3">
+                                <h5 class="card-title mb-0 me-3">Ações do Plano:</h5>
+                                <a href="{{ url_for('routes.download_original_report', inspection_id=inspection.id) }}"
+                                    class="btn btn-sm btn-outline-secondary"><i
+                                        class="bi bi-file-earmark-arrow-down"></i> Baixar Original</a>
+
+                                <a href="{{ url_for('routes.download_updated_report', inspection_id=inspection.id) }}"
+                                    class="btn btn-sm btn-success {% if not inspection.has_been_updated %}disabled{% endif %}"
+                                    title="{% if not inspection.has_been_updated %}Disponível após finalizar uma visita{% endif %}">
+                                    <i class="bi bi-file-earmark-arrow-down-fill"></i> Baixar Atualizado
+                                </a>
+
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                                    data-bs-target="#emailModal"><i class="bi bi-envelope-fill"></i> Enviar por
+                                    E-mail</button>
+                            </div>
+                        </div>
+
+                        {% if not inspection.has_been_updated %}
+                        <form id="visitForm" action="{{ url_for('routes.record_visit', inspection_id=inspection.id) }}"
+                            method="POST">
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="card-title mb-0"><i class="bi bi-clipboard2-plus-fill"></i> Registrar
+                                        Visita de Acompanhamento</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label for="visit_date" class="form-label fw-bold">Data da Visita:</label>
+                                            <input type="date" class="form-control" id="visit_date" name="visit_date"
+                                                required>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <p class="text-muted">Preencha o status e as notas para cada item com pendência
+                                        original abaixo.</p>
+                                </div>
+                            </div>
+
+                            {% for area_result in inspection.area_results|sort(attribute='order') %}
+                            <div class="card shadow-sm mb-4" id="area-{{ area_result.id }}">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">{{ area_result.nome_area }}</h5>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 25%;">Item</th>
+                                                <th style="width: 35%;">Plano de Ação Inicial</th>
+                                                <th style="width: 40%;">Acompanhamento da Visita</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in inspection.action_items|selectattr('nome_area', 'equalto',
+                                            area_result.nome_area)|sort(attribute='order') %}
+                                            <tr class="align-middle">
+                                                <td>
+                                                    <strong>{{ item.item_verificado }}</strong><br>
+                                                    <span
+                                                        class="badge {% if item.status_inicial == 'Não Conforme' %}bg-danger-subtle text-danger-emphasis{% elif item.status_inicial == 'Parcialmente Conforme' %}bg-warning-subtle text-warning-emphasis{% elif item.status_inicial == 'Conforme' %}bg-success-subtle text-success-emphasis{% else %}bg-secondary-subtle text-secondary-emphasis{% endif %}">
+                                                        Status: {{ item.status_inicial }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {% if item.status_inicial in ['Não Conforme', 'Parcialmente
+                                                    Conforme'] %}
+                                                    <p class="mb-1 small"><strong>Ação:</strong> {{ item.acao_corretiva
+                                                        }}</p>
+                                                    <p class="mb-1 small"><strong>Prazo:</strong> {{ item.prazo_sugerido
+                                                        }}</p>
+                                                    <p class="mb-0 small"><strong>Base Legal:</strong> {{
+                                                        item.fundamento_legal }}</p>
+                                                    {% else %}
+                                                    <div class="text-center text-muted">N/A</div>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if item.status_inicial in ['Não Conforme', 'Parcialmente
+                                                    Conforme'] %}
+                                                    <select class="form-select form-select-sm mb-1"
+                                                        name="status-{{ item.id }}" required>
+                                                        <option value="" selected disabled>Status nesta visita...
+                                                        </option>
+                                                        <option value="Pendente">Pendente</option>
+                                                        <option value="Corrigido">Corrigido</option>
+                                                    </select>
+                                                    <textarea class="form-control form-control-sm"
+                                                        name="notes-{{ item.id }}" rows="2"
+                                                        placeholder="Notas da visita... (obrigatório)"
+                                                        required></textarea>
+                                                    {% else %}
+                                                    <div class="text-center text-muted">N/A</div>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <div class="d-flex justify-content-end mb-5">
+                                <button type="submit" class="btn btn-lg btn-success" id="saveVisitButton"><i
+                                        class="bi bi-check-circle-fill"></i> Salvar e Finalizar Visita</button>
+                            </div>
+                        </form>
+                        {% else %}
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="card-title mb-0"><i class="bi bi-check2-circle"></i> Visita de Acompanhamento
+                                    Finalizada</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Esta visita de acompanhamento foi registrada e finalizada. As ações não podem mais
+                                    ser editadas.</p>
+                            </div>
+                        </div>
+
+                        {% for area_result in inspection.area_results|sort(attribute='order') %}
+                        <div class="card shadow-sm mb-4" id="area-{{ area_result.id }}">
+                            <div class="card-header bg-light">
+                                <h5 class="card-title mb-0">{{ area_result.nome_area }}</h5>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 25%;">Item</th>
+                                            <th style="width: 35%;">Plano de Ação Inicial</th>
+                                            <th style="width: 40%;">Resultado do Acompanhamento</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in inspection.action_items|selectattr('nome_area', 'equalto',
+                                        area_result.nome_area)|sort(attribute='order') %}
+                                        <tr class="align-middle">
+                                            <td>
+                                                <strong>{{ item.item_verificado }}</strong><br>
+                                                <span
+                                                    class="badge {% if item.status_inicial == 'Não Conforme' %}bg-danger-subtle text-danger-emphasis{% elif item.status_inicial == 'Parcialmente Conforme' %}bg-warning-subtle text-warning-emphasis{% elif item.status_inicial == 'Conforme' %}bg-success-subtle text-success-emphasis{% else %}bg-secondary-subtle text-secondary-emphasis{% endif %}">
+                                                    Status: {{ item.status_inicial }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if item.status_inicial in ['Não Conforme', 'Parcialmente Conforme']
+                                                %}
+                                                <p class="mb-1 small"><strong>Ação:</strong> {{ item.acao_corretiva }}
+                                                </p>
+                                                <p class="mb-1 small"><strong>Prazo:</strong> {{ item.prazo_sugerido }}
+                                                </p>
+                                                <p class="mb-0 small"><strong>Base Legal:</strong> {{
+                                                    item.fundamento_legal }}</p>
+                                                {% else %}
+                                                <div class="text-center text-muted">N/A</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.status_inicial in ['Não Conforme', 'Parcialmente Conforme']
+                                                %}
+                                                <div
+                                                    class="p-2 rounded border {% if item.status_atual == 'Corrigido' %}border-success-subtle bg-success-subtle{% else %}border-danger-subtle bg-danger-subtle{% endif %}">
+                                                    <p class="mb-1 small"><strong>Resultado em {{
+                                                            item.correction_date.strftime('%d/%m/%Y') if
+                                                            item.correction_date else 'N/A' }}:</strong>
+                                                        <strong
+                                                            class="{% if item.status_atual == 'Corrigido' %}text-success{% else %}text-danger{% endif %}">{{
+                                                            item.status_atual }}</strong>
+                                                    </p>
+                                                    <p class="mb-0 small"><strong>Notas:</strong> {{
+                                                        item.correction_notes }}</p>
+                                                </div>
+                                                {% else %}
+                                                <div class="text-center text-muted">N/A</div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endfor %}
                         {% endif %}
 
-                        <div style="margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
-                            <strong>Ação Corretiva Sugerida:</strong>
-                            <textarea name="notes_{{ item.id|default(loop.index0) }}" class="form-control"
-                                style="margin-top: 0.5rem; width: 100%; min-height: 80px;"
-                                placeholder="Descreva a correção técnica...">{{ item.acao_corretiva_sugerida }}</textarea>
+                        <div class="modal fade" id="emailModal" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form id="emailSendForm"
+                                        action="{{ url_for('routes.send_report_email', inspection_id=inspection.id) }}"
+                                        method="POST">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Enviar Plano de Ação por E-mail</h5><button
+                                                type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Selecione um destinatário e o tipo de relatório para enviar.</p>
+                                            <div class="mb-3">
+                                                <label for="user_id" class="form-label">Usuário Destinatário</label>
+                                                <select class="form-select" id="user_id" name="user_id" required>
+                                                    <option value="" disabled selected>Selecione...</option>
+                                                    {% for user in users %}<option value="{{ user.id }}">{{ user.email
+                                                        }}</option>{% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="report_type" class="form-label">Tipo de Relatório</label>
+                                                <select class="form-select" id="report_type" name="report_type"
+                                                    required>
+                                                    <option value="original">Original</option>
+                                                    <option value="updated" {% if not inspection.has_been_updated
+                                                        %}disabled{% endif %}>Atualizado</option>
+                                                </select>
+                                                {% if not inspection.has_been_updated %}
+                                                <div class="form-text">O relatório atualizado só fica disponível após
+                                                    finalizar uma visita.</div>
+                                                {% endif %}
+                                                left: 0;
+                                                top: 0;
+                                                width: 100%;
+                                                height: 100%;
+                                                overflow: auto;
+                                                background-color: rgba(0, 0, 0, 0.5);
+                                                backdrop-filter: blur(5px);
+                                                animation: fadeIn 0.3s;
+                                                }
 
-                            <div style="margin-top: 1rem; display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" name="is_corrected_{{ item.id|default(loop.index0) }}"
-                                    id="check_{{ item.id|default(loop.index0) }}" {% if 'resolvido' in
-                                    item.status.lower() or 'conforme' in item.status.lower() and 'não' not in
-                                    item.status.lower() %}checked{% endif %}>
-                                <label for="check_{{ item.id|default(loop.index0) }}"
-                                    style="font-weight: 600; color: #059669; cursor: pointer;">
-                                    Item Corrigido / Concluído
-                                </label>
-                            </div>
+                                                .modal-content {
+                                                background: rgba(255, 255, 255, 0.95);
+                                                margin: 10vh auto;
+                                                padding: 2rem;
+                                                border: 1px solid rgba(255, 255, 255, 0.2);
+                                                width: 90%;
+                                                max-width: 500px;
+                                                border-radius: 24px;
+                                                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+                                                animation: slideIn 0.3s;
+                                                position: relative;
+                                                }
 
-                            {% if item.prazo_sugerido %}
-                            <div style="margin-top: 0.5rem; font-size: 0.85rem; color: #64748b;">
-                                <i class="ph ph-clock"></i> Prazo sugerido: {{ item.prazo_sugerido }}
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-                {% endfor %}
-                {% endfor %}
+                                                @keyframes fadeIn {
+                                                from {
+                                                opacity: 0;
+                                                }
 
-                {# Legacy V1 Structure #}
-                {% elif data.nao_conformidades %}
-                {% for nc in data.nao_conformidades %}
-                <div class="nc-card status-{{ nc.status_item|default('Não Conforme')|slugify }}" id="nc-{{ nc.id }}"
-                    style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                                to {
+                                                opacity: 1;
+                                                }
+                                                }
 
-                    <!-- ... original V1 Item Content ... -->
-                    <div class="nc-header">
-                        <h4>{{ nc.item }}</h4>
-                        <p>{{ nc.descricao }}</p>
-                    </div>
-                </div>
-                {% endfor %}
-                {% else %}
-                <div style="text-align: center; padding: 2rem; color: #64748b;">
-                    <p>Nenhum item não conforme encontrado ou formato de dados desconhecido.</p>
-                </div>
-                {% endif %}
+                                                @keyframes slideIn {
+                                                from {
+                                                transform: translateY(-20px);
+                                                opacity: 0;
+                                                }
 
-            </div>
-        </form>
-    </div>
-</div>
+                                                to {
+                                                transform: translateY(0);
+                                                opacity: 1;
+                                                }
+                                                }
 
-<style>
-    /* Modern Modal Styles */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(5px);
-        animation: fadeIn 0.3s;
-    }
+                                                .close {
+                                                color: #aaa;
+                                                float: right;
+                                                font-size: 28px;
+                                                font-weight: bold;
+                                                transition: 0.2s;
+                                                }
 
-    .modal-content {
-        background: rgba(255, 255, 255, 0.95);
-        margin: 10vh auto;
-        padding: 2rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        width: 90%;
-        max-width: 500px;
-        border-radius: 24px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
-        animation: slideIn 0.3s;
-        position: relative;
-    }
+                                                .close:hover,
+                                                .close:focus {
+                                                color: #000;
+                                                text-decoration: none;
+                                                cursor: pointer;
+                                                }
 
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
+                                                /* Form Enhancements */
+                                                .form-control {
+                                                width: 100%;
+                                                padding: 0.8rem 1rem;
+                                                border: 1px solid #e2e8f0;
+                                                border-radius: 12px;
+                                                font-size: 1rem;
+                                                transition: all 0.2s;
+                                                background: #f8fafc;
+                                                }
 
-        to {
-            opacity: 1;
-        }
-    }
+                                                .form-control:focus {
+                                                outline: none;
+                                                border-color: #3b82f6;
+                                                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                                                background: white;
+                                                }
 
-    @keyframes slideIn {
-        from {
-            transform: translateY(-20px);
-            opacity: 0;
-        }
+                                                select.form-control {
+                                                appearance: none;
+                                                background-image: url("data:image/svg+xml,%3csvg
+                                                xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20
+                                                20'%3e%3cpath stroke=' %236b7280' stroke-linecap=' round'
+                                                stroke-linejoin=' round' stroke-width=' 1.5' d=' M6 8l4 4
+                                                4-4'/%3e%3c/svg%3e");
+                                                background-position: right 0.5rem center;
+                                                background-repeat: no-repeat;
+                                                background-size: 1.5em 1.5em;
+                                                padding-right: 2.5rem;
+                                                }
+                                                </style>
 
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
+                                                <!-- WhatsApp Modal (Shared for Approval and Sharing) -->
+                                                <div id="whatsappModal" class="modal"
+                                                    style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; override-flow: auto; background-color: rgba(0,0,0,0.4);">
+                                                    <div class="modal-content"
+                                                        style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px;">
+                                                        <div
+                                                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                                            <h3 style="margin: 0;" id="modalTitle">Enviar WhatsApp</h3>
+                                                            <span class="close" onclick="closeModal()"
+                                                                style="font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+                                                        </div>
 
-    .close {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
-        transition: 0.2s;
-    }
+                                                        <p id="modalDesc">Selecione o destinatário para receber o
+                                                            relatório:</p>
 
-    .close:hover,
-    .close:focus {
-        color: #000;
-        text-decoration: none;
-        cursor: pointer;
-    }
+                                                        <form id="whatsappForm" onsubmit="submitWhatsApp(event)">
+                                                            <input type="hidden" id="actionType" value="share">
 
-    /* Form Enhancements */
-    .form-control {
-        width: 100%;
-        padding: 0.8rem 1rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 1rem;
-        transition: all 0.2s;
-        background: #f8fafc;
-    }
+                                                            <div style="margin-bottom: 1rem;">
+                                                                <label
+                                                                    style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Selecionar
+                                                                    Contato:</label>
+                                                                <select id="contactSelect" class="form-control"
+                                                                    style="width: 100%; padding: 0.5rem;"
+                                                                    onchange="fillContact()">
+                                                                    <option value="">-- Selecione ou Digite Abaixo --
+                                                                    </option>
+                                                                    {% for c in contacts %}
+                                                                    <option value="{{ c.id }}" data-name="{{ c.name }}"
+                                                                        data-phone="{{ c.phone }}">{{ c.name }} - {{
+                                                                        c.phone }}</option>
+                                                                    {% endfor %}
+                                                                </select>
+                                                            </div>
 
-    .form-control:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        background: white;
-    }
+                                                            <div
+                                                                style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                                                <div style="margin-bottom: 1rem;">
+                                                                    <label
+                                                                        style="display: block; margin-bottom: 0.5rem;">Nome:</label>
+                                                                    <input type="text" name="resp_name" id="resp_name"
+                                                                        class="form-control"
+                                                                        style="width: 100%; padding: 0.5rem;" required>
+                                                                </div>
+                                                                <div style="margin-bottom: 1rem;">
+                                                                    <label
+                                                                        style="display: block; margin-bottom: 0.5rem;">WhatsApp:</label>
+                                                                    <input type="text" name="resp_phone" id="resp_phone"
+                                                                        class="form-control"
+                                                                        style="width: 100%; padding: 0.5rem;" required
+                                                                        placeholder="+55...">
+                                                                </div>
+                                                            </div>
 
-    select.form-control {
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20
- 20'%3e%3cpath stroke=' %236b7280' stroke-linecap=' round' stroke-linejoin=' round' stroke-width=' 1.5' d=' M6 8l4 4 4-4'/%3e%3c/svg%3e");
- background-position: right 0.5rem center;
-                background-repeat: no-repeat;
-                background-size: 1.5em 1.5em;
-                padding-right: 2.5rem;
-        }
-</style>
+                                                            <div style="text-align: right; margin-top: 1.5rem;">
+                                                                <button type="button" class="btn"
+                                                                    style="margin-right: 0.5rem;"
+                                                                    onclick="closeModal()">Cancelar</button>
+                                                                <button type="submit" class="btn btn-success"
+                                                                    id="btnSubmit">🚀 Enviar</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
 
-<!-- WhatsApp Modal (Shared for Approval and Sharing) -->
-<div id="whatsappModal" class="modal"
-    style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; override-flow: auto; background-color: rgba(0,0,0,0.4);">
-    <div class="modal-content"
-        style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="margin: 0;" id="modalTitle">Enviar WhatsApp</h3>
-            <span class="close" onclick="closeModal()"
-                style="font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-        </div>
+                                                <!-- Move Script block here -->
+                                                <!-- CSRF Token -->
+                                                <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <p id="modalDesc">Selecione o destinatário para receber o relatório:</p>
+                                                <script>
+                                                    // Utils
+                                                    function getCsrfToken() {
+                                                        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                                                    }
 
-        <form id="whatsappForm" onsubmit="submitWhatsApp(event)">
-            <input type="hidden" id="actionType" value="share">
+                                                    function openModal(action) {
+                                                        document.getElementById('whatsappModal').style.display = "block";
+                                                        document.getElementById('actionType').value = action;
 
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Selecionar Contato:</label>
-                <select id="contactSelect" class="form-control" style="width: 100%; padding: 0.5rem;"
-                    onchange="fillContact()">
-                    <option value="">-- Selecione ou Digite Abaixo --</option>
-                    {% for c in contacts %}
-                    <option value="{{ c.id }}" data-name="{{ c.name }}" data-phone="{{ c.phone }}">{{ c.name }} - {{
-                        c.phone }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+                                                        const title = document.getElementById('modalTitle');
+                                                        const btn = document.getElementById('btnSubmit');
 
-            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem;">Nome:</label>
-                    <input type="text" name="resp_name" id="resp_name" class="form-control"
-                        style="width: 100%; padding: 0.5rem;" required>
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem;">WhatsApp:</label>
-                    <input type="text" name="resp_phone" id="resp_phone" class="form-control"
-                        style="width: 100%; padding: 0.5rem;" required placeholder="+55...">
-                </div>
-            </div>
+                                                        if (action === 'approve') {
+                                                            title.innerText = "Aprovar e Enviar";
+                                                            btn.innerText = "✅ Aprovar e Enviar";
+                                                            btn.className = "btn btn-success";
+                                                        } else {
+                                                            title.innerText = "Compartilhar Relatório";
+                                                            btn.innerText = "📱 Compartilhar";
+                                                            btn.className = "btn btn-info";
+                                                            btn.style.backgroundColor = "#25D366";
+                                                            btn.style.color = "white";
+                                                        }
+                                                    }
 
-            <div style="text-align: right; margin-top: 1.5rem;">
-                <button type="button" class="btn" style="margin-right: 0.5rem;" onclick="closeModal()">Cancelar</button>
-                <button type="submit" class="btn btn-success" id="btnSubmit">🚀 Enviar</button>
-            </div>
-        </form>
-    </div>
-</div>
+                                                    function closeModal() {
+                                                        document.getElementById('whatsappModal').style.display = "none";
+                                                    }
 
-<!-- Move Script block here -->
-<!-- CSRF Token -->
-<meta name="csrf-token" content="{{ csrf_token() }}">
+                                                    function fillContact() {
+                                                        const select = document.getElementById('contactSelect');
+                                                        const option = select.options[select.selectedIndex];
+                                                        if (option.value) {
+                                                            document.getElementById('resp_name').value = option.getAttribute('data-name');
+                                                            document.getElementById('resp_phone').value = option.getAttribute('data-phone');
+                                                        }
+                                                    }
 
-<script>
-        // Utils
-        function getCsrfToken() {
-            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        }
+                                                    async function submitWhatsApp(e) {
+                                                        e.preventDefault();
+                                                        const form = document.getElementById('whatsappForm');
+                                                        const formData = new FormData(form);
+                                                        const action = document.getElementById('actionType').value;
+                                                        const btn = document.getElementById('btnSubmit');
 
-        function openModal(action) {
-            document.getElementById('whatsappModal').style.display = "block";
-            document.getElementById('actionType').value = action;
+                                                        btn.disabled = true;
+                                                        btn.innerText = "Processando em 2º Plano...";
 
-            const title = document.getElementById('modalTitle');
-            const btn = document.getElementById('btnSubmit');
+                                                        const url = action === 'approve' ? '/api/approve_plan/{{ file_id }}' : '/api/share_plan/{{ file_id }}';
 
-            if (action === 'approve') {
-                title.innerText = "Aprovar e Enviar";
-                btn.innerText = "✅ Aprovar e Enviar";
-                btn.className = "btn btn-success";
-            } else {
-                title.innerText = "Compartilhar Relatório";
-                btn.innerText = "📱 Compartilhar";
-                btn.className = "btn btn-info";
-                btn.style.backgroundColor = "#25D366";
-                btn.style.color = "white";
-            }
-        }
+                                                        try {
+                                                            const res = await fetch(url, {
+                                                                method: 'POST',
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                    'X-CSRFToken': getCsrfToken()
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    resp_name: formData.get('resp_name'),
+                                                                    resp_phone: formData.get('resp_phone'),
+                                                                    contact_id: document.getElementById('contactSelect').value
+                                                                })
+                                                            });
 
-        function closeModal() {
-            document.getElementById('whatsappModal').style.display = "none";
-        }
+                                                            const result = await res.json();
 
-        function fillContact() {
-            const select = document.getElementById('contactSelect');
-            const option = select.options[select.selectedIndex];
-            if (option.value) {
-                document.getElementById('resp_name').value = option.getAttribute('data-name');
-                document.getElementById('resp_phone').value = option.getAttribute('data-phone');
-            }
-        }
+                                                            if (res.ok) {
+                                                                alert('Processamento iniciado! O WhatsApp será enviado em breve.');
+                                                                if (action === 'approve') {
+                                                                    window.location.href = '/dashboard/manager';
+                                                                } else {
+                                                                    closeModal();
+                                                                    btn.disabled = false;
+                                                                    btn.innerText = "Enviado p/ Fila";
+                                                                }
+                                                            } else {
+                                                                alert('Erro: ' + (result.error || 'Falha desconhecida'));
+                                                                btn.disabled = false;
+                                                                btn.innerText = "Tentar Novamente";
+                                                            }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            alert('Erro de conexão.');
+                                                            btn.disabled = false;
+                                                        }
+                                                    }
 
-        async function submitWhatsApp(e) {
-            e.preventDefault();
-            const form = document.getElementById('whatsappForm');
-            const formData = new FormData(form);
-            const action = document.getElementById('actionType').value;
-            const btn = document.getElementById('btnSubmit');
+                                                    async function saveReview() {
+                                                        const form = document.getElementById('reviewForm');
+                                                        const formData = new FormData(form);
+                                                        const updates = {};
+                                                        const uuids = new Set();
 
-            btn.disabled = true;
-            btn.innerText = "Processando em 2º Plano...";
+                                                        for (let [key, value] of formData.entries()) {
+                                                            if (key.startsWith('notes_')) {
+                                                                const id = key.replace('notes_', '');
+                                                                if (!updates[id]) updates[id] = {};
+                                                                updates[id].correction_notes = value;
+                                                            }
+                                                            if (key.startsWith('is_corrected_')) {
+                                                                const id = key.replace('is_corrected_', '');
+                                                                if (!updates[id]) updates[id] = {};
+                                                                updates[id].is_corrected = (value === 'on');
+                                                            }
+                                                        }
 
-            const url = action === 'approve' ? '/api/approve_plan/{{ file_id }}' : '/api/share_plan/{{ file_id }}';
+                                                        try {
+                                                            const res = await fetch('/api/save_review/{{ file_id }}', {
+                                                                method: 'POST',
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                    'X-CSRFToken': getCsrfToken()
+                                                                },
+                                                                body: JSON.stringify(updates)
+                                                            });
 
-            try {
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCsrfToken()
-                    },
-                    body: JSON.stringify({
-                        resp_name: formData.get('resp_name'),
-                        resp_phone: formData.get('resp_phone'),
-                        contact_id: document.getElementById('contactSelect').value
-                    })
-                });
+                                                            if (res.ok) alert('Revisão salva com sucesso!');
+                                                            else alert('Erro ao salvar revisão.');
+                                                        } catch (e) {
+                                                            console.error(e);
+                                                            alert('Erro de conexão.');
+                                                        }
+                                                    }
 
-                const result = await res.json();
-
-                if (res.ok) {
-                    alert('Processamento iniciado! O WhatsApp será enviado em breve.');
-                    if (action === 'approve') {
-                        window.location.href = '/dashboard/manager';
-                    } else {
-                        closeModal();
-                        btn.disabled = false;
-                        btn.innerText = "Enviado p/ Fila";
-                    }
-                } else {
-                    alert('Erro: ' + (result.error || 'Falha desconhecida'));
-                    btn.disabled = false;
-                    btn.innerText = "Tentar Novamente";
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Erro de conexão.');
-                btn.disabled = false;
-            }
-        }
-
-        async function saveReview() {
-            const form = document.getElementById('reviewForm');
-            const formData = new FormData(form);
-            const updates = {};
-            const uuids = new Set();
-
-            for (let [key, value] of formData.entries()) {
-                if (key.startsWith('notes_')) {
-                    const id = key.replace('notes_', '');
-                    if (!updates[id]) updates[id] = {};
-                    updates[id].correction_notes = value;
-                }
-                if (key.startsWith('is_corrected_')) {
-                    const id = key.replace('is_corrected_', '');
-                    if (!updates[id]) updates[id] = {};
-                    updates[id].is_corrected = (value === 'on');
-                }
-            }
-
-            try {
-                const res = await fetch('/api/save_review/{{ file_id }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCsrfToken()
-                    },
-                    body: JSON.stringify(updates)
-                });
-
-                if (res.ok) alert('Revisão salva com sucesso!');
-                else alert('Erro ao salvar revisão.');
-            } catch (e) {
-                console.error(e);
-                alert('Erro de conexão.');
-            }
-        }
-
-        // Window click to close modal
-        window.onclick = function (event) {
-            if (event.target == document.getElementById('approvalModal')) {
-                closeModal();
-            }
-        }
-</script>
-{% endblock %}
+                                                    // Window click to close modal
+                                                    window.onclick = function (event) {
+                                                        if (event.target == document.getElementById('approvalModal')) {
+                                                            closeModal();
+                                                        }
+                                                    }
+                                                </script>
+                                                {% endblock %}
