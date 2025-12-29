@@ -44,4 +44,5 @@ jobs:
             --region $REGION \
             --platform managed \
             --allow-unauthenticated \
+            --clear-secrets="DATABASE_URL,OPENAI_API_KEY" \
             --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}"
