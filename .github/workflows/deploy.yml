@@ -39,10 +39,19 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
+          # 1. Nuclear Option: Unbind secrets first to avoid Type Conflict error
+          # We ignore errors here in case the service doesn't exist yet or secrets are already gone.
+          echo "🧹 Cleaning up old secret bindings..."
+          gcloud run services update $SERVICE_NAME \
+            --region $REGION \
+            --clear-secrets \
+            --remove-env-vars="DATABASE_URL,OPENAI_API_KEY" || true
+            
+          # 2. Fresh Deploy with new String Literals
+          echo "🚀 Deploying new version..."
           gcloud run deploy $SERVICE_NAME \
             --image $IMAGE \
             --region $REGION \
             --platform managed \
             --allow-unauthenticated \
-            --clear-secrets \
             --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}"
