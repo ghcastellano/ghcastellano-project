@@ -653,6 +653,12 @@ def review_page(file_id):
             plan = inspection.action_plan
             is_validated = True
             
+            # Populate data from Plan Stats (Source of Truth for Validated Data)
+            data = plan.stats_json or {}
+            # Ensure detalhe_pontuacao exists for template compatibility
+            if 'detalhe_pontuacao' not in data:
+                 data['detalhe_pontuacao'] = data.get('by_sector', {})
+
             # Contacts (for Email Modal)
             if inspection.establishment:
                 contacts_list = [{'name': c.name, 'phone': c.phone, 'id': str(c.id)} for c in inspection.establishment.contacts]
@@ -664,14 +670,18 @@ def review_page(file_id):
             users_list = db.query(User).filter(User.company_id == inspection.client_id).all() # Or company_id
             
         else:
-            # Fallback for unproccessed/legacy items is harder with new template.
-            # Ideally we show a "Not Ready" or "Legacy View" page.
-            # For this refactor, we assume data exists or we show empty state in template.
+            # Fallback for unproccessed/legacy items
+            # Load from Drive (Legacy)
+            data = drive_service.read_json(file_id)
+            if not data: data = {}
+            if 'detalhe_pontuacao' not in data:
+                 data['detalhe_pontuacao'] = {} # Prevent template crash
+
             flash("Este relatório ainda não foi processado completamente para a nova visualização.", "warning")
-            pass
 
         return render_template('review.html', 
                              inspection=inspection, 
+                             data=data,
                              users=users_list if 'users_list' in locals() else [],
                              contacts=contacts_list,
                              is_validated=is_validated)
@@ -731,14 +741,8 @@ def save_review(file_id):
         db.rollback()
         return jsonify({'error': str(e)}), 500
 
-@app.route('/admin/api/jobs')
-@login_required
-@role_required(UserRole.ADMIN)
-def admin_api_jobs():
-    """Retorna todos os jobs ativos para o painel de monitoramento."""
-    # Reutiliza get_pending_jobs com allow_all=True
-    jobs = get_pending_jobs(allow_all=True)
-    return jsonify({'success': True, 'jobs': jobs})
+# Duplicate Route REMOVED: @app.route('/admin/api/jobs') matches src/admin_routes.py
+# If you need this logic, ensure it does not conflict with admin_routes.py
 
 @app.route('/download_revised_pdf/<file_id>')
 def download_revised_pdf(file_id):
