@@ -121,7 +121,12 @@ class DriveService:
         """Lê o conteúdo de um arquivo JSON diretamente."""
         content = self.download_file(file_id)
         if not content: return {}
-        return json.loads(content.decode('utf-8'))
+        try:
+            data = json.loads(content.decode('utf-8'))
+            return data if data is not None else {}
+        except Exception as e:
+            logger.error(f"Erro ao parsear JSON {file_id}: {e}")
+            return {}
 
     def upload_file(self, file_path, folder_id, filename=None):
         """Faz upload de um arquivo local para o Drive com Retry Logic."""

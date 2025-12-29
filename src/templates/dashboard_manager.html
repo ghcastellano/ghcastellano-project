@@ -147,7 +147,7 @@
                 <div class="sidebar-dot"></div> Visão Geral
             </li>
             <li class="sidebar-item" id="menu-management" onclick="showSection('management', this)">
-                <div class="sidebar-dot"></div> Equipe & Lojas
+                <div class="sidebar-dot"></div> Cadastros
             </li>
             <li class="sidebar-item" id="menu-inspections" onclick="showSection('inspections', this)">
                 <div class="sidebar-dot"></div> Vistorias
@@ -289,18 +289,7 @@
                     </div>
                 </div>
 
-                <!-- 🔄 New: Itens em Processamento section -->
-                <div id="home-processing" class="card" style="margin-top: 1.5rem; display: none;">
-                    <div class="card-header" style="background: #f0f9ff; border-bottom: 1px solid #e0f2fe;">
-                        <h3 class="card-title" style="color: #0369a1;"><i
-                                class="ph-bold ph-arrows-clockwise ph-spin"></i> Em Processamento pela IA</h3>
-                    </div>
-                    <div class="card-body" style="padding: 0;">
-                        <div id="home-processing-list">
-                            <!-- Populated via JS -->
-                        </div>
-                    </div>
-                </div>
+
 
                 <!-- 📊 Vistorias Realizadas section (Primary Focus) -->
                 <div class="card" style="margin-top: 2rem; min-height: 400px;">
@@ -337,12 +326,13 @@
                     </div>
                 </div>
 
-                <!-- Quick Actions (Tabs) - Move to bottom as secondary -->
-                <div class="card" style="margin-top: 2rem; border-top: 1px solid #e2e8f0; background: #f8fafc;">
-                    <div class="card-header" style="background: transparent;">
-                        <h3 class="card-title" style="font-size: 1rem; color: var(--text-secondary);">Gerenciar Equipe &
-                            Lojas (Cadastro rápido)</h3>
-                    </div>
+
+            </div>
+
+            <div id="management" class="section-view">
+                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Gerenciar Cadastros</h1>
+
+                <div class="card" style="margin-bottom: 2rem; border-top: 1px solid #e2e8f0; background: #ffff;">
                     <div class="card-body">
                         <style>
                             .action-tabs {
@@ -373,8 +363,7 @@
                             }
                         </style>
                         <div class="action-tabs">
-                            <div class="action-tab active" onclick="switchTab('tab-consultant', this)">Novo
-                                Consultor
+                            <div class="action-tab active" onclick="switchTab('tab-consultant', this)">Novo Consultor
                             </div>
                             <div class="action-tab" onclick="switchTab('tab-est', this)">Novo Estabelecimento</div>
                         </div>
@@ -403,10 +392,8 @@
                                     </div>
                                     <button type="submit" class="btn btn-primary">Criar</button>
                                 </div>
-                                <small class="text-muted" style="display:block; margin-top:0.5rem;">* Segure
-                                    Ctrl/Cmd
-                                    para
-                                    selecionar múltiplas lojas.</small>
+                                <small class="text-muted" style="display:block; margin-top:0.5rem;">* Segure Ctrl/Cmd
+                                    para selecionar múltiplas lojas. A senha padrão será enviada por email.</small>
                             </form>
                         </div>
 
@@ -430,11 +417,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- 2. Management (Team & Stores) -->
-            <div id="management" class="section-view">
-                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Gerenciar Equipe e Lojas</h1>
 
                 <!-- Edit Modals -->
                 <!-- Edit Consultant Modal -->
