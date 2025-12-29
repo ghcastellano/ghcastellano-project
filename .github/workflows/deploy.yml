@@ -27,12 +27,12 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+        run: gcloud auth configure-docker
 
       - name: Build and Push Docker Image
         # Build inside the GitHub runner (saves $$) instead of triggering Cloud Build
         run: |
-          IMAGE_TAG="us-central1-docker.pkg.dev/$PROJECT_ID/mvp-repo/mvp-app:${{ github.sha }}"
+          IMAGE_TAG="gcr.io/$PROJECT_ID/mvp-web:${{ github.sha }}"
           docker build -t $IMAGE_TAG .
           docker push $IMAGE_TAG
           echo "IMAGE=$IMAGE_TAG" >> $GITHUB_ENV
