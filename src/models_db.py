@@ -204,6 +204,98 @@ class Inspection(Base):
     visit: Mapped[Optional["Visit"]] = relationship(back_populates="inspections")
     action_plan: Mapped[Optional["ActionPlan"]] = relationship(back_populates="inspection", uselist=False)
 
+    # --- Pydantic/Template Adapters (V5 Dashboard) ---
+    @property
+    def resumo_geral(self):
+        return self.action_plan.summary_text if self.action_plan else "N/A"
+
+    @property
+    def aproveitamento_geral(self):
+        if self.action_plan and self.action_plan.stats_json:
+            return self.action_plan.stats_json.get('percentage')
+        return None
+
+    @property
+    def score_geral_obtido(self):
+        if self.action_plan and self.action_plan.stats_json:
+            return self.action_plan.stats_json.get('score')
+        return None
+
+    @property
+    def score_geral_maximo(self):
+        if self.action_plan and self.action_plan.stats_json:
+            return self.action_plan.stats_json.get('max_score')
+        return None
+
+    @property
+    def area_results(self):
+        """
+        Aggregates action items by sector to match PydanticAreaInspecao structure.
+        """
+        if not self.action_plan or not self.action_plan.items:
+            return []
+        
+        areas = {}
+        for item in self.action_plan.items:
+            sector = item.sector or "Geral"
+            if sector not in areas:
+                areas[sector] = {
+                    'id': str(uuid.uuid4()), # Temporary ID for UI toggles
+                    'nome_area': sector,
+                    'notes': "Visualização Agrupada", # TODO: Store per-area notes in JSON
+                    'score_obtido': 0, # Not strictly tracked per area in V1 yet
+                    'score_maximo': 0,
+                    'aproveitamento': None,
+                    'order': 0
+                }
+            # Logic to calculate score per area could go here if we had item weights
+        
+        # If stats_json has detailed breakdown, use it
+        if self.action_plan.stats_json and 'by_sector' in self.action_plan.stats_json:
+            for sector, stats in self.action_plan.stats_json['by_sector'].items():
+                if sector not in areas:
+                    areas[sector] = {'nome_area': sector, 'id': str(uuid.uuid4())}
+                areas[sector]['score_obtido'] = stats.get('score')
+                areas[sector]['score_maximo'] = stats.get('max_score')
+                areas[sector]['aproveitamento'] = stats.get('percentage')
+
+        return list(areas.values())
+
+    @property
+    def action_items(self):
+        """
+        Returns flat list of items with new properties expected by template.
+        """
+        if not self.action_plan:
+            return []
+        
+        enriched_items = []
+        for item in self.action_plan.items:
+            # Map DB fields to Template expected fields
+            item.item_verificado = item.problem_description
+            item.status_inicial = "Não Conforme" # For now, assuming all items in ActionPlan are NCs. 
+            # If we store 'Conforme' items, we need a way to distinguish. 
+            # Current logic only creates items for NCs.
+            
+            item.acao_corretiva = item.corrective_action
+            item.prazo_sugerido = item.deadline_date.strftime('%d/%m/%Y') if item.deadline_date else (item.ai_suggested_deadline or "N/A")
+            item.fundamento_legal = item.legal_basis or "N/A"
+            item.nome_area = item.sector or "Geral"
+            
+            # Follow-up status
+            item.status_atual = "Corrigido" if item.status == "RESOLVED" else "Pendente"
+            item.correction_date = None # We don't track WHEN it was corrected exactly yet, maybe add field?
+            item.correction_notes = item.manager_notes
+            
+            enriched_items.append(item)
+        return enriched_items
+
+    @property
+    def has_been_updated(self):
+        # Logic: If any item has a status change or specific flag. 
+        # For layout demo: False (shows format form)
+        return False # MVP: Always show form for now, or check if any item is RESOLVED?
+
 class ActionPlan(Base):
     __tablename__ = "action_plans"
 
