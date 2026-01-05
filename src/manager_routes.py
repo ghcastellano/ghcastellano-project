@@ -7,6 +7,7 @@ from datetime import datetime
 import json
 from src.services.email_service import EmailService # Mock verify first
 from werkzeug.security import generate_password_hash
+from flask import session
 import uuid
 import random
 import string
@@ -36,17 +37,41 @@ def dashboard_manager():
         # Reload current_user to ensure attached session if needed (optional)
         
         company = db.query(Company).get(current_user.company_id) if current_user.company_id else None
+        all_establishments = [] # Initialize safety
         if company:
-            establishments = company.establishments
+            # Sort Establishments by Name
+            all_establishments = sorted(company.establishments, key=lambda x: x.name)
+            establishments = all_establishments # Default to all
             
         consultants = db.query(User).filter(
             User.role == UserRole.CONSULTANT,
             User.company_id == current_user.company_id
-        ).all()
+        ).order_by(User.name.asc()).all()
         
-        return render_template('dashboard_manager.html', 
+        # Filter Persistence Logic
+        if establishment_id is not None:
+            if establishment_id:
+                session['selected_est_id'] = establishment_id
+            else:
+                # User selected "Todas as Lojas" (empty value) -> Clear Session
+                session.pop('selected_est_id', None)
+                establishment_id = None
+        elif 'selected_est_id' in session:
+            establishment_id = session['selected_est_id']
+            
+        # Apply Filter if selected
+        if establishment_id:
+             # Validate ID belongs to company
+             target = next((e for e in all_establishments if str(e.id) == establishment_id), None)
+             if target:
+                 establishments = [target]
+                 # Filter consultants linked to this store
+                 consultants = [c for c in consultants if target in c.establishments]
+        
+        return render_template('dashboard_manager_v2.html', 
                                user_role='MANAGER',
-                               establishments=establishments,
+                               establishments=establishments,     # For Tables
+                               all_establishments=all_establishments, # For Dropdowns
                                consultants=consultants,
                                selected_est_id=establishment_id)
     finally:
@@ -64,6 +89,8 @@ def create_consultant():
     establishment_ids = request.form.getlist('establishment_ids') # GET LIST
     
     if not name or not email or not establishment_ids:
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': 'Preencha todos os campos e selecione lojas.'}), 400
         flash('Preencha todos os campos e selecione ao menos um estabelecimento', 'error')
         return redirect(url_for('manager.dashboard_manager'))
         
@@ -74,24 +101,21 @@ def create_consultant():
         for est_id in establishment_ids:
             try:
                 est = db.query(Establishment).get(uuid.UUID(est_id))
-                # Validate if Manager has access to this establishment (assuming logical ownership or global admin)
-                # Na nova regra, Manager vê TUDO ou apenas a lista global?
-                # Se "Company" existe, Manager só pode assignar ests da sua empresa?
-                # O usuário disse "Company não tem relacionamento com ests", mas Manager tem?
-                # Assumption: Manager has Global Access OR "Company" concept persists for Manager Scope.
-                # Mantendo lógica anterior: Se est tem company_id, checa. Se é null (decoupled), permite se Manager for da mesma "Company" (???)
-                # Simplificação: Manager pode associar qualquer estabelecimento listado no dashboard dele.
                 if est:
                     establishments_to_assign.append(est)
             except:
                 pass
         
         if not establishments_to_assign:
+            if request.accept_mimetypes.accept_json:
+                 return jsonify({'error': 'Nenhuma loja válida selecionada.'}), 400
             flash('Nenhum estabelecimento válido selecionado.', 'error')
             return redirect(url_for('manager.dashboard_manager'))
 
         # Check user exists
         if db.query(User).filter_by(email=email).first():
+            if request.accept_mimetypes.accept_json:
+                 return jsonify({'error': 'Email já cadastrado.'}), 400
             flash('Email já cadastrado.', 'error')
             return redirect(url_for('manager.dashboard_manager'))
             
@@ -113,10 +137,25 @@ def create_consultant():
         db.add(user)
         db.commit()
         
-        flash(f'Consultor criado com {len(establishments_to_assign)} estabelecimentos! Senha: {temp_pass}', 'success')
+        msg = f'Consultor criado com {len(establishments_to_assign)} estabelecimentos! Senha: {temp_pass}'
+        
+        if request.accept_mimetypes.accept_json:
+             return jsonify({
+                 'success': True,
+                 'message': msg,
+                 'consultant': {
+                     'id': str(user.id),
+                     'name': user.name,
+                     'email': user.email
+                 }
+             }), 201
+        
+        flash(msg, 'success')
         
     except Exception as e:
         db.rollback()
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': str(e)}), 500
         flash(f'Erro: {e}', 'error')
     finally:
         db.close()
@@ -163,7 +202,17 @@ def update_consultant(user_id):
             user.establishments = new_establishments
             
         db.commit()
-        return jsonify({'success': True, 'message': 'Consultor atualizado!'}), 200
+        db.commit()
+        
+        # Prepare response data
+        consultant_data = {
+            'id': str(user.id),
+            'name': user.name,
+            'email': user.email,
+            'establishment_ids': [str(e.id) for e in user.establishments]
+        }
+        
+        return jsonify({'success': True, 'message': 'Consultor atualizado!', 'consultant': consultant_data}), 200
     except Exception as e:
         db.rollback()
         return jsonify({'error': str(e)}), 500
@@ -204,10 +253,14 @@ def create_establishment():
     code = request.form.get('code')
     
     if not name:
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': 'Nome é obrigatório.'}), 400
         flash('Nome do estabelecimento é obrigatório.', 'error')
         return redirect(url_for('manager.dashboard_manager'))
         
     if not current_user.company_id:
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': 'Gestor sem empresa vinculada.'}), 400
         flash('Erro: Gestor não está vinculado a uma empresa.', 'error')
         return redirect(url_for('manager.dashboard_manager'))
         
@@ -221,9 +274,25 @@ def create_establishment():
         )
         db.add(est)
         db.commit()
-        flash(f'Estabelecimento {name} criado com sucesso!', 'success')
+        
+        msg = f'Estabelecimento {name} criado com sucesso!'
+        
+        if request.accept_mimetypes.accept_json:
+             return jsonify({
+                 'success': True,
+                 'message': msg,
+                 'establishment': {
+                     'id': str(est.id),
+                     'name': est.name,
+                     'code': est.code
+                 }
+             }), 201
+             
+        flash(msg, 'success')
     except Exception as e:
         db.rollback()
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': str(e)}), 500
         flash(f'Erro ao criar estabelecimento: {e}', 'error')
     finally:
         db.close()
@@ -256,7 +325,12 @@ def update_establishment(est_id):
         est.code = code
         db.commit()
         
-        return jsonify({'success': True, 'message': 'Estabelecimento atualizado!'}), 200
+        est_data = {
+            'id': str(est.id),
+            'name': est.name,
+            'code': est.code
+        }
+        return jsonify({'success': True, 'message': 'Estabelecimento atualizado!', 'establishment': est_data}), 200
     except Exception as e:
         db.rollback()
         return jsonify({'error': str(e)}), 500
@@ -309,6 +383,7 @@ def edit_plan(file_id):
             try:
                 # Read legacy JSON
                 data = drive.read_json(file_id)
+                if data is None: data = {} # Defensive fix for 'None' attribute error
                 
                 # Create/Get Inspection if missing
                 if not inspection:
