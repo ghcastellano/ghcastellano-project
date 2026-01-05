@@ -254,39 +254,23 @@ def root():
 @role_required(UserRole.CONSULTANT)
 def dashboard_consultant():
     from src.db_queries import get_consultant_inspections
-    from src.database import get_db, db_session
-    from src.models_db import User
-    from sqlalchemy.orm import joinedload
+    from src.db_queries import get_consultant_inspections
+    from datetime import datetime
     
-    # Re-attach user to session to access lazy relationships (establishments)
-    db = next(get_db())
-    try:
-        # Secure Fetch with Eager Loading (Fix DetachedInstanceError)
-        user = db.query(User).options(joinedload(User.establishments)).filter(User.id == current_user.id).first()
-        
-        # Fallback if user not found (should not happen if logged in)
-        if not user:
-            user = current_user 
-            
-        inspections = get_consultant_inspections(company_id=user.company_id)
-        
-        # [UX] Calculate Quick Stats for Dashboard
-        from datetime import datetime
-        stats = {
-            'total': len(inspections),
-            'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_VERIFICATION', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW']),
-            'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED']),
-            'last_sync': datetime.utcnow().strftime('%H:%M')
-        }
-        
-        return render_template('dashboard_consultant.html', 
-                             user_role='CONSULTANT', 
-                             current_user=user, 
-                             inspections=inspections,
-                             stats=stats)
-    finally:
-        # Session is scoped, cleanup happens automatically, but best practice:
-        pass
+    inspections = get_consultant_inspections(company_id=current_user.company_id)
+    
+    # [UX] Calculate Quick Stats for Dashboard
+    stats = {
+        'total': len(inspections),
+        'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_VERIFICATION', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW']),
+        'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED']),
+        'last_sync': datetime.utcnow().strftime('%H:%M')
+    }
+    
+    return render_template('dashboard_consultant.html', 
+                         user_role='CONSULTANT',
+                         inspections=inspections,
+                         stats=stats)
 
 # Rota legado (redireciona para root para tratar auth)
 @app.route('/dashboard')
@@ -308,7 +292,7 @@ def get_friendly_error_message(e):
         return "Arquivo PDF inválido/corrompido."
     return f"Erro processamento: {msg}"
 
-@app.route('/upload', methods=['POST'])
+@app.route('/upload', methods=['GET', 'POST'])
 @login_required
 @role_required(UserRole.CONSULTANT)
 def upload_file():
@@ -316,6 +300,9 @@ def upload_file():
     Rota para upload de múltiplos relatórios de vistoria.
     Realiza o processamento inicial e enfileira jobs assíncronos.
     """
+    if request.method == 'GET':
+        return redirect(url_for('dashboard_consultant'))
+
     try:
         if 'file' not in request.files:
             flash('Nenhum arquivo enviado', 'error')
@@ -375,6 +362,19 @@ def upload_file():
                     # 5. Criar Job (company_id agora pode ser nulo se est_alvo for None)
                     db = next(get_db())
                     try:
+                        # [FIX] Create Inspection Record Immediately for UI Visibility
+                        from src.models_db import Inspection, InspectionStatus
+                        
+                        new_insp = Inspection(
+                            drive_file_id=id_drive,
+                            drive_web_link=link_drive,
+                            status=InspectionStatus.PROCESSING,
+                            establishment_id=est_alvo.id if est_alvo else None
+                        )
+                        db.add(new_insp)
+                        db.flush() 
+                        logger.info(f"✅ Pre-created Inspection record {new_insp.id} for UI visibility.")
+
                         job = Job(
                             company_id=current_user.company_id or (est_alvo.company_id if est_alvo else None),
                             type="PROCESS_REPORT",
@@ -474,7 +474,11 @@ def get_status():
                 processed_raw = get_consultant_inspections(company_id=current_user.company_id, establishment_id=est_id)
             else:
                 # Gestor vê tudo ou filtrado
-                pending = get_pending_jobs(company_id=current_user.company_id, allow_all=(current_user.company_id is None)) 
+                pending = get_pending_jobs(
+                    company_id=current_user.company_id, 
+                    allow_all=(current_user.company_id is None),
+                    establishment_ids=[est_uuid] if est_uuid else None
+                ) 
                 pending_approval = [] # Gestor sees everything in processed_raw usually, or we can add specific section too
                 processed_raw = get_processed_inspections_raw(company_id=current_user.company_id, establishment_id=est_uuid)
             
@@ -991,6 +995,37 @@ def worker_process():
         logger.error(f"❌ Worker Error: {e}")
         return str(e), 500
 
+def run_local_worker_loop():
+    """
+    Loop infinito para processar Jobs localmente (dev mode).
+    Simula o Cloud Tasks.
+    """
+    import time
+    logger.info("👷 Local Worker Thread Started.")
+    from src.models_db import Job, JobStatus
+    from src.services.job_processor import job_processor
+    
+    while True:
+        try:
+            time.sleep(5)
+            with app.app_context():
+                # Check for pending jobs (FIFO)
+                jobs = database.db_session.query(Job).filter_by(status=JobStatus.PENDING).order_by(Job.created_at.asc()).limit(1).all()
+                for job in jobs:
+                    logger.info(f"👷 Local Worker picked up Job {job.id}")
+                    job_processor.process_job(job)
+        except Exception as e:
+            logger.error(f"👷 Local Worker Loop Error: {e}")
+            time.sleep(5)
+
+def start_local_worker():
+    # Execute apenas se NÃO estiver no Cloud Run (sem K_SERVICE) e debug=True
+    is_cloud = os.getenv('K_SERVICE') or os.getenv('CLOUD_RUN_JOB')
+    if not is_cloud:
+        thread = threading.Thread(target=run_local_worker_loop, daemon=True)
+        thread.start()
+
 if __name__ == '__main__':
+    start_local_worker()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
