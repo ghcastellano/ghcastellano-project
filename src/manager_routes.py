@@ -270,7 +270,9 @@ def create_establishment():
             name=name,
             code=code,
             company_id=current_user.company_id, # Link auto to manager's company
-            drive_folder_id="" # Optional init
+            drive_folder_id="", # Optional init
+            responsible_name=request.form.get('responsible_name'),
+            responsible_phone=request.form.get('responsible_phone')
         )
         db.add(est)
         db.commit()
@@ -323,6 +325,8 @@ def update_establishment(est_id):
              
         est.name = name
         est.code = code
+        est.responsible_name = request.form.get('responsible_name')
+        est.responsible_phone = request.form.get('responsible_phone')
         db.commit()
         
         est_data = {
