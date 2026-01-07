@@ -106,7 +106,7 @@ def get_processed_inspections_raw(company_id=None, establishment_id=None):
             session.close()
         return []
 
-def get_consultant_inspections(company_id=None, establishment_id=None):
+def get_consultant_inspections(company_id=None, establishment_id=None, allowed_establishment_ids=None):
     """Busca lista de inspeções para o CONSULTOR (Apenas aprovados/em verificação)."""
     try:
         session = database.db_session()
@@ -132,7 +132,13 @@ def get_consultant_inspections(company_id=None, establishment_id=None):
         
         if establishment_id:
             query = query.filter(Inspection.establishment_id == establishment_id)
+        
+        # [SECURITY] Filter by allowed establishments (Consultant Scope)
+        if allowed_establishment_ids is not None:
+             query = query.filter(Inspection.establishment_id.in_(allowed_establishment_ids))
+        
         elif company_id:
+            # Fallback (Legacy/Manager): Filter by Company
             from src.models_db import Visit, User
             query = query.outerjoin(Inspection.establishment)
             query = query.filter(Establishment.company_id == company_id)
