@@ -795,16 +795,21 @@ def upload_evidence():
         
     if file:
         filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
-        # Local Upload (MVP) - In Production, replace with GCS Upload
-        upload_folder = os.path.join(app.static_folder, 'uploads', 'evidence')
-        os.makedirs(upload_folder, exist_ok=True)
         
-        filepath = os.path.join(upload_folder, filename)
-        file.save(filepath)
-        
-        # Return Relative URL for Frontend
-        url = url_for('static', filename=f'uploads/evidence/{filename}')
-        return jsonify({'url': url})
+        try:
+            # Use Storage Service (Abstração GCS/Local)
+            from src.services.storage_service import storage_service
+            
+            # Decide bucket folder based on environment or config
+            folder = 'evidence' 
+            
+            public_url = storage_service.upload_file(file, destination_folder=folder, filename=filename)
+            
+            return jsonify({'url': public_url}), 200
+            
+        except Exception as e:
+            logger.error(f"Upload falhou: {e}")
+            return jsonify({'error': str(e)}), 500
         
     return jsonify({'error': 'Upload failed'}), 500
 

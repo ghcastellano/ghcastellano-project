@@ -17,3 +17,4 @@ google-cloud-tasks
 google-auth
 pytest
 pytest-flask
+google-cloud-storage
