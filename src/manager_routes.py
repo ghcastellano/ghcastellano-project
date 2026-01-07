@@ -661,7 +661,14 @@ def api_status():
              # Find establishments of this company
              company_ests = db.query(Establishment).filter(Establishment.company_id == current_user.company_id).all()
              est_ids = [e.id for e in company_ests]
-             query = query.filter(Inspection.establishment_id.in_(est_ids))
+             # Fix: Include orphans (establishment_id is Null) but owned by company (client_id)
+             from sqlalchemy import or_
+             query = query.filter(
+                 or_(
+                     Inspection.establishment_id.in_(est_ids),
+                     Inspection.client_id == current_user.company_id
+                 )
+             )
         
         # Filter by Specific Establishment if selected
         if establishment_id:
