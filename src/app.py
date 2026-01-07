@@ -55,8 +55,8 @@ from src.config import config
 from src import database # Import module to access updated db_session
 from src.database import get_db, init_db # Keep functions
 from src.models_db import User, Company, Establishment, Job, JobStatus, UserRole
+from datetime import datetime
 from src.auth import role_required, admin_required, login_manager, auth_bp
-from src.tasks import task_manager
 from src.services.email_service import EmailService
 
 # Configurações do App
@@ -68,18 +68,10 @@ csrf = CSRFProtect(app)
 # Trust only one proxy by default for Cloud Run
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-# --- Migrations (Auto-Run V11 & V12) ---
-database.init_db() # Ensure DB is connected and SessionLocal is ready
-try:
-    from src.legacy_migrations import migration_v11_action_plan_enrichment
-    migration_v11_action_plan_enrichment.upgrade(database.SessionLocal)
-    logger.info("Migration V11 executed successfully.")
-    
-    from src.legacy_migrations import migration_v12_fix_client_params
-    migration_v12_fix_client_params.upgrade()
-    logger.info("Migration V12 executed successfully.")
-except Exception as e:
-    logger.error(f"Migration Error: {e}")
+# --- Migrações (Execução automática V11 & V12) ---
+# Migrações (Legado) - Puladas em desenvolvimento para evitar sobrecarga de inicialização dupla
+# A chamada database.init_db() foi removida aqui para evitar duplicação do engine.
+logger.info("⚡ Migrações Puladas (Modo Dev)")
 # -----------------------------
 
 # Inicializa Flask-Login
@@ -88,6 +80,11 @@ login_manager.init_app(app)
 # Registra Blueprints
 # Import Blueprints - Late Import to avoid circular dependencies
 logger.info("🔧 Carregando Blueprints...")
+
+# Dev Mode Blueprint (Mock Data)
+from src.dev_routes import dev_bp
+app.register_blueprint(dev_bp)
+logger.info("🛠️ Dev Routes registered at /dev")
 try:
     from src.auth import auth_bp
     from src.admin_routes import admin_bp
@@ -152,13 +149,12 @@ try:
         from src.models_db import Base
         
         logger.info("🏗️ Criando tabelas (Schema Initialization)...")
-        # Ensure we use the engine from initialized database
-        Base.metadata.create_all(bind=database.engine)
+        # Garante que usamos o engine inicializado pelo banco de dados
+        # Base.metadata.create_all(bind=database.engine)
+        logger.info("⚡ Inicialização de Schema Pulada (Modo Dev)")
         
-        logger.info("🔄 Iniciando Migrações Unificadas...")
-        # Use database.db_session to ensure we get the initialized object
-        run_migrations(database.db_session)
-        logger.info("✅ Migrações executadas com sucesso")
+        # run_migrations(database.db_session)
+        logger.info("⚡ Migrações Puladas (Modo Dev)")
 except ImportError as e:
     logger.error(f"❌ Erro ao importar migrações: {e}")
 except Exception as e:
@@ -373,7 +369,7 @@ def upload_file():
                         )
                         db.add(new_insp)
                         db.flush() 
-                        logger.info(f"✅ Pre-created Inspection record {new_insp.id} for UI visibility.")
+                        logger.info(f"✅ Registro de Inspeção {new_insp.id} pré-criado para visibilidade na UI.")
 
                         job = Job(
                             company_id=current_user.company_id or (est_alvo.company_id if est_alvo else None),
@@ -388,17 +384,38 @@ def upload_file():
                         db.add(job)
                         db.commit()
                         
-                        # Enfileira tarefa no Cloud Tasks
-                        task_manager.enqueue_job(job.id, payload={
-                            "type": "PROCESS_REPORT", 
-                            "file_id": id_drive, 
-                            "filename": file.filename
-                        })
+                        # [SYNC-MVP] Processar Imediatamente (Sem Worker)
+                        logger.info(f"⏳ [SYNC] Iniciando processamento imediato: {file.filename}")
+                        
+                        # Instancia Processador (Import tardio para evitar circularidade)
+                        from src.services.processor import processor_service
+                        
+                        # Prepara metadados simplificados
+                        file_meta = {'id': id_drive, 'name': file.filename}
+                        
+                        # Executa Processamento (Isso pode levar 30-60s)
+                        result = processor_service.process_single_file(
+                            file_meta, 
+                            company_id=job.company_id, 
+                            establishment_id=est_alvo.id if est_alvo else None,
+                            job=job
+                        )
+                        
+                        # Updates Status
+                        job.status = JobStatus.COMPLETED
+                        job.finished_at = datetime.utcnow()
+                        db.commit()
+                        
                         sucesso += 1
+                        logger.info(f"✅ [SYNC] Processamento concluído: {file.filename}")
+                        
                     except Exception as job_e:
-                        logger.error(f"Erro ao criar Job para {file.filename}: {job_e}")
-                        db.rollback()
+                        logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")
+                        job.status = JobStatus.FAILED
+                        job.error_log = str(job_e)
+                        db.commit()
                         falha += 1
+                        flash(f"Erro ao processar {file.filename}: {str(job_e)}", 'error')
                 else:
                     logger.error(f"Google Drive não configurado para {file.filename}")
                     falha += 1
@@ -556,7 +573,7 @@ def get_processed_item_details(file_id):
         except Exception as e:
             logger.warning(f"Database query failed for {file_id}, falling back to Drive: {e}")
         
-    # Original Drive-based logic (fallback)
+    # Lógica original baseada no Drive (fallback)
     try:
         data = drive_service.read_json(file_id)
         basename = data.get('titulo', 'Relatório Sem Título')
@@ -659,10 +676,16 @@ def review_page(file_id):
             
             # Populate data from Plan Stats (Source of Truth for Validated Data)
             data = plan.stats_json or {}
-            # Ensure detalhe_pontuacao exists for template compatibility
             if 'detalhe_pontuacao' not in data:
                  data['detalhe_pontuacao'] = data.get('by_sector', {})
 
+            # [FIX] Polyfill: Calculate items_nc for existing data (Required by template)
+            if 'areas_inspecionadas' in data:
+                for area in data['areas_inspecionadas']:
+                    items_in_area = area.get('itens', [])
+                    # Count items where status is NOT 'Conforme'
+                    area['items_nc'] = sum(1 for item in items_in_area if item.get('status') != 'Conforme')
+            
             # Contacts (for Email Modal)
             if inspection.establishment:
                 contacts_list = [{'name': c.name, 'phone': c.phone, 'id': str(c.id)} for c in inspection.establishment.contacts]
@@ -678,8 +701,16 @@ def review_page(file_id):
             # Load from Drive (Legacy)
             data = drive_service.read_json(file_id)
             if not data: data = {}
+            # Ensure detalhe_pontuacao exists for template compatibility
             if 'detalhe_pontuacao' not in data:
                  data['detalhe_pontuacao'] = {} # Prevent template crash
+            
+            # [FIX] Polyfill: Calculate items_nc for Legacy Drive JSON (Required by template)
+            if 'areas_inspecionadas' in data:
+                for area in data['areas_inspecionadas']:
+                    items_in_area = area.get('itens', [])
+                    # Count items where status is NOT 'Conforme'
+                    area['items_nc'] = sum(1 for item in items_in_area if item.get('status') != 'Conforme')
 
             flash("Este relatório ainda não foi processado completamente para a nova visualização.", "warning")
 
@@ -735,8 +766,9 @@ def save_review(file_id):
                 if 'is_corrected' in data:
                     item.status = ActionPlanItemStatus.RESOLVED if data['is_corrected'] else ActionPlanItemStatus.OPEN
                 if 'correction_notes' in data:
-                    # Usando manager_notes como campo genérico para notas de correção se não houver um específico
                     item.manager_notes = data['correction_notes']
+                if 'evidence_image_url' in data:
+                    item.evidence_image_url = data['evidence_image_url']
         
         db.commit()
         return jsonify({'success': True})
@@ -744,6 +776,31 @@ def save_review(file_id):
         logger.error(f"Erro ao salvar revisão {file_id}: {e}")
         db.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/upload_evidence', methods=['POST'])
+@login_required
+def upload_evidence():
+    """Recebe imagem de evidência e retorna URL pública/local."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    if file:
+        filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+        # Local Upload (MVP) - In Production, replace with GCS Upload
+        upload_folder = os.path.join(app.static_folder, 'uploads', 'evidence')
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        filepath = os.path.join(upload_folder, filename)
+        file.save(filepath)
+        
+        # Return Relative URL for Frontend
+        url = url_for('static', filename=f'uploads/evidence/{filename}')
+        return jsonify({'url': url})
+        
+    return jsonify({'error': 'Upload failed'}), 500
 
 # Duplicate Route REMOVED: @app.route('/admin/api/jobs') matches src/admin_routes.py
 # If you need this logic, ensure it does not conflict with admin_routes.py
@@ -950,82 +1007,13 @@ def renew_webhook():
         logger.error(f"Renew Error: {e}")
         return jsonify({'error': str(e)}), 500
 
-# --- Cloud Tasks Worker ---
-@app.route('/worker/process', methods=['POST'])
-@csrf.exempt
-def worker_process():
-    """
-    Handler para tarefas do Cloud Tasks.
-    Recebe { "job_id": "...", ... }
-    """
-    try:
-        raw_data = request.data
-        logger.info(f"📨 Worker raw body: {raw_data}")
-        logger.info(f"📨 Worker headers: {request.headers}")
-
-        payload = request.get_json(force=True)
-        logger.info(f"📦 Worker parsed payload: {payload}")
-
-        job_id = payload.get('job_id')
-        
-        if not job_id:
-            logger.error(f"❌ Worker received task without job_id. Keys: {payload.keys()}")
-            return f"Missing job_id. Keys received: {list(payload.keys())}", 400
-
-        logger.info(f"👷 Worker received Job {job_id}")
-
-        # Execute Job
-        from src.services.job_processor import job_processor
-        from src.models_db import Job
-        
-        # Use existing session
-        job = database.db_session.query(Job).get(job_id)
-        if not job:
-            logger.error(f"❌ Job {job_id} not found in DB")
-            # Return 200 to consume task and prevent infinite retries if it's a data issue?
-            # Or 404? Cloud Tasks retries on 404/500/429.
-            # If it's gone, it's gone. Consuming.
-            return "Job not found", 200 
-            
-        job_processor.process_job(job)
-        
-        return "OK", 200
-        
-    except Exception as e:
-        logger.error(f"❌ Worker Error: {e}")
-        return str(e), 500
-
-def run_local_worker_loop():
-    """
-    Loop infinito para processar Jobs localmente (dev mode).
-    Simula o Cloud Tasks.
-    """
-    import time
-    logger.info("👷 Local Worker Thread Started.")
-    from src.models_db import Job, JobStatus
-    from src.services.job_processor import job_processor
-    
-    while True:
-        try:
-            time.sleep(5)
-            with app.app_context():
-                # Check for pending jobs (FIFO)
-                jobs = database.db_session.query(Job).filter_by(status=JobStatus.PENDING).order_by(Job.created_at.asc()).limit(1).all()
-                for job in jobs:
-                    logger.info(f"👷 Local Worker picked up Job {job.id}")
-                    job_processor.process_job(job)
-        except Exception as e:
-            logger.error(f"👷 Local Worker Loop Error: {e}")
-            time.sleep(5)
-
-def start_local_worker():
-    # Execute apenas se NÃO estiver no Cloud Run (sem K_SERVICE) e debug=True
-    is_cloud = os.getenv('K_SERVICE') or os.getenv('CLOUD_RUN_JOB')
-    if not is_cloud:
-        thread = threading.Thread(target=run_local_worker_loop, daemon=True)
-        thread.start()
-
 if __name__ == '__main__':
-    start_local_worker()
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    try:
+        port = int(os.environ.get('PORT', 8080))
+        print(f"🚀 STARTING APP ON PORT {port}...")
+        print(f"📂 Current Dir: {os.getcwd()}")
+        app.run(host='0.0.0.0', port=port, debug=True)
+    except Exception as e:
+        print(f"❌ CRITICAL ERROR IN APP.RUN: {e}")
+        import traceback
+        traceback.print_exc()

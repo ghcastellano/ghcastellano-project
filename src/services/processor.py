@@ -89,34 +89,82 @@ class ProcessorService:
             logger.error(f"Erro no processamento em lote: {e}")
             return 0
 
+    def _log_trace(self, file_id, stage, status, message, details=None):
+        """
+        Appends a log entry to the Inspection's processing_logs.
+        Creates Inspection if it doesn't exist yet (for initial steps).
+        """
+        session = database.db_session()
+        try:
+            # Avoid circular imports if possible, but localized import is safe here
+            from src.models_db import Inspection, InspectionStatus
+            
+            inspection = session.query(Inspection).filter_by(drive_file_id=file_id).first()
+            if not inspection:
+                inspection = Inspection(drive_file_id=file_id, status=InspectionStatus.PROCESSING)
+                session.add(inspection)
+                session.flush() # Get ID
+            
+            entry = {
+                "timestamp": datetime.now().isoformat(),
+                "stage": stage,
+                "status": status,
+                "message": message,
+                "details": details or {}
+            }
+            
+            # Append to list (Postgres JSONB needs re-assignment to detect change usually, or mutable flag)
+            current_logs = list(inspection.processing_logs) if inspection.processing_logs else []
+            current_logs.append(entry)
+            inspection.processing_logs = current_logs 
+            
+            # Update overall status if Error
+            if status == "FAILED":
+                inspection.status = InspectionStatus.REJECTED # Or specialized 'FAILED' status if enum allows
+            
+            session.commit()
+            logger.info(f"📝 Trace [{stage}]: {message}", file_id=file_id)
+        except Exception as e:
+            logger.error(f"Failed to write trace log: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
     def process_single_file(self, file_meta, company_id=None, establishment_id=None, job=None):
         file_id = file_meta['id']
         filename = file_meta['name']
-        logger.info("Processando Arquivo Único", filename=filename, id=file_id, company_id=company_id, est_id=establishment_id)
+        
+        # 0. Start Trace
+        self._log_trace(file_id, "INIT", "STARTED", f"Started processing {filename}")
         
         try:
-            # 1. Download
+            # 1. Download & Hash Check (Idempotency)
+            self._log_trace(file_id, "DOWNLOAD", "RUNNING", "Downloading from Drive...")
             file_content = self.drive_service.download_file(file_id)
+            self._log_trace(file_id, "DOWNLOAD", "SUCCESS", "Download complete")
             
+            file_hash = self.calculate_hash(file_content)
+            
+            # Check for duplicate processing
+            session = database.db_session()
+            existing_insp = session.query(Inspection).filter_by(file_hash=file_hash).filter(Inspection.status.in_([InspectionStatus.WAITING_APPROVAL, InspectionStatus.PENDING_MANAGER_REVIEW, InspectionStatus.APPROVED])).first()
+            session.close()
+            
+            if existing_insp:
+                logger.info(f"♻️ Skipping duplicate file (Hash: {file_hash})")
+                self._log_trace(file_id, "SKIPPED", "SUCCESS", "Duplicate file detected. Skipping AI analysis.")
+                return {'status': 'skipped', 'reason': 'duplicate', 'existing_id': existing_insp.drive_file_id}
+
             # 2. Analyze (OCR + OpenAI)
-            result = self.analyze_with_openai(file_content)
+            self._log_trace(file_id, "AI_ANALYSIS", "RUNNING", "Sending to OpenAI...")
             data: ChecklistSanitario = result['data'] # Now Typed as ChecklistSanitario
             usage = result['usage']
+            self._log_trace(file_id, "AI_ANALYSIS", "SUCCESS", "Analysis complete", details=usage)
             
-            # Update Job Metrics immediately
+            # Update Job Metrics immediately (Legacy/Optional)
             if job:
                 job.cost_tokens_input = usage.get('prompt_tokens', 0)
                 job.cost_tokens_output = usage.get('completion_tokens', 0)
-                
-                PRICE_IN = 2.50 / 1_000_000 # gpt-4o pricing approx
-                PRICE_OUT = 10.00 / 1_000_000
-                job.cost_input_usd = job.cost_tokens_input * PRICE_IN
-                job.cost_output_usd = job.cost_tokens_output * PRICE_OUT
-                
-                USD_BRL_RATE = 6.00
-                job.cost_input_brl = job.cost_input_usd * USD_BRL_RATE
-                job.cost_output_brl = job.cost_output_usd * USD_BRL_RATE
-                
                 try:
                     database.db_session.flush()
                 except: pass
@@ -125,15 +173,21 @@ class ProcessorService:
             file_hash = self.calculate_hash(file_content)
             
             # 4. Generate & Upload PDF
+            self._log_trace(file_id, "PDF_GEN", "RUNNING", "Generating Action Plan PDF...")
             output_link = None
             try:
                 output_link = self.generate_pdf(data, filename)
+                self._log_trace(file_id, "PDF_GEN", "SUCCESS", f"PDF generated: {output_link}")
                 logger.info("Plano gerado e salvo", link=output_link)
             except Exception as pdf_err:
-                 logger.error(f"⚠️ PDF Gen Failed (Ignored to save Inspection): {pdf_err}")
+                 msg = f"PDF Gen Failed (Ignored): {pdf_err}"
+                 logger.error(msg)
+                 self._log_trace(file_id, "PDF_GEN", "WARNING", msg)
 
             # 5. Save to DB (Crucial Step: Mapping Nested Areas to Flat Items)
+            self._log_trace(file_id, "DB_SAVE", "RUNNING", "Saving to Database...")
             self._save_to_db_logic(data, file_id, filename, output_link, file_hash, company_id=company_id, override_est_id=establishment_id)
+            self._log_trace(file_id, "COMPLETED", "SUCCESS", "Processing completely finished.")
 
             # Return usage for caller (JobProcessor)
             return {
@@ -142,11 +196,15 @@ class ProcessorService:
             }
             
         except Exception as e:
-            logger.error("Erro processando arquivo", filename=filename, error=str(e))
+            msg = str(e)
+            logger.error("Erro processando arquivo", filename=filename, error=msg)
+            self._log_trace(file_id, "ERROR", "FAILED", msg)
             try:
                 self.drive_service.move_file(file_id, self.folder_error)
+                self._log_trace(file_id, "ERROR", "MOVED", "File moved to Error folder")
             except:
                 pass
+            raise # Re-raise to let caller (app.py) know it failed
 
     def extract_text_from_pdf_bytes(self, file_content: bytes) -> str:
         try:

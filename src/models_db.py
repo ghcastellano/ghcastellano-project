@@ -74,7 +74,7 @@ class Establishment(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # company_id mapping REMOVED (Decoupled)
-    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("companies.id"), nullable=True) # Mantendo opcional para não quebrar a table existente imediatamente, mas sem uso lógico?
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("companies.id"), nullable=True, index=True) # Added Index
     # Melhor remover a obrigatoriedade da FK se o user pediu "não tem relacionamento".
     # Vou deixar nullable caso precisemos migrar dados, mas a lógica da app vai ignorar.
     
@@ -183,7 +183,7 @@ class Inspection(Base):
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clients.id"), nullable=True) # Tornado opcional para V3
     
     # Novo campo V3
-    establishment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("establishments.id"), nullable=True)
+    establishment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("establishments.id"), nullable=True, index=True) # Added Index
     
     drive_file_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     drive_web_link: Mapped[Optional[str]] = mapped_column(String)
@@ -195,6 +195,9 @@ class Inspection(Base):
     
     # Armazena resposta bruta da IA para auditoria
     ai_raw_response: Mapped[dict] = mapped_column(JSONB, nullable=True)
+    
+    # Traceability Logs (V15)
+    processing_logs: Mapped[list] = mapped_column(JSONB, nullable=True) # List of dicts
     
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
 
@@ -336,6 +339,7 @@ class ActionPlanItem(Base):
     sector: Mapped[Optional[str]] = mapped_column(Text) # V14 Grouping
     
     manager_notes: Mapped[Optional[str]] = mapped_column(Text) # Notas do gestor
+    evidence_image_url: Mapped[Optional[str]] = mapped_column(String) # URL da evidência (Cloud Storage)
 
     # Relacionamento Reverso
     action_plan: Mapped["ActionPlan"] = relationship(back_populates="items")

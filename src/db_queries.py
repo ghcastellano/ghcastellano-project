@@ -60,9 +60,11 @@ def get_processed_inspections_raw(company_id=None, establishment_id=None):
             InspectionStatus.COMPLETED
         ]
         
+        # Otimização: Eager Load Action Plan para evitar N+1 ao acessar propriedades (score, resumo)
         query = session.query(Inspection).options(
             joinedload(Inspection.establishment),
-            joinedload(Inspection.client)
+            joinedload(Inspection.client),
+            joinedload(Inspection.action_plan) # Eager load for stats access
         ).filter(
             Inspection.status.in_(statuses)
         )
@@ -115,7 +117,10 @@ def get_consultant_inspections(company_id=None, establishment_id=None):
             InspectionStatus.PENDING_VERIFICATION,
             InspectionStatus.COMPLETED,
             InspectionStatus.WAITING_APPROVAL,
-            InspectionStatus.PENDING_MANAGER_REVIEW
+            InspectionStatus.WAITING_APPROVAL,
+            InspectionStatus.PENDING_MANAGER_REVIEW,
+            InspectionStatus.FAILED,
+            InspectionStatus.REJECTED
         ]
         
         query = session.query(Inspection).options(
@@ -151,12 +156,13 @@ def get_consultant_inspections(company_id=None, establishment_id=None):
                 'review_link': f"/review/{insp.drive_file_id}" 
             })
         
-        session.close()
+        # session.close()
         return result
     except Exception as e:
         if 'session' in locals():
             session.rollback()
-            session.close()
+            # session.close()
+            pass
         return []
 
 def get_consultant_pending_inspections(establishment_id=None):
@@ -191,11 +197,12 @@ def get_consultant_pending_inspections(establishment_id=None):
                 'status': 'Aguardando Aprovação'
             })
         
-        session.close()
+        # session.close()
         return result
     except Exception as e:
         if 'session' in locals():
-            session.close()
+            # session.close()
+            pass
         return []
 
 def get_inspection_details(drive_file_id):

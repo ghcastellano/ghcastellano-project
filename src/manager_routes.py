@@ -4,7 +4,7 @@ from src.database import get_db
 from src.models_db import User, UserRole, Establishment, Inspection, ActionPlan, ActionPlanItem, ActionPlanItemStatus, SeverityLevel, InspectionStatus, Company
 from flask import current_app, jsonify
 from datetime import datetime
-import json
+from sqlalchemy.orm import joinedload, defer
 from src.services.email_service import EmailService # Mock verify first
 from werkzeug.security import generate_password_hash
 from flask import session
@@ -31,41 +31,41 @@ def dashboard_manager():
     
     db = next(get_db())
     try:
-        # Load necessary data for dropdowns and lists
-        # Ensure company relation is loaded
+        # Carrega dados necessários para dropdowns e listas
+        # Garante que a relação da empresa seja carregada
         establishments = []
-        # Reload current_user to ensure attached session if needed (optional)
+        # Recarrega current_user para garantir sessão anexada se necessário (opcional)
         
         company = db.query(Company).get(current_user.company_id) if current_user.company_id else None
-        all_establishments = [] # Initialize safety
+        all_establishments = [] # Inicializa por segurança
         if company:
-            # Sort Establishments by Name
+            # Ordena Estabelecimentos por Nome
             all_establishments = sorted(company.establishments, key=lambda x: x.name)
-            establishments = all_establishments # Default to all
+            establishments = all_establishments # Padrão: todos
             
         consultants = db.query(User).filter(
             User.role == UserRole.CONSULTANT,
             User.company_id == current_user.company_id
         ).order_by(User.name.asc()).all()
         
-        # Filter Persistence Logic
+        # Filtra Lógica de Persistência
         if establishment_id is not None:
             if establishment_id:
                 session['selected_est_id'] = establishment_id
             else:
-                # User selected "Todas as Lojas" (empty value) -> Clear Session
+                # Usuário selecionou "Todas as Lojas" (valor vazio) -> Limpa Sessão
                 session.pop('selected_est_id', None)
                 establishment_id = None
         elif 'selected_est_id' in session:
             establishment_id = session['selected_est_id']
             
-        # Apply Filter if selected
+        # Aplica Filtro se selecionado
         if establishment_id:
-             # Validate ID belongs to company
+             # Valida se ID pertence à empresa
              target = next((e for e in all_establishments if str(e.id) == establishment_id), None)
              if target:
                  establishments = [target]
-                 # Filter consultants linked to this store
+                 # Filtra consultores vinculados a esta loja
                  consultants = [c for c in consultants if target in c.establishments]
         
         return render_template('dashboard_manager_v2.html', 
@@ -96,7 +96,7 @@ def create_consultant():
         
     db = next(get_db())
     try:
-        # Check permissions and existing assigned establishments
+        # Verifica permissões e estabelecimentos existentes
         establishments_to_assign = []
         for est_id in establishment_ids:
             try:
@@ -112,7 +112,7 @@ def create_consultant():
             flash('Nenhum estabelecimento válido selecionado.', 'error')
             return redirect(url_for('manager.dashboard_manager'))
 
-        # Check user exists
+        # Verifica se usuário existe
         if db.query(User).filter_by(email=email).first():
             if request.accept_mimetypes.accept_json:
                  return jsonify({'error': 'Email já cadastrado.'}), 400
@@ -131,7 +131,7 @@ def create_consultant():
             must_change_password=True
         )
         
-        # Assign M2M
+        # Atribuição M2M (Muitos para Muitos)
         user.establishments = establishments_to_assign
         
         db.add(user)
@@ -182,7 +182,7 @@ def update_consultant(user_id):
         if not user or user.role != UserRole.CONSULTANT:
              return jsonify({'error': 'Consultor não encontrado.'}), 404
              
-        # Check ownership (Consultant must belong to Manager's company)
+        # Verifica posse (Consultor deve pertencer à empresa do Gestor)
         if user.company_id != current_user.company_id:
              return jsonify({'error': 'Acesso negado a este consultor.'}), 403
              
@@ -369,8 +369,8 @@ def edit_plan(file_id):
     
     db = next(get_db())
     try:
-        # 1. Try to find Inspection in DB
-        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+        # 1. Tenta encontrar Inspeção no BD (Defere colunas pesadas/ausentes)
+        inspection = db.query(Inspection).options(defer(Inspection.processing_logs)).filter_by(drive_file_id=file_id).first()
         
         # 2. Migration Logic (On-the-Fly)
         if not inspection or not inspection.action_plan:
@@ -440,10 +440,72 @@ def edit_plan(file_id):
         # Reload to ensure relationships
         db.refresh(inspection)
 
-        # Blocking check: If approved, we might want to show a read-only view or just warn.
-        # But for now, the template will handle the UI side, we just pass the info.
+        # Prepare report_data for template (Stats & NCs structure)
+        # 1. Use existing stats_json if available (Source of Truth)
+        report_data = inspection.action_plan.stats_json if inspection.action_plan.stats_json else {}
         
-        return render_template('manager_plan_edit.html', inspection=inspection, plan=inspection.action_plan)
+        # 2. Fallback or Enrichment
+        if not report_data:
+             # Try to construct from ai_raw_response or manually
+             report_data = inspection.ai_raw_response or {}
+
+        # 2a. [CRITICAL] Robust Fallback for 'areas_inspecionadas'
+        # If the JSON source (stats_json or ai_raw) doesn't have the structured areas,
+        # we rebuild it from the actual database items (ActionPlanItems).
+        if 'areas_inspecionadas' not in report_data or not report_data['areas_inspecionadas']:
+            print(f"⚠️ Report data missing 'areas_inspecionadas'. Rebuilding from DB items...")
+            rebuilt_areas = {}
+            # inspection.action_items property returns enriched/adapted items
+            db_items = inspection.action_items 
+            
+            for item in db_items:
+                area_name = item.nome_area or "Geral"
+                if area_name not in rebuilt_areas:
+                    rebuilt_areas[area_name] = {
+                        'nome_area': area_name,
+                        'items_nc': 0, # Will be counted below
+                        'pontuacao_obtida': 0,
+                        'pontuacao_maxima': 0,
+                        'aproveitamento': 0,
+                        'itens': []
+                    }
+                
+                # Adapt item for template
+                # Template expects: item_verificado, status, observacao, fundamento_legal, 
+                #                   acao_corretiva_sugerida, prazo_sugerido, pontuacao (opt)
+                template_item = {
+                    'id': str(item.id),
+                    'item_verificado': item.item_verificado,
+                    'status': 'Não Conforme', # DB items in ActionPlan are usually NCs
+                    'observacao': item.problem_description,
+                    'fundamento_legal': item.fundamento_legal,
+                    'acao_corretiva_sugerida': item.acao_corretiva,
+                    'prazo_sugerido': item.prazo_sugerido,
+                    'pontuacao': 0 # Not stored on item level in DB model yet
+                }
+                rebuilt_areas[area_name]['itens'].append(template_item)
+            
+            report_data['areas_inspecionadas'] = list(rebuilt_areas.values())
+        
+        # 3. [CRITICAL] Calculate items_nc for Template Logic (Hiding compliant areas)
+        # We need to ensure 'areas_inspecionadas' exists and has 'items_nc'
+        if 'areas_inspecionadas' in report_data:
+            for area in report_data['areas_inspecionadas']:
+                items = area.get('itens', [])
+                # Count non-conformities (Status != 'Conforme')
+                # Note: The template also filters items. We must match that logic.
+                area['items_nc'] = sum(1 for item in items if item.get('status') != 'Conforme')
+        
+        # 4. Bind basic info if missing
+        if 'nome_estabelecimento' not in report_data:
+             report_data['nome_estabelecimento'] = inspection.establishment.name if inspection.establishment else "Estabelecimento"
+        if 'aproveitamento_geral' not in report_data:
+             report_data['aproveitamento_geral'] = 0
+
+        return render_template('manager_plan_edit.html', 
+                             inspection=inspection, 
+                             plan=inspection.action_plan,
+                             report_data=report_data)
         
     except Exception as e:
         flash(f'Erro ao carregar plano: {e}', 'error')
@@ -564,6 +626,78 @@ def save_plan(file_id):
         
     except Exception as e:
         db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+@manager_bp.route('/api/status')
+@login_required
+def api_status():
+    """
+    Endpoint da API para sondagem (polling) do Dashboard do Gestor.
+    Retorna:
+    {
+        'pending': [{'name': 'Empresa X'}],
+        'processed_raw': [
+            {'establishment': 'Empresa X', 'date': '...', 'status': '...', 'review_link': '...'}
+        ]
+    }
+    """
+    establishment_id = request.args.get('establishment_id')
+    
+    db = next(get_db())
+    try:
+        # Base Query
+        # Ensure we only fetch existing columns
+        # Note: processing_logs might be missing in some dev DBs
+        query = db.query(Inspection).options(defer(Inspection.processing_logs), joinedload(Inspection.establishment))
+        
+        # Filter by Company (Security)
+        if current_user.company_id:
+             # Find establishments of this company
+             company_ests = db.query(Establishment).filter(Establishment.company_id == current_user.company_id).all()
+             est_ids = [e.id for e in company_ests]
+             query = query.filter(Inspection.establishment_id.in_(est_ids))
+        
+        # Filter by Specific Establishment if selected
+        if establishment_id:
+             try:
+                 query = query.filter(Inspection.establishment_id == uuid.UUID(establishment_id))
+             except:
+                 pass # Invalid ID ignore
+             
+        # Order by Recent
+        all_inspections = query.order_by(Inspection.created_at.desc()).limit(100).all()
+        
+        pending_list = []
+        processed_list = []
+        
+        for insp in all_inspections:
+            est_name = insp.establishment.name if insp.establishment else "Desconhecido"
+            
+            if insp.status == InspectionStatus.PROCESSING:
+                pending_list.append({'name': est_name})
+            else:
+                # Format Date
+                date_str = insp.created_at.strftime('%d/%m/%Y %H:%M') if insp.created_at else ''
+                
+                # Link
+                link_id = insp.drive_file_id
+                review_link = url_for('manager.edit_plan', file_id=link_id)
+                
+                processed_list.append({
+                    'establishment': est_name,
+                    'date': date_str,
+                    'status': insp.status.value,
+                    'review_link': review_link
+                })
+                
+        return jsonify({
+            'pending': pending_list,
+            'processed_raw': processed_list
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
         db.close()

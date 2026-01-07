@@ -399,11 +399,11 @@
                         <table class="modern-table">
                             <thead>
                                 <tr>
-                                    <th>Job ID</th>
-                                    <th>Tipo</th>
-                                    <th>Empresa</th>
+                                    <th>ID</th>
+                                    <th>Arquivo</th>
+                                    <th>Estabelecimento</th>
                                     <th>Status</th>
-                                    <th>Custos (R$ - In/Out)</th>
+                                    <th>Etapa</th>
                                     <th>Duração</th>
                                 </tr>
                             </thead>
@@ -528,28 +528,75 @@
     async function updateMonitoring() {
         const tbody = document.getElementById('monitoring-tbody');
         try {
-            const res = await fetch('/admin/api/jobs', { headers: { 'Accept': 'application/json' } });
+            const res = await fetch('/admin/api/monitor', { headers: { 'Accept': 'application/json' } });
             if (res.ok) {
                 const data = await res.json();
-                if (data.jobs && data.jobs.length > 0) {
-                    tbody.innerHTML = data.jobs.map(job => `
+                if (data.items && data.items.length > 0) {
+                    tbody.innerHTML = data.items.map(item => `
                        <tr style="animation: fadeIn 0.5s">
-                           <td>${job.id.substring(0, 8)}...</td>
-                           <td><span class="badge badge-blue">${job.type || 'Review'}</span></td>
-                           <td>${job.company_name || '-'}</td>
-                           <td><span class="badge badge-${job.status_color}">${job.status_label}</span></td>
-                           <td class="text-sm">
-                               <div style="color: #ea580c; white-space: nowrap;">📉 R$${(job.cost_input || 0).toFixed(4)} <small>(${job.tokens_input} tk)</small></div>
-                               <div style="color: #16a34a; white-space: nowrap;">📈 R$${(job.cost_output || 0).toFixed(4)} <small>(${job.tokens_output} tk)</small></div>
+                           <td>
+                                <span title="${item.id}" style="font-family: monospace; font-size: 0.8em; color: var(--text-muted); cursor: help;">
+                                    ${item.id.substring(0, 8)}...
+                                </span>
                            </td>
-                           <td class="text-sm text-muted">${job.duration ? job.duration + 's' : '-'}</td>
+                           <td style="font-weight: 500; font-size: 0.9em;">
+                                <i class="ph-file-pdf" style="color: #ef4444; margin-right: 4px;"></i>
+                                ${item.filename}
+                           </td>
+                           <td>
+                                ${item.establishment !== 'Detectando...'
+                            ? `<span class="badge badge-blue">${item.establishment}</span>`
+                            : `<span class="badge badge-warning" style="opacity: 0.7;">Detectando...</span>`
+                        }
+                           </td>
+                           <td>
+                                <span class="badge badge-${getStatusColor(item.status)}">${item.status}</span>
+                           </td>
+                           <td style="font-size: 0.85em;">
+                                <div style="font-weight: 600; color: var(--text-primary);">${item.stage}</div>
+                                <div style="color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item.message}">
+                                    ${item.message}
+                                </div>
+                                ${renderLogsPreview(item.logs)}
+                           </td>
+                           <td class="text-sm text-muted">${item.duration ? item.duration + 's' : '-'}</td>
                        </tr>
                     `).join('');
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Nenhum job em processamento no momento.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Nenhum log de inspeção recente.</td></tr>`;
                 }
+            } else {
+                const errData = await res.json();
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Erro ao carregar monitor: ${errData.error || res.statusText}</td></tr>`;
             }
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Erro de conexão: ${err.message}</td></tr>`;
+        }
+    }
+
+    function getStatusColor(status) {
+        if (status === 'COMPLETED' || status === 'APPROVED') return 'success';
+        if (status === 'PROCESSING') return 'primary';
+        if (status === 'REJECTED' || status === 'FAILED') return 'danger';
+        return 'secondary';
+    }
+
+    function renderLogsPreview(logs) {
+        // Optional: Draw a mini progress bar or dots
+        if (!logs || logs.length === 0) return '';
+        // 5 steps: INIT, DOWNLOAD, AI, PDF, DB
+        const count = logs.length;
+        // Simple visual indicator of depth
+        return `<div style="display: flex; gap: 2px; margin-top: 4px;">
+            ${logs.map(l => {
+            let color = '#e5e7eb';
+            if (l.status === 'SUCCESS') color = '#22c55e';
+            if (l.status === 'RUNNING') color = '#3b82f6';
+            if (l.status === 'FAILED') color = '#ef4444';
+            return `<div style="width: 6px; height: 6px; border-radius: 50%; background: ${color};" title="${l.stage}: ${l.message}"></div>`;
+        }).join('')}
+        </div>`;
     }
 
     setInterval(() => {

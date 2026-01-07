@@ -491,11 +491,11 @@
         document.getElementById('btnSpinner').style.display = 'none';
         // Reset Error View
         const errView = document.getElementById('uploadErrorView');
-        if(errView) errView.style.display = 'none';
+        if (errView) errView.style.display = 'none';
         const modalWrapper = document.querySelector('#uploadModal .glass-panel');
-        if(modalWrapper) modalWrapper.style.display = 'block'; // Ensure visible if hidden
+        if (modalWrapper) modalWrapper.style.display = 'block'; // Ensure visible if hidden
         const procView = document.getElementById('aiProcessingView');
-        if(procView) procView.remove();
+        if (procView) procView.remove();
         document.getElementById('uploadForm').style.display = 'block';
         document.querySelector('#uploadModal h2').style.display = 'block';
     }
@@ -570,6 +570,33 @@
                 const percentComplete = (e.loaded / e.total) * 100;
                 if (progressBar) progressBar.style.width = percentComplete + '%';
                 if (progressText) progressText.innerText = Math.round(percentComplete) + '%';
+
+                // [SYNC-UX] Switch to Processing View immediately when upload finishes
+                if (percentComplete >= 100) {
+                    const form = document.getElementById('uploadForm');
+                    const title = document.querySelector('#uploadModal h2');
+                    const modalWrapper = document.querySelector('#uploadModal .glass-panel');
+
+                    if (form) form.style.display = 'none';
+                    if (title) title.style.display = 'none';
+
+                    let procView = document.getElementById('aiProcessingView');
+                    if (!procView && modalWrapper) {
+                        procView = document.createElement('div');
+                        procView.id = 'aiProcessingView';
+                        procView.style.textAlign = 'center';
+                        procView.style.padding = '2rem 1rem';
+                        procView.innerHTML = `
+                             <div style="margin-bottom: 1.5rem;">
+                                 <i class="fas fa-magic fa-3x fa-spin" style="color: #4F46E5; --fa-animation-duration: 2s;"></i>
+                             </div>
+                             <h3 style="color: #1E293B; margin-bottom: 0.5rem;">Processando Inteligência...</h3>
+                             <p style="color: #64748B;">Lendo PDF, analisando normas e gerando plano de ação.</p>
+                             <p style="font-size: 0.8rem; color: #94A3B8; margin-top: 1rem;">Isso pode levar até 1 minuto. Não feche.</p>
+                         `;
+                        modalWrapper.appendChild(procView);
+                    }
+                }
             }
         };
 
@@ -626,11 +653,11 @@
                 try {
                     const resp = JSON.parse(xhr.responseText);
                     if (resp.error) errorMsg = resp.error;
-                } catch (e) { 
+                } catch (e) {
                     console.error("JSON Parse Error:", e, xhr.responseText);
                     // Check if HTML (redirected to login or error page)
                     if (xhr.responseText.includes('<!doctype html>')) {
-                         errorMsg = "Sessão expirada ou erro no servidor. Tente recarregar a página.";
+                        errorMsg = "Sessão expirada ou erro no servidor. Tente recarregar a página.";
                     }
                 }
                 showError(errorMsg);

@@ -15,3 +15,5 @@ flask-wtf
 boto3
 google-cloud-tasks
 google-auth
+pytest
+pytest-flask

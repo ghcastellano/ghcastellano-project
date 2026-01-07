@@ -27,5 +27,4 @@ COPY scripts/ scripts/
 ENV PORT=8080
 
 # Default command for Web Service (Cloud Run default)
-# For Worker, override CMD with ["python", "src/main.py"]
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 src.app:app
