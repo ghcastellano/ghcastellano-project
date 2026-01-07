@@ -185,8 +185,17 @@
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                         <div>
                             <span
-                                style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">Painel
-                                do Gestor v2.0 NEW</span>
+                                style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">
+                                {% set selected_name = 'Painel do Gestor' %}
+                                {% if selected_est_id %}
+                                {% for est in all_establishments %}
+                                {% if est.id|string == selected_est_id %}
+                                {% set selected_name = 'Loja: ' ~ est.name %}
+                                {% endif %}
+                                {% endfor %}
+                                {% endif %}
+                                {{ selected_name }}
+                            </span>
                             <h1
                                 style="font-size: 2.5rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin: 0;">
                                 Olá, {{ current_user.name.split()[0] }} <span
