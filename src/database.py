@@ -133,4 +133,6 @@ def get_db():
             # In Flask with scoped_session, we just use the proxy.
             pass
     else:
-        yield None
+        # If db_session is still None after init attempt, it's a critical configuration error
+        logger.critical("🔥 Critical: Database session could not be initialized. Check DATABASE_URL.")
+        raise ConnectionError("Database not initialized. Check server logs/configuration.")

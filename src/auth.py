@@ -70,6 +70,7 @@ def login():
         db_gen = get_db()
         db = next(db_gen)
         try:
+            # db is guaranteed to be a session object or raise ConnectionError from get_db()
             user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
             
             if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
