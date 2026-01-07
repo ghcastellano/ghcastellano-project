@@ -253,7 +253,13 @@ def dashboard_consultant():
     from src.db_queries import get_consultant_inspections
     from datetime import datetime
     
-    inspections = get_consultant_inspections(company_id=current_user.company_id)
+    # [SECURITY] Scope to Consultant's Establishments
+    my_est_ids = [est.id for est in current_user.establishments] if current_user.establishments else []
+    
+    inspections = get_consultant_inspections(
+        company_id=current_user.company_id, 
+        allowed_establishment_ids=my_est_ids
+    )
     
     # [UX] Calculate Quick Stats for Dashboard
     stats = {
