@@ -481,128 +481,141 @@
                                     <label class="form-label">Código</label>
                                     <input type="text" name="code" id="edit_est_code" class="form-control">
                                 </div>
-                                <div style="display:flex; gap:0.5rem">
-                                    <button type="button" class="btn btn-secondary"
-                                        onclick="document.getElementById('editEstCard').style.display='none'">Cancelar</button>
-                                    <button type="submit" class="btn btn-primary" id="btnUpdateEst">Salvar</button>
+                            </div>
+                            <!-- Responsible Edit -->
+                            <div class="row g-2 mt-2">
+                                <div class="col-6">
+                                    <label class="form-label text-xs fw-bold text-muted">Responsável</label>
+                                    <input type="text" name="responsible_name" id="edit_est_resp_name"
+                                        class="form-control">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label text-xs fw-bold text-muted">WhatsApp</label>
+                                    <input type="text" name="responsible_phone" id="edit_est_resp_phone"
+                                        class="form-control">
                                 </div>
                             </div>
-                        </form>
+                            <div class="mt-3 text-end">
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="closeEditModal('editEstCard')">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" id="btnUpdateEst">Salvar</button>
+                            </div>
                     </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
-                    <!-- Consultants Table -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Consultores</h3>
-                        </div>
-                        <div class="table-container">
-                            <table class="modern-table">
-                                <thead>
-                                    <tr>
-                                        <th>Nome</th>
-                                        <th>Email</th>
-                                        <th class="text-right">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-consultants-body">
-                                    {% for consultant in consultants %}
-                                    <tr id="row-consultant-{{ consultant.id }}">
-                                        <td>
-                                            <div style="display:flex; align-items:center; gap:0.75rem;">
-                                                <div class="user-avatar-sm">{{ consultant.name[0].upper() }}</div>
-                                                <div style="font-weight: 600;">{{ consultant.name }}</div>
-                                            </div>
-                                        </td>
-                                        <td style="color: var(--text-secondary);">{{ consultant.email }}</td>
-                                        <td class="text-right">
-                                            <div class="btn-icon-group">
-                                                <button class="btn-action" data-id="{{ consultant.id }}"
-                                                    data-name="{{ consultant.name }}"
-                                                    data-email="{{ consultant.email }}"
-                                                    data-stores='[{% for est in consultant.establishments %}"{{ est.id }}"{{ "," if not loop.last }}{% endfor %}]'
-                                                    onclick="openEditConsultant(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.stores)"
-                                                    title="Editar">
-                                                    <i class="ph ph-pencil-simple"></i>
-                                                </button>
-                                                <button class="btn-action btn-action-delete"
-                                                    onclick="if(confirm('Tem certeza?')) deleteConsultant('{{ consultant.id }}')"
-                                                    title="Remover">
-                                                    <i class="ph ph-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% else %}
-                                    <tr>
-                                        <td colspan="3" class="text-center text-muted">Nenhum consultor.</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Establishments Table (New View for Management) -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Estabelecimentos</h3>
-                        </div>
-                        <div class="table-container">
-                            <table class="modern-table">
-                                <thead>
-                                    <tr>
-                                        <th>Nome</th>
-                                        <th>Código</th>
-                                        <th class="text-right">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-establishments-body">
-                                    {% for est in establishments %}
-                                    <tr id="row-est-{{ est.id }}">
-                                        <td>
-                                            <div style="display:flex; align-items:center; gap:0.75rem;">
-                                                <div class="user-avatar-sm"
-                                                    style="background: linear-gradient(135deg, #10b981, #059669);">
-                                                    <i class="ph ph-storefront"></i>
-                                                </div>
-                                                <div style="font-weight: 600;">{{ est.name }}</div>
-                                            </div>
-                                        </td>
-                                        <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or
-                                            '-' }}</td>
-                                        <td class="text-right">
-                                            <div class="btn-icon-group">
-                                                <button class="btn-action" data-id="{{ est.id }}"
-                                                    data-name="{{ est.name }}" data-code="{{ est.code or '' }}"
-                                                    onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code)"
-                                                    title="Editar">
-                                                    <i class="ph ph-pencil-simple"></i>
-                                                </button>
-                                                <button class="btn-action btn-action-delete"
-                                                    onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
-                                                    title="Remover">
-                                                    <i class="ph ph-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    </form>
                 </div>
             </div>
 
+            <div style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
+                <!-- Consultants Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Consultores</h3>
+                    </div>
+                    <div class="table-container">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Email</th>
+                                    <th class="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-consultants-body">
+                                {% for consultant in consultants %}
+                                <tr id="row-consultant-{{ consultant.id }}">
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                                            <div class="user-avatar-sm">{{ consultant.name[0].upper() }}</div>
+                                            <div style="font-weight: 600;">{{ consultant.name }}</div>
+                                        </div>
+                                    </td>
+                                    <td style="color: var(--text-secondary);">{{ consultant.email }}</td>
+                                    <td class="text-right">
+                                        <div class="btn-icon-group">
+                                            <button class="btn-action" data-id="{{ consultant.id }}"
+                                                data-name="{{ consultant.name }}" data-email="{{ consultant.email }}"
+                                                data-stores='[{% for est in consultant.establishments %}"{{ est.id }}"{{ "," if not loop.last }}{% endfor %}]'
+                                                onclick="openEditConsultant(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.stores)"
+                                                title="Editar">
+                                                <i class="ph ph-pencil-simple"></i>
+                                            </button>
+                                            <button class="btn-action btn-action-delete"
+                                                onclick="if(confirm('Tem certeza?')) deleteConsultant('{{ consultant.id }}')"
+                                                title="Remover">
+                                                <i class="ph ph-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">Nenhum consultor.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-
+                <!-- Establishments Table (New View for Management) -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Estabelecimentos</h3>
+                    </div>
+                    <div class="table-container">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Código</th>
+                                    <th class="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-establishments-body">
+                                {% for est in establishments %}
+                                <tr id="row-est-{{ est.id }}">
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                                            <div class="user-avatar-sm"
+                                                style="background: linear-gradient(135deg, #10b981, #059669);">
+                                                <i class="ph ph-storefront"></i>
+                                            </div>
+                                            <div style="font-weight: 600;">{{ est.name }}</div>
+                                        </div>
+                                    </td>
+                                    <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or
+                                        '-' }}</td>
+                                    <td class="text-right">
+                                        <div class="btn-icon-group">
+                                            <button class="btn-action" data-id="{{ est.id }}" data-name="{{ est.name }}"
+                                                data-code="{{ est.code or '' }}"
+                                                onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code)"
+                                                title="Editar">
+                                                <i class="ph ph-pencil-simple"></i>
+                                            </button>
+                                            <button class="btn-action btn-action-delete"
+                                                onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
+                                                title="Remover">
+                                                <i class="ph ph-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-        </td>
-        </tr>
-        </tbody>
-        </table>
+
+
+
+</div>
+</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -722,14 +735,30 @@
     }
     window.openEditConsultant = openEditConsultant;
 
-    function openEditEst(id, name, code) {
+    function openEditEst(id, name, code, respName, respPhone) {
         document.getElementById('editEstCard').style.display = 'block';
         document.getElementById('edit_est_id').value = id;
         document.getElementById('edit_est_name').value = name;
         document.getElementById('edit_est_code').value = code;
+        document.getElementById('edit_est_resp_name').value = respName || '';
+        document.getElementById('edit_est_resp_phone').value = respPhone || '';
         window.scrollTo(0, 0);
     }
     window.openEditEst = openEditEst;
+
+    // Modal Helpers
+    let createConsultantModal, createEstModal;
+    document.addEventListener('DOMContentLoaded', () => {
+        const elC = document.getElementById('createConsultantModal');
+        if (elC) createConsultantModal = new bootstrap.Modal(elC);
+
+        const elE = document.getElementById('createEstModal');
+        if (elE) createEstModal = new bootstrap.Modal(elE);
+    });
+
+    window.openCreateConsultantModal = () => createConsultantModal?.show();
+    window.openCreateEstModal = () => createEstModal?.show();
+    window.closeEditModal = (id) => document.getElementById(id).style.display = 'none';
 
 
     // --- TOAST NOTIFICATION SYSTEM ---
