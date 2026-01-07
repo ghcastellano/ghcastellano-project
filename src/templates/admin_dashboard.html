@@ -582,6 +582,26 @@
         return 'secondary';
     }
 
+    function toggleLogs(id) {
+        const row = document.getElementById(`logs-${id}`);
+        if (row) {
+            row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+        }
+    }
+
+    function renderLogsDetail(logs) {
+        if (!logs || logs.length === 0) return '<div class="text-muted p-2">Sem logs detalhados.</div>';
+        return logs.map(l => {
+            let color = 'text-muted';
+            if (l.status === 'SUCCESS') color = 'text-success';
+            if (l.status === 'FAILED') color = 'text-danger';
+            if (l.status === 'RUNNING') color = 'text-primary';
+            return `<div style="font-family:monospace; font-size:0.85em; padding: 2px 0;" class="${color}">
+                [${l.timestamp.split('T')[1].split('.')[0]}] <b>${l.stage}:</b> ${l.message}
+             </div>`;
+        }).join('');
+    }
+
     function renderLogsPreview(logs) {
         // Optional: Draw a mini progress bar or dots
         if (!logs || logs.length === 0) return '';
