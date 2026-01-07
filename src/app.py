@@ -422,6 +422,25 @@ def upload_file():
                         job.error_log = str(job_e)
                         db.commit()
                         falha += 1
+                        
+                        # [NOTIFY] Avisar consultor sobre erro crítico
+                        try:
+                            if app.email_service and current_user.email:
+                                subj = f"Erro no Processamento: {file.filename}"
+                                body = f"""
+                                Olá {current_user.name},
+                                
+                                Ocorreu um erro ao processar o relatório "{file.filename}".
+                                
+                                Detalhes do erro:
+                                {str(job_e)}
+                                
+                                Por favor, verifique o arquivo e tente novamente. Se o erro persistir, contate o suporte.
+                                """
+                                app.email_service.send_email(current_user.email, subj, body)
+                        except Exception as mail_e:
+                            logger.error(f"Falha ao enviar email de erro: {mail_e}")
+
                         flash(f"Erro ao processar {file.filename}: {str(job_e)}", 'error')
                 else:
                     logger.error(f"Google Drive não configurado para {file.filename}")
