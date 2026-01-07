@@ -146,8 +146,11 @@
             <li class="sidebar-item active" id="menu-overview" onclick="showSection('overview', this)">
                 <div class="sidebar-dot"></div> Visão Geral
             </li>
-            <li class="sidebar-item" id="menu-management" onclick="showSection('management', this)">
-                <div class="sidebar-dot"></div> Cadastros
+            <li class="sidebar-item" id="menu-est" onclick="showSection('establishments-view', this)">
+                <div class="sidebar-dot"></div> Lojas
+            </li>
+            <li class="sidebar-item" id="menu-consultant" onclick="showSection('consultants-view', this)">
+                <div class="sidebar-dot"></div> Consultores
             </li>
         </ul>
 
@@ -240,12 +243,12 @@
                 </style>
 
                 <div class="stats-grid">
-                    <div class="stat-card" onclick="document.getElementById('menu-management').click()">
+                    <div class="stat-card" onclick="document.getElementById('menu-est').click()">
                         <span class="stat-label">Estabelecimentos</span>
                         <span class="stat-value">{{ establishments|length if establishments else 0 }}</span>
                         <div class="stat-trend trend-up"><i class="ph-bold ph-trend-up"></i> Conectados</div>
                     </div>
-                    <div class="stat-card" onclick="document.getElementById('menu-management').click()">
+                    <div class="stat-card" onclick="document.getElementById('menu-consultant').click()">
                         <span class="stat-label">Consultores</span>
                         <span class="stat-value">{{ consultants|length if consultants else 0 }}</span>
                         <div class="stat-trend trend-up"><i class="ph-bold ph-users"></i> Ativos</div>
@@ -326,124 +329,72 @@
 
             </div>
 
-            <div id="management" class="section-view">
-                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Gerenciar Cadastros</h1>
-
-                <div class="card" style="margin-bottom: 2rem; border-top: 1px solid #e2e8f0; background: #ffff;">
-                    <div class="card-body" style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">Ações Rápidas</h4>
-                            <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">Gerencie
-                                consultores e lojas da sua empresa.</p>
-                        </div>
-                        <div style="display: flex; gap: 1rem;">
-                            <!-- Button Trigger for Consultant Modal -->
-                            <button class="btn btn-primary" onclick="openCreateConsultantModal()">
-                                <i class="ph-bold ph-user-plus"></i> Novo Consultor
-                            </button>
-                            <!-- Button Trigger for Establishment Modal -->
-                            <button class="btn btn-accent" onclick="openCreateEstModal()">
-                                <i class="ph-bold ph-storefront"></i> Nova Loja
-                            </button>
-                        </div>
-                    </div>
+            <!-- 2. Establishments Section -->
+            <div id="establishments-view" class="section-view">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Lojas</h1>
+                    <button class="btn btn-accent" onclick="openCreateEstModal()">
+                        <i class="ph-bold ph-storefront"></i> Nova Loja
+                    </button>
                 </div>
 
-                <!-- Edit Modals -->
-                <!-- Edit Consultant Modal -->
-                <div class="card" id="editConsultantCard"
-                    style="margin-bottom: 2rem; display: none; border: 1px solid #3b82f6;">
-                    <div class="card-header" style="background:none; padding-bottom:0;">
-                        <h4 style="margin:0; color:#1e40af;">Editar Consultor</h4>
+                <div class="card">
+                    <div class="table-container">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Código</th>
+                                    <th class="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-establishments-body">
+                                {% for est in establishments %}
+                                <tr id="row-est-{{ est.id }}">
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                                            <div class="user-avatar-sm"
+                                                style="background: linear-gradient(135deg, #10b981, #059669);">
+                                                <i class="ph ph-storefront"></i>
+                                            </div>
+                                            <div style="font-weight: 600;">{{ est.name }}</div>
+                                        </div>
+                                    </td>
+                                    <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or '-'
+                                        }}</td>
+                                    <td class="text-right">
+                                        <div class="btn-icon-group">
+                                            <button class="btn-action" data-id="{{ est.id }}" data-name="{{ est.name }}"
+                                                data-code="{{ est.code or '' }}"
+                                                onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code)"
+                                                title="Editar">
+                                                <i class="ph ph-pencil-simple"></i>
+                                            </button>
+                                            <button class="btn-action btn-action-delete"
+                                                onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
+                                                title="Remover">
+                                                <i class="ph ph-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="card-body">
-                        <form id="editConsultantForm" onsubmit="handleUpdateConsultant(event)">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                            <input type="hidden" name="user_id" id="edit_consultant_id">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                <div class="form-group">
-                                    <label class="form-label">Nome</label>
-                                    <input type="text" name="name" id="edit_consultant_name" class="form-control"
-                                        required>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" name="email" id="edit_consultant_email" class="form-control"
-                                        required>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Lojas Vinculadas</label>
-                                <select name="establishment_ids" id="edit_consultant_ests" class="form-control" multiple
-                                    style="height: 100px;">
-                                    {% for est in all_establishments %}
-                                    <option value="{{ est.id }}">{{ est.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Nova Senha (Opcional)</label>
-                                <input type="password" name="password" class="form-control">
-                            </div>
-                            <div style="text-align: right;">
-                                <button type="button" class="btn btn-secondary"
-                                    onclick="document.getElementById('editConsultantCard').style.display='none'">Cancelar</button>
-                                <button type="submit" class="btn btn-primary" id="btnUpdateConsultant">Salvar</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Edit Est Modal -->
-                <div class="card" id="editEstCard"
-                    style="margin-bottom: 2rem; display: none; border: 1px solid #3b82f6;">
-                    <div class="card-header" style="background:none; padding-bottom:0;">
-                        <h4 style="margin:0; color:#1e40af;">Editar Estabelecimento</h4>
-                    </div>
-                    <div class="card-body">
-                        <form id="editEstForm" onsubmit="handleUpdateEst(event)">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                            <input type="hidden" name="est_id" id="edit_est_id">
-                            <div
-                                style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
-                                <div class="form-group" style="margin:0;">
-                                    <label class="form-label">Nome</label>
-                                    <input type="text" name="name" id="edit_est_name" class="form-control" required>
-                                </div>
-                                <div class="form-group" style="margin:0;">
-                                    <label class="form-label">Código</label>
-                                    <input type="text" name="code" id="edit_est_code" class="form-control">
-                                </div>
-                            </div>
-                            <!-- Responsible Edit -->
-                            <div class="row g-2 mt-2">
-                                <div class="col-6">
-                                    <label class="form-label text-xs fw-bold text-muted">Responsável</label>
-                                    <input type="text" name="responsible_name" id="edit_est_resp_name"
-                                        class="form-control">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label text-xs fw-bold text-muted">WhatsApp</label>
-                                    <input type="text" name="responsible_phone" id="edit_est_resp_phone"
-                                        class="form-control">
-                                </div>
-                            </div>
-                            <div class="mt-3 text-end">
-                                <button type="button" class="btn btn-secondary"
-                                    onclick="closeEditModal('editEstCard')">Cancelar</button>
-                                <button type="submit" class="btn btn-primary" id="btnUpdateEst">Salvar</button>
-                            </div>
-                    </div>
-                    </form>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
-                <!-- Consultants Table -->
+            <!-- 3. Consultants Section -->
+            <div id="consultants-view" class="section-view">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Consultores</h1>
+                    <button class="btn btn-primary" onclick="openCreateConsultantModal()">
+                        <i class="ph-bold ph-user-plus"></i> Novo Consultor
+                    </button>
+                </div>
+
                 <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Consultores</h3>
-                    </div>
                     <div class="table-container">
                         <table class="modern-table">
                             <thead>
@@ -483,56 +434,6 @@
                                 {% else %}
                                 <tr>
                                     <td colspan="3" class="text-center text-muted">Nenhum consultor.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Establishments Table (New View for Management) -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Estabelecimentos</h3>
-                    </div>
-                    <div class="table-container">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>Código</th>
-                                    <th class="text-right">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-establishments-body">
-                                {% for est in establishments %}
-                                <tr id="row-est-{{ est.id }}">
-                                    <td>
-                                        <div style="display:flex; align-items:center; gap:0.75rem;">
-                                            <div class="user-avatar-sm"
-                                                style="background: linear-gradient(135deg, #10b981, #059669);">
-                                                <i class="ph ph-storefront"></i>
-                                            </div>
-                                            <div style="font-weight: 600;">{{ est.name }}</div>
-                                        </div>
-                                    </td>
-                                    <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or
-                                        '-' }}</td>
-                                    <td class="text-right">
-                                        <div class="btn-icon-group">
-                                            <button class="btn-action" data-id="{{ est.id }}" data-name="{{ est.name }}"
-                                                data-code="{{ est.code or '' }}"
-                                                onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code)"
-                                                title="Editar">
-                                                <i class="ph ph-pencil-simple"></i>
-                                            </button>
-                                            <button class="btn-action btn-action-delete"
-                                                onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
-                                                title="Remover">
-                                                <i class="ph ph-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
