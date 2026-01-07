@@ -599,9 +599,28 @@
         if (elE) createEstModal = new bootstrap.Modal(elE);
     });
 
-    window.openCreateConsultantModal = () => createConsultantModal?.show();
-    window.openCreateEstModal = () => createEstModal?.show();
-    window.closeEditModal = (id) => document.getElementById(id).style.display = 'none';
+    // Explicitly expose to window - Force Direct DOM manipulation to avoid Bootstrap conflicts
+    window.openCreateConsultantModal = function () {
+        const el = document.getElementById('createConsultantModal');
+        if (el) el.style.display = 'block';
+    };
+    window.openCreateEstModal = function () {
+        const el = document.getElementById('createEstModal');
+        if (el) el.style.display = 'block';
+    };
+    window.closeCreateConsultantModal = function () {
+        const el = document.getElementById('createConsultantModal');
+        if (el) el.style.display = 'none';
+    };
+    window.closeCreateEstModal = function () {
+        const el = document.getElementById('createEstModal');
+        if (el) el.style.display = 'none';
+    };
+
+    window.closeEditModal = (id) => {
+        const el = document.getElementById(id || 'editEstCard');
+        if (el) el.style.display = 'none';
+    };
 
 
     // --- TOAST NOTIFICATION SYSTEM ---
@@ -1199,22 +1218,6 @@
     </div>
 </div>
 
-<script>
-    function openCreateConsultantModal() { document.getElementById('createConsultantModal').style.display = 'block'; }
-    function closeCreateConsultantModal() { document.getElementById('createConsultantModal').style.display = 'none'; }
 
-    function openCreateEstModal() { document.getElementById('createEstModal').style.display = 'block'; }
-    function closeCreateEstModal() { document.getElementById('createEstModal').style.display = 'none'; }
-
-    function openEditEst(id, name, code, rName, rPhone) {
-        document.getElementById('editEstCard').style.display = 'block';
-        document.getElementById('edit_est_id').value = id;
-        document.getElementById('edit_est_name').value = name;
-        document.getElementById('edit_est_code').value = code || '';
-        document.getElementById('edit_est_resp_name').value = rName || '';
-        document.getElementById('edit_est_resp_phone').value = rPhone || '';
-    }
-    function closeEditModal() { document.getElementById('editEstCard').style.display = 'none'; }
-</script>
 
 {% endblock %}
