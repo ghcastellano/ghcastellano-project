@@ -80,3 +80,27 @@ jobs:
             DB_MAX_OVERFLOW=3,\
             DB_POOL_TIMEOUT=30,\
             DB_POOL_RECYCLE=1800"
+
+      - name: Verify Deployment & Health Check
+        if: success()
+        run: |
+          echo "🏥 Verifying Service Health..."
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region $REGION --format 'value(status.url)')
+          echo "Target URL: $SERVICE_URL"
+          
+          # Wait a bit for propagation
+          sleep 10
+          
+          # Try to access Login Page (fail on HTTP error)
+          if curl -f -s -o /dev/null "$SERVICE_URL/auth/login"; then
+             echo "✅ Health Check Passed! App is answering 200 OK."
+          else
+             echo "❌ Health Check Failed! Fetching recent Cloud Run logs..."
+             echo "--------------------------------------------------------"
+             gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=$SERVICE_NAME AND severity>=ERROR" \
+               --limit 30 \
+               --format="table(timestamp,severity,textPayload,jsonPayload.message)" \
+               --freshness=10m
+             echo "--------------------------------------------------------"
+             exit 1
+          fi
