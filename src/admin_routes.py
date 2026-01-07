@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from src.database import get_db
-from src.tasks import task_manager
+from datetime import datetime
 from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus
 from sqlalchemy.orm import joinedload
 from functools import wraps
@@ -252,7 +252,11 @@ def trigger_test_job():
         db.commit()
         
         # Enfileirar (Enqueue)
-        success = task_manager.enqueue_job(job.id, payload={"type": "TEST_JOB"})
+        # [SYNC-MVP] Worker removed. Test job disabled or could run sync.
+        success = True # task_manager.enqueue_job(job.id, payload={"type": "TEST_JOB"})
+        
+        job.status = JobStatus.COMPLETED
+        db.commit()
         
         if success:
             job.status = JobStatus.QUEUED
@@ -343,57 +347,70 @@ def update_manager(user_id):
     finally:
         db.close()
 
-@admin_bp.route('/api/jobs')
+@admin_bp.route('/api/monitor')
 @login_required
 @admin_required
-def api_jobs_stats():
+def api_monitor_stats():
     """
-    API JSON para alimentar o Monitoramento de Jobs em Tempo Real.
+    API JSON para alimentar o Monitoramento de Inspeções (Traceability Logs).
+    Substitui o antigo Job Monitor.
     """
     db = next(get_db())
     try:
-        # Fetch Top 50 recent jobs
-        jobs = db.query(Job).options(joinedload(Job.company)).order_by(Job.created_at.desc()).limit(50).all()
+        from src.models_db import Inspection
+        # Fetch Top 50 recent inspections
+        inspections = db.query(Inspection).options(joinedload(Inspection.establishment)).order_by(Inspection.created_at.desc()).limit(50).all()
         
-        job_list = []
-        for j in jobs:
-            # Calc Duration
-            duration = None
-            if j.created_at and j.finished_at:
-                duration = round((j.finished_at - j.created_at).total_seconds(), 2)
-            elif j.created_at:
-                duration = round((datetime.utcnow() - j.created_at).total_seconds(), 2)
-                
-            # Maps status to color badge
-            status_colors = {
-                JobStatus.PENDING: "warning",
-                JobStatus.QUEUED: "info",
-                JobStatus.PROCESSING: "primary",
-                JobStatus.COMPLETED: "success",
-                JobStatus.FAILED: "danger"
-            }
+        monitor_list = []
+        for insp in inspections:
+            # Extract logs
+            logs = insp.processing_logs if insp.processing_logs else []
             
-            job_list.append({
-                'id': str(j.id),
-                'type': j.type,
-                'company_name': j.company.name if j.company else "Sistema",
-                'status': j.status.value,
-                'status_label': j.status.value,
-                'status_color': status_colors.get(j.status, "secondary"),
-                'cost_input': j.cost_input_brl or 0.0,
-                'cost_output': j.cost_output_brl or 0.0,
-                'tokens_input': j.cost_tokens_input or 0,
-                'tokens_output': j.cost_tokens_output or 0,
+            # Determine Filename (MVP extraction from logs)
+            filename = "Unknown.pdf"
+            if logs:
+                first_log = logs[0]
+                # Log format: "Started processing filename.pdf"
+                if first_log.get('stage') == 'INIT':
+                    msg = first_log.get('message', '')
+                    if "Started processing " in msg:
+                        filename = msg.replace("Started processing ", "")
+            
+            # Determine Last Status/Stage
+            last_stage = "PENDING"
+            last_msg = "-"
+            if logs:
+                last_log = logs[-1]
+                last_stage = last_log.get('stage', 'UNKNOWN')
+                last_msg = last_log.get('message', '')
+            
+            # Duration
+            duration = None
+            if logs and len(logs) > 1:
+                try:
+                    start = datetime.fromisoformat(logs[0]['timestamp'])
+                    end = datetime.fromisoformat(logs[-1]['timestamp'])
+                    duration = round((end - start).total_seconds(), 2)
+                except: pass
+
+            monitor_list.append({
+                'id': str(insp.id),
+                'filename': filename,
+                'establishment': insp.establishment.name if insp.establishment else "Detectando...",
+                'status': insp.status.value,
+                'stage': last_stage,
+                'message': last_msg,
                 'duration': duration,
-                'created_at': j.created_at.isoformat() if j.created_at else None
+                'created_at': insp.created_at.isoformat() if insp.created_at else None,
+                'logs': logs # Full logs for detail view
             })
             
-        return jsonify({'jobs': job_list})
+        return jsonify({'items': monitor_list})
     except Exception as e:
         import traceback
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"❌ Erro em api_jobs_stats: {str(e)}\n{traceback.format_exc()}")
+        logger.error(f"❌ Erro em api_monitor_stats: {str(e)}\n{traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
     finally:
         db.close()

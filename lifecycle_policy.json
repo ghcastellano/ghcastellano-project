@@ -1,0 +1,22 @@
+{
+    "rule": [
+        {
+            "action": {
+                "type": "Delete"
+            },
+            "condition": {
+                "tagState": "any",
+                "olderThan": "7d"
+            }
+        },
+        {
+            "action": {
+                "type": "Keep"
+            },
+            "condition": {
+                "tagState": "any",
+                "mostRecent": 3
+            }
+        }
+    ]
+}

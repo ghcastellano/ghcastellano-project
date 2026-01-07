@@ -159,6 +159,10 @@ def run_migrations(db_session=None): # Renamed to generic
         from src.legacy_migrations import migration_v14_item_sector
         logger.info("🚀 Rodando Migração V14 (Item Sector)...")
         migration_v14_item_sector.upgrade(db_session)
+        
+        from src.legacy_migrations import migration_v16_evidence_url
+        logger.info("🚀 Rodando Migração V16 (Evidence URL)...")
+        migration_v16_evidence_url.upgrade(db_session)
 
     except Exception as e:
         logger.error(f"❌ Erro ao rodar migrações subsequentes: {e}")

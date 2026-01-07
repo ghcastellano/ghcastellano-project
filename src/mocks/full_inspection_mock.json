@@ -1,0 +1,116 @@
+{
+    "nome_estabelecimento": "Padaria sabor & Arte - Unidade Centro",
+    "data_inspecao": "2024-01-05",
+    "responsavel_local": "Sr. João da Silva",
+    "pontuacao_geral": 78,
+    "pontuacao_maxima_geral": 100,
+    "aproveitamento_geral": 78.0,
+    "status_plano": "Em Aberto",
+    "resumo_geral": "O estabelecimento apresenta boas condições estruturais, porém foram identificadas falhas críticas no controle de temperatura e documento de procedência. Requer ação imediata.",
+    "pontos_fortes": "Higiene dos manipuladores, estrutura física dos vestiários e controle de pragas em dia.",
+    "areas_inspecionadas": [
+        {
+            "nome_area": "Cozinha Quente",
+            "resumo_area": "Área bem organizada, mas com equipamentos necessitando manutenção.",
+            "pontuacao_obtida": 15,
+            "pontuacao_maxima": 20,
+            "aproveitamento": 75.0,
+            "itens": [
+                {
+                    "item_verificado": "Temperaturas de cocção atingem 70ºC",
+                    "status": "Conforme",
+                    "observacao": "Temperaturas aferidas acima de 75ºC.",
+                    "fundamento_legal": "RDC 216/2004",
+                    "acao_corretiva_sugerida": "",
+                    "prazo_sugerido": "",
+                    "pontuacao": 1.33,
+                    "pontuacao_maxima": 1.33
+                },
+                {
+                    "item_verificado": "Coifa e exaustão",
+                    "status": "Não Conforme",
+                    "observacao": "Acúmulo excessivo de gordura e motor ruidoso.",
+                    "fundamento_legal": "CVS-5/2013 Art. 12",
+                    "acao_corretiva_sugerida": "Realizar limpeza profunda da coifa e manutenção do motor.",
+                    "prazo_sugerido": "Imediato",
+                    "pontuacao": 0.0,
+                    "pontuacao_maxima": 2.67,
+                    "acao_consultor": {
+                        "status": "",
+                        "nota": ""
+                    }
+                }
+            ]
+        },
+        {
+            "nome_area": "Estoque Seco",
+            "resumo_area": "Organização exemplar, PVPS respeitado.",
+            "pontuacao_obtida": 20,
+            "pontuacao_maxima": 20,
+            "aproveitamento": 100.0,
+            "itens": [
+                {
+                    "item_verificado": "Identificação de produtos abertos",
+                    "status": "Conforme",
+                    "observacao": "Todos os produtos etiquetados com data de abertura e validade.",
+                    "fundamento_legal": "RDC 216/2004",
+                    "acao_corretiva_sugerida": "",
+                    "prazo_sugerido": "",
+                    "pontuacao": 2.50,
+                    "pontuacao_maxima": 2.50
+                }
+            ]
+        },
+        {
+            "nome_area": "Câmara Fria",
+            "resumo_area": "Problemas de armazenamento cruzado identificados.",
+            "pontuacao_obtida": 10,
+            "pontuacao_maxima": 20,
+            "aproveitamento": 50.0,
+            "itens": [
+                {
+                    "item_verificado": "Separação de crus e cozidos",
+                    "status": "Não Conforme",
+                    "observacao": "Potes de molho cozido armazenados abaixo de carnes cruas descongelando.",
+                    "fundamento_legal": "RDC 216/2004 Item 4.8.15",
+                    "acao_corretiva_sugerida": "Reorganizar prateleiras: Prontos (Topo), Pré-preparados (Meio), Crus (Base).",
+                    "prazo_sugerido": "Imediato",
+                    "pontuacao": 0.0,
+                    "pontuacao_maxima": 5.0,
+                    "acao_consultor": {
+                        "status": "Corrigido",
+                        "nota": "Reorganização realizada durante a visita com a equipe."
+                    }
+                },
+                {
+                    "item_verificado": "Temperatura do equipamento",
+                    "status": "Parcialmente Conforme",
+                    "observacao": "Termômetro marcando 8ºC, ideal seria até 4ºC ou 6ºC.",
+                    "fundamento_legal": "CVS-5/2013",
+                    "acao_corretiva_sugerida": "Regular termostato e monitorar a cada 2 horas.",
+                    "prazo_sugerido": "24 horas",
+                    "pontuacao": 2.5,
+                    "pontuacao_maxima": 5.0,
+                    "acao_consultor": {
+                        "status": "Pendente",
+                        "nota": "Equipamento antigo, necessita técnico especializado."
+                    }
+                },
+                {
+                    "item_verificado": "Vedação das Portas",
+                    "status": "Parcialmente Conforme",
+                    "observacao": "Borracha de vedação levemente ressecada, mas ainda funcional.",
+                    "fundamento_legal": "RDC 216/2004",
+                    "acao_corretiva_sugerida": "Programar troca da guarnição.",
+                    "prazo_sugerido": "30 dias",
+                    "pontuacao": 2.5,
+                    "pontuacao_maxima": 5.0,
+                    "acao_consultor": {
+                        "status": "",
+                        "nota": ""
+                    }
+                }
+            ]
+        }
+    ]
+}

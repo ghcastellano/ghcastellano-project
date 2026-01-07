@@ -640,7 +640,7 @@
 
         // Start Polling
         updateLists();
-        setInterval(updateLists, 10000);
+        setInterval(updateLists, 30000);
 
         // Inject Loading Overlay
         const loaderHTML = `
@@ -648,7 +648,7 @@
                 <div style="width: 50px; height: 50px; border: 4px solid #e2e8f0; border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
                 <div style="margin-top:1.5rem; font-weight:600; color:var(--text-primary); font-size: 1.1rem; letter-spacing: -0.02em;">Atualizando...</div>
             </div>
-            <style>@keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }</style>
+            <style>@keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }<` + `/style>
         `;
         document.body.insertAdjacentHTML('beforeend', loaderHTML);
     });
@@ -976,23 +976,13 @@
                         editBtn.dataset.code = est.code || '';
                     }
                 }
-                row.querySelector('div[style*="font-weight: 600"]').textContent = est.name;
-                row.cells[1].textContent = est.code || '-';
-
-                const editBtn = row.querySelector('button[title="Editar"]');
-                if (editBtn) {
-                    editBtn.dataset.name = est.name;
-                    editBtn.dataset.code = est.code || '';
-                    editBtn.setAttribute('onclick', `openEditEst('${id}', '${est.name}', '${est.code || ''}')`);
-                }
             }
-        }
             else {
-            const errData = await res.json().catch(() => ({}));
-            showToast(errData.error || 'Erro ao atualizar', 'error');
-        }
-    } catch (err) { console.error(err); showToast('Erro', 'error'); }
-    finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; } }
+                const errData = await res.json().catch(() => ({}));
+                showToast(errData.error || 'Erro ao atualizar', 'error');
+            }
+        } catch (err) { console.error(err); showToast('Erro', 'error'); }
+        finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; } }
     }
 
     async function deleteConsultant(id) {
@@ -1032,6 +1022,16 @@
         } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
     }
     window.deleteEstablishment = deleteEstablishment;
+
+    // Helper for Status Badges
+    function getStatusBadge(status) {
+        const s = status || 'UNKNOWN';
+        if (s === 'PROCESSING') return '<span class="badge badge-warning">Processando</span>';
+        if (s === 'PENDING_MANAGER_REVIEW') return '<span class="badge badge-info">Aguardando Validação</span>';
+        if (s === 'APPROVED') return '<span class="badge badge-success">Aprovado</span>';
+        if (s === 'COMPLETED') return '<span class="badge badge-success">Concluído</span>';
+        return '<span class="badge badge-secondary">' + s + '</span>';
+    }
 
     // Polling Logic
     async function updateLists() {
@@ -1139,6 +1139,11 @@
 
         } catch (e) {
             console.error("Erro no polling:", e);
+            const tbody = document.getElementById('list-processed-tbody');
+            // Show error only if we were still loading or if data is missing
+            if (tbody && (tbody.innerText.includes('Carregando') || tbody.innerText.trim() === '')) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger"><i class="ph-bold ph-warning-circle"></i> Erro de conexão. <a href="#" onclick="updateLists(); return false;">Tentar novamente</a></td></tr>`;
+            }
         }
     }
 
@@ -1160,7 +1165,7 @@
 
     // Iniciar Polling
     updateLists();
-    setInterval(updateLists, 10000);
+    setInterval(updateLists, 15000);
 </script>
 
 <style>

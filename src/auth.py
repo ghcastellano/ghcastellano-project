@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models_db import User, UserRole
@@ -78,6 +78,9 @@ def login():
 
             login_user(user, remember=remember)
             
+            # [FIX] Clean Manager Filter on Login
+            session.pop('selected_est_id', None)
+            
             # Redirecionamento baseado em Role
             next_page = request.args.get('next')
             if not next_page or not next_page.startswith('/'):
@@ -100,6 +103,8 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    # Clear custom session keys
+    session.pop('selected_est_id', None)
     logout_user()
     return redirect(url_for('auth.login'))
 
