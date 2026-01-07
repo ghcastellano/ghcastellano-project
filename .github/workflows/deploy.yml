@@ -104,3 +104,12 @@ jobs:
              echo "--------------------------------------------------------"
              exit 1
           fi
+
+      - name: Optimize Registry Costs (Cleanup)
+        if: always()
+        run: |
+          echo "💰 Cleaning up old container images to ensure Zero Cost..."
+          # Make script executable just in case
+          chmod +x scripts/optimize_costs.sh
+          # Run script (requires gcloud logic present in runner)
+          ./scripts/optimize_costs.sh
