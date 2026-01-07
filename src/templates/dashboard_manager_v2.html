@@ -1209,4 +1209,169 @@
     }
 </style>
 
+<!-- MODALS (Re-injected) -->
+<!-- Create Consultant Modal -->
+<div class="modal fade" id="createConsultantModal" tabindex="-1" aria-hidden="true"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1050; background:rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered"
+        style="margin: 1.75rem auto; max-width: 500px; background: white; border-radius: 8px; padding: 20px;">
+        <div class="modal-content" style="border:none;">
+            <div class="modal-header"
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h5 class="modal-title" style="font-weight:600;">Novo Consultor</h5>
+                <button type="button" class="btn-close" style="background:none; border:none; font-size:1.5rem;"
+                    onclick="closeCreateConsultantModal()">&times;</button>
+            </div>
+            <form action="{{ url_for('manager.create_consultant') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Nome Completo</label>
+                        <input type="text" name="name" class="form-control" required
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" required
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Vincular Lojas</label>
+                        <div
+                            style="max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 4px;">
+                            {% for est in all_establishments %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="establishment_ids"
+                                    value="{{ est.id }}" id="chk-{{ est.id }}">
+                                <label class="form-check-label" for="chk-{{ est.id }}">
+                                    {{ est.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">Selecione as lojas que este consultor atenderá.</small>
+                    </div>
+                </div>
+                <div class="modal-footer" style="text-align:right; margin-top:1rem;">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeCreateConsultantModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Consultor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Establishment Modal -->
+<div class="modal fade" id="createEstModal" tabindex="-1" aria-hidden="true"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1050; background:rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered"
+        style="margin: 1.75rem auto; max-width: 500px; background: white; border-radius: 8px; padding: 20px;">
+        <div class="modal-content" style="border:none;">
+            <div class="modal-header"
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h5 class="modal-title" style="font-weight:600;">Nova Loja</h5>
+                <button type="button" class="btn-close" style="background:none; border:none; font-size:1.5rem;"
+                    onclick="closeCreateEstModal()">&times;</button>
+            </div>
+            <form action="{{ url_for('manager.create_establishment') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Nome da Loja</label>
+                        <input type="text" name="name" class="form-control" required placeholder="Ex: Filial Centro"
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Código (Opcional)</label>
+                        <input type="text" name="code" class="form-control" placeholder="Ex: LOJA-01"
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <hr>
+                    <h6 style="color: #64748b; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Responsável
+                        Local (Contato)</h6>
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Nome do Responsável</label>
+                        <input type="text" name="responsible_name" class="form-control" placeholder="Ex: Gerente João"
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Telefone/WhatsApp</label>
+                        <input type="text" name="responsible_phone" class="form-control" placeholder="Ex: 5511999999999"
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                </div>
+                <div class="modal-footer" style="text-align:right; margin-top:1rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateEstModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Criar Loja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Establishment Modal -->
+<div class="modal fade" id="editEstCard" tabindex="-1" aria-hidden="true"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1050; background:rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered"
+        style="margin: 1.75rem auto; max-width: 500px; background: white; border-radius: 8px; padding: 20px;">
+        <input type="hidden" id="edit_est_id">
+        <div class="modal-content" style="border:none;">
+            <div class="modal-header"
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h5 class="modal-title" style="font-weight:600;">Editar Loja</h5>
+                <button type="button" class="btn-close" style="background:none; border:none; font-size:1.5rem;"
+                    onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editEstForm" onsubmit="handleUpdateEst(event)">
+                <div class="modal-body">
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Nome da Loja</label>
+                        <input type="text" id="edit_est_name" name="name" class="form-control" required
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Código</label>
+                        <input type="text" id="edit_est_code" name="code" class="form-control"
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <hr>
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Responsável</label>
+                        <input type="text" id="edit_est_resp_name" name="responsible_name" class="form-control"
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <div class="mb-3" style="margin-bottom:1rem;">
+                        <label class="form-label">Telefone</label>
+                        <input type="text" id="edit_est_resp_phone" name="responsible_phone" class="form-control"
+                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                </div>
+                <div class="modal-footer" style="text-align:right; margin-top:1rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnUpdateEst">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openCreateConsultantModal() { document.getElementById('createConsultantModal').style.display = 'block'; }
+    function closeCreateConsultantModal() { document.getElementById('createConsultantModal').style.display = 'none'; }
+
+    function openCreateEstModal() { document.getElementById('createEstModal').style.display = 'block'; }
+    function closeCreateEstModal() { document.getElementById('createEstModal').style.display = 'none'; }
+
+    function openEditEst(id, name, code, rName, rPhone) {
+        document.getElementById('editEstCard').style.display = 'block';
+        document.getElementById('edit_est_id').value = id;
+        document.getElementById('edit_est_name').value = name;
+        document.getElementById('edit_est_code').value = code || '';
+        document.getElementById('edit_est_resp_name').value = rName || '';
+        document.getElementById('edit_est_resp_phone').value = rPhone || '';
+    }
+    function closeEditModal() { document.getElementById('editEstCard').style.display = 'none'; }
+</script>
+
 {% endblock %}
