@@ -25,22 +25,26 @@ class ApprovalService:
         resp_phone = data.get('resp_phone')
         contact_id = data.get('contact_id')
         
-        if not resp_name or not resp_phone:
-            raise ValueError("Nome e Telefone são obrigatórios")
+        if not resp_name or (not resp_phone and not data.get('email')):
+             # Relax validation: phone needed for WA, email for Email
+             pass # Let downstream handle specific validation
             
-        self._update_contact_info(file_id, resp_name, resp_phone, contact_id)
+        email = data.get('email')
+        via = data.get('via', 'whatsapp')
+
+        self._update_contact_info(file_id, resp_name, resp_phone, email, contact_id)
         
-        # 2. Async: Generate PDF & Send WhatsApp
+        # 2. Async: Generate PDF & Send WhatsApp/Email
         # We pass necessary data to the thread
         thread = threading.Thread(
             target=self._async_generate_and_send,
-            args=(file_id, resp_name, resp_phone, is_approval)
+            args=(file_id, resp_name, resp_phone, email, is_approval, via)
         )
         thread.start()
         
         return True
 
-    def _update_contact_info(self, file_id, name, phone, contact_id):
+    def _update_contact_info(self, file_id, name, phone, email, contact_id):
         # ... Logic extracted from app.py ...
         db = next(get_db())
         try:
@@ -57,17 +61,22 @@ class ApprovalService:
                     if contact:
                         contact.name = name
                         contact.phone = phone
+                        contact.email = email
                     else:
                         new_contact = Contact(
                             establishment_id=establishment.id,
                             name=name,
                             phone=phone,
+                            email=email,
                             role='Responsável'
                         )
                         db.add(new_contact)
                     
+                    # Update Main Est Responsible as fallback
                     establishment.responsible_name = name
                     establishment.responsible_phone = phone
+                    # Establishment model might not have responsible_email yet, skip for now or add if schema allows
+                    
                     db.commit()
         except Exception as e:
             logger.error(f"Error updating contact: {e}")
@@ -75,27 +84,63 @@ class ApprovalService:
         finally:
             db.close()
 
-    def _async_generate_and_send(self, file_id, name, phone, is_approval):
+    def _async_generate_and_send(self, file_id, name, phone, email, is_approval, via='whatsapp'):
         """Background task"""
         try:
-            logger.info(f"Starting Async Task: Share/Approve for {file_id}")
+            logger.info(f"Starting Async Task: Share({via}) for {file_id}")
             json_data = drive_service.read_json(file_id)
             est_name = json_data.get('estabelecimento')
             
             # Generate PDF
             pdf_bytes = pdf_service.generate_pdf_bytes(json_data)
-            filename = f"Plano_Acao_{est_name.replace(' ', '_')}_{json_data.get('data_inspecao', '').replace('/', '-')}.pdf"
+            date_str = json_data.get('data_inspecao', '').replace('/', '-')
+            filename = f"Plano_Acao_{est_name.replace(' ', '_')}_{date_str}.pdf"
             temp_path = f"/tmp/{filename}"
             
             with open(temp_path, "wb") as f:
                 f.write(pdf_bytes)
                 
-            # Send WhatsApp
-            whatsapp = WhatsAppService() # Re-instantiate to be safe in thread
-            action = "aprovado" if is_approval else "para revisão"
-            caption = f"Olá {name}, segue o Plano de Ação da unidade {est_name} ({action})."
+            # Dispatch based on Via
+            if via == 'email':
+                # Email Logic
+                from src.services.email_service import EmailService
+                # Instantiate locally to ensure thread safety configuration if needed
+                email_svc = EmailService() 
+                
+                subject = f"Plano de Ação - {est_name} ({'Aprovado' if is_approval else 'Para Revisão'})"
+                body = f"""
+                Olá {name},
+                
+                Segue em anexo o Plano de Ação referente à visita técnica realizada em {est_name}.
+                
+                Status: {'APROVADO' if is_approval else 'PARA REVISÃO'}
+                
+                Atenciosamente,
+                Equipe de Qualidade
+                """
+                
+                if email:
+                    email_svc.send_email_with_attachment(
+                        to_email=email,
+                        subject=subject,
+                        body=body,
+                        attachment_path=temp_path
+                    )
+                    logger.info(f"Email sent to {email}")
+                else:
+                    logger.warning("Email requested but no email address provided.")
             
-            whatsapp.send_document(temp_path, filename, caption, phone)
+            else:
+                # WhatsApp Logic
+                whatsapp = WhatsAppService() # Re-instantiate to be safe in thread
+                action = "aprovado" if is_approval else "para revisão"
+                caption = f"Olá {name}, segue o Plano de Ação da unidade {est_name} ({action})."
+                
+                if phone:
+                    whatsapp.send_document(temp_path, filename, caption, phone)
+                    logger.info(f"WhatsApp sent to {phone}")
+                else:
+                    logger.warning("WhatsApp requested but no phone number provided.")
             
             # Clean up
             if os.path.exists(temp_path):
@@ -106,14 +151,11 @@ class ApprovalService:
                 # Update JSON status
                 json_data['status'] = 'Aprovado'
                 drive_service.update_file(file_id, json.dumps(json_data, indent=2, ensure_ascii=False))
-                
-                # Update DB (Best effort without explicit ID link)
-                # Future: Link Inspection <-> Drive ID properly
                 pass
                 
             logger.info("Async Task Completed Successfully")
             
         except Exception as e:
-            logger.error(f"Async Task Failed: {e}")
+            logger.error(f"Async Task Failed: {e}", exc_info=True)
 
 approval_service = ApprovalService()

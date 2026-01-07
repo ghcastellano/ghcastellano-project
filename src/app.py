@@ -371,7 +371,8 @@ def upload_file():
                             drive_file_id=id_drive,
                             drive_web_link=link_drive,
                             status=InspectionStatus.PROCESSING,
-                            establishment_id=est_alvo.id if est_alvo else None
+                            establishment_id=est_alvo.id if est_alvo else None,
+                            client_id=current_user.company_id # Ensure ownership is distinct from establishment
                         )
                         db.add(new_insp)
                         db.flush() 
