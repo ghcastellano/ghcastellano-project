@@ -56,10 +56,10 @@ def sanity_check():
     # Check if dashboard_manager.html has unclosed aside (regex or simple check)
     # We can read the file directly
     try:
-        with open('src/templates/dashboard_manager.html', 'r') as f:
+        with open('src/templates/dashboard_manager_v2.html', 'r') as f:
             content = f.read()
             if '<aside' in content and '</aside>' not in content:
-                print("❌ HTML Check: dashboard_manager.html has UNCLOSED <aside> tag!")
+                print("❌ HTML Check: dashboard_manager_v2.html has UNCLOSED <aside> tag!")
                 return False
             print("✅ HTML Check: OK")
     except Exception as e:
