@@ -330,88 +330,21 @@
                 <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Gerenciar Cadastros</h1>
 
                 <div class="card" style="margin-bottom: 2rem; border-top: 1px solid #e2e8f0; background: #ffff;">
-                    <div class="card-body">
-                        <style>
-                            .action-tabs {
-                                display: flex;
-                                border-bottom: 1px solid var(--border-color);
-                                margin-bottom: 1.5rem;
-                            }
-
-                            .action-tab {
-                                padding: 0.75rem 1.5rem;
-                                cursor: pointer;
-                                font-weight: 500;
-                                color: var(--text-secondary);
-                                border-bottom: 2px solid transparent;
-                            }
-
-                            .action-tab.active {
-                                color: var(--primary-color);
-                                border-bottom-color: var(--accent-color);
-                            }
-
-                            .action-content {
-                                display: none;
-                            }
-
-                            .action-content.active {
-                                display: block;
-                            }
-                        </style>
-                        <div class="action-tabs">
-                            <div class="action-tab active" onclick="switchTab('tab-consultant', this)">Novo Consultor
-                            </div>
-                            <div class="action-tab" onclick="switchTab('tab-est', this)">Novo Estabelecimento</div>
+                    <div class="card-body" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">Ações Rápidas</h4>
+                            <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">Gerencie
+                                consultores e lojas da sua empresa.</p>
                         </div>
-
-                        <!-- New Consultant -->
-                        <div id="tab-consultant" class="action-content active">
-                            <form id="formCreateConsultant">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <div
-                                    style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end;">
-                                    <div class="form-group" style="margin:0;">
-                                        <input type="text" name="name" placeholder="Nome" class="form-control" required>
-                                    </div>
-                                    <div class="form-group" style="margin:0;">
-                                        <input type="email" name="email" placeholder="Email" class="form-control"
-                                            required>
-                                    </div>
-                                    <div class="form-group" style="margin:0;">
-                                        <select name="establishment_ids" class="form-control" multiple
-                                            style="height: 100px; padding: 0.25rem;" title="Segure Ctrl para múltiplos"
-                                            required>
-                                            {% for est in all_establishments %}
-                                            <option value="{{ est.id }}">{{ est.name }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary"
-                                        id="btnCreateConsultant">Criar</button>
-                                </div>
-                                <small class="text-muted" style="display:block; margin-top:0.5rem;">* Segure Ctrl/Cmd
-                                    para selecionar múltiplas lojas. A senha padrão será enviada por email.</small>
-                            </form>
-                        </div>
-
-                        <!-- New Establishment -->
-                        <div id="tab-est" class="action-content">
-                            <form id="formCreateEst">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <div
-                                    style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
-                                    <div class="form-group" style="margin:0;">
-                                        <input type="text" name="name" placeholder="Nome da Loja" class="form-control"
-                                            required>
-                                    </div>
-                                    <div class="form-group" style="margin:0;">
-                                        <input type="text" name="code" placeholder="Código (Opcional)"
-                                            class="form-control">
-                                    </div>
-                                    <button type="submit" class="btn btn-accent" id="btnCreateEst">Adicionar</button>
-                                </div>
-                            </form>
+                        <div style="display: flex; gap: 1rem;">
+                            <!-- Button Trigger for Consultant Modal -->
+                            <button class="btn btn-primary" onclick="openCreateConsultantModal()">
+                                <i class="ph-bold ph-user-plus"></i> Novo Consultor
+                            </button>
+                            <!-- Button Trigger for Establishment Modal -->
+                            <button class="btn btn-accent" onclick="openCreateEstModal()">
+                                <i class="ph-bold ph-storefront"></i> Nova Loja
+                            </button>
                         </div>
                     </div>
                 </div>
