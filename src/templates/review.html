@@ -287,6 +287,55 @@
 </div>
 </div>
 
+<!-- Contact Selection Modal -->
+<div class="modal fade" id="contactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-white border-bottom-0">
+                <h5 class="modal-title font-weight-bold">
+                    <i class="ph-bold ph-paper-plane-tilt me-2 text-primary"></i> Enviar Relatório
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted text-sm mb-4">Selecione o responsável para receber o Plano de Ação.</p>
+
+                <!-- Platform Selection (Hidden state) -->
+                <input type="hidden" id="sharePlatform" value="whatsapp">
+
+                <!-- Contact List -->
+                <div class="list-group mb-3" id="contactsListGroup">
+                    {% for contact in contacts %}
+                    <label
+                        class="list-group-item list-group-item-action d-flex align-items-center gap-3 p-3 border rounded mb-2 shadow-sm contact-option pointer-cursor">
+                        <input class="form-check-input flex-shrink-0" type="radio" name="selectedContact"
+                            value="{{ contact.id }}" data-phone="{{ contact.phone }}" data-email="{{ contact.email }}"
+                            data-name="{{ contact.name }}" {% if loop.first %}checked{% endif %}>
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold text-dark">{{ contact.name }}</span>
+                            <span class="text-xs text-muted">
+                                <i class="ph-bold ph-phone me-1"></i> {{ contact.phone }}
+                            </span>
+                        </div>
+                    </label>
+                    {% else %}
+                    <div class="text-center py-4 bg-light rounded text-muted">
+                        <i class="ph-bold ph-user-minus h4 mb-2"></i>
+                        <p class="mb-0 text-sm">Nenhum contato cadastrado.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-grid">
+                    <button class="btn btn-primary py-2 fw-bold" onclick="confirmShare()">
+                        Confirmar Envio
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     /* Minimal safe overrides */
     .accordion-button:not(.collapsed) {
@@ -298,6 +347,21 @@
     .accordion-button:focus {
         box-shadow: none;
         border-color: rgba(0, 0, 0, .125);
+    }
+
+    .contact-option {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .contact-option:hover {
+        background-color: #f8f9fa;
+        border-color: #2563eb !important;
+    }
+
+    .contact-option:has(:checked) {
+        border-color: #2563eb !important;
+        background-color: #eff6ff;
     }
 
     .text-sm {
@@ -374,6 +438,12 @@
 
 <script>
     const IS_DEV_MODE = {{ is_dev_mode|default (false) | tojson }};
+    let contactModal;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Init Modal
+        contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
+    });
 
     // --- Evidence Logic ---
     function toggleEvidence(itemId, show) {
@@ -526,28 +596,70 @@
         }, 1500);
     }
 
-    async function shareAction(platform) {
-        if (platform === 'whatsapp') {
-            if (confirm('Abrir WhatsApp para envio?')) {
-                try {
-                    if (IS_DEV_MODE) {
-                        alert("Dev Mode: Simulação de envio iniciada.");
-                        return;
-                    }
-                    const res = await fetch('/api/share_plan/{{ inspection.drive_file_id }}', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-                        body: JSON.stringify({ via: 'whatsapp' })
-                    });
-                    const data = await res.json();
-                    if (data.success) alert('Processo de envio iniciado (Background).');
-                    else alert('Erro: ' + data.error);
-                } catch (e) {
-                    alert('Erro de conexão ao tentar compartilhar.');
-                }
+    function shareAction(platform) {
+        // Set platform in hidden field
+        document.getElementById('sharePlatform').value = platform;
+        
+        // Check if there are contacts
+        const hasContacts = document.querySelectorAll('input[name="selectedContact"]').length > 0;
+        
+        if (!hasContacts) {
+             alert('Nenhum contato cadastrado para este estabelecimento.');
+             // Optional: allow manual entry? kept simple for now.
+             return;
+        }
+        
+        // Show Modal
+        if (contactModal) contactModal.show();
+    }
+    
+    async function confirmShare() {
+        const platform = document.getElementById('sharePlatform').value;
+        const selected = document.querySelector('input[name="selectedContact"]:checked');
+        
+        if (!selected) {
+            alert("Selecione um contato.");
+            return;
+        }
+        
+        const contactId = selected.value;
+        const contactName = selected.dataset.name;
+        const contactPhone = selected.dataset.phone;
+        const contactEmail = selected.dataset.email;
+        
+        // Hide modal
+        if (contactModal) contactModal.hide();
+        
+        try {
+            if (IS_DEV_MODE) {
+                alert(`Dev Mode: Enviando para ${contactName} (${platform})`);
+                return;
             }
-        } else if (platform === 'email') {
-            alert('Envio por email em breve.');
+            
+            const payload = { 
+                via: platform,
+                contact_id: contactId,
+                phone: contactPhone, # Override or use backend logic based on ID
+                email: contactEmail
+            };
+            
+            const res = await fetch('/api/share_plan/{{ inspection.drive_file_id }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                // Show Success Toast (reusing existing or alert)
+                alert('Processo de envio iniciado (Background).');
+            }
+            else { 
+                alert('Erro: ' + data.error); 
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erro de conexão ao tentar compartilhar.');
         }
     }
 
