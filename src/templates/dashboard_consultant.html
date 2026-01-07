@@ -306,18 +306,32 @@
 
     <!-- Recent Activity Section -->
     <div class="recent-section">
-        <div class="section-header">
-            <h2 class="section-title">Últimas Atividades</h2>
-            <button class="btn btn-sm btn-outline-secondary" style="border-radius: 20px;">
-                <i class="fas fa-filter"></i> Filtrar
-            </button>
+        <div class="section-header" style="flex-wrap: wrap; gap: 1rem;">
+            <h2 class="section-title" style="margin-bottom: 0;">Últimas Atividades</h2>
+
+            <div style="display: flex; gap: 0.5rem; flex-grow: 1; justify-content: flex-end; max-width: 600px;">
+                <!-- Search Input -->
+                <div style="position: relative; flex-grow: 1;">
+                    <i class="fas fa-search"
+                        style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94A3B8;"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar inspeção..." onkeyup="filterInspections()"
+                        style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2.25rem; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s;">
+                </div>
+
+                <!-- Establishment Filter -->
+                <select id="estFilter" onchange="filterInspections()"
+                    style="padding: 0.5rem 2rem 0.5rem 0.75rem; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 0.9rem; color: #475569; background-color: white; cursor: pointer; max-width: 200px;">
+                    <option value="">Todas as Lojas</option>
+                    <!-- Populated by JS -->
+                </select>
+            </div>
         </div>
 
         {% if inspections %}
-        <div class="inspection-list">
+        <div class="inspection-list" id="inspectionList">
             {% for insp in inspections %}
             <div class="inspection-item" onclick="window.location.href='{{ insp.review_link }}'"
-                style="cursor: pointer;">
+                style="cursor: pointer;" data-name="{{ insp.name|lower }}" data-est="{{ insp.establishment|lower }}">
                 <div class="item-icon">
                     <i class="fas fa-file-alt"></i>
                 </div>
@@ -325,7 +339,8 @@
                 <div class="item-info">
                     <div class="item-title">{{ insp.name }}</div>
                     <div class="item-meta">
-                        <i class="fas fa-store-alt" style="margin-right: 4px;"></i> {{ insp.establishment }}
+                        <i class="fas fa-store-alt" style="margin-right: 4px;"></i>
+                        <span class="est-name-display">{{ insp.establishment }}</span>
                         <span style="font-size: 0.7em; margin: 0 6px;">•</span>
                         <i class="far fa-calendar" style="margin-right: 4px;"></i> {{ insp.date }}
                     </div>
@@ -346,16 +361,15 @@
                 </div>
             </div>
             {% endfor %}
+            <div id="noResultsMsg" style="display:none; text-align:center; padding: 2rem; color: #94A3B8;">
+                <p>Nenhuma inspeção encontrada para este filtro.</p>
+            </div>
         </div>
         {% else %}
         <!-- Empty State -->
         <div style="text-align: center; padding: 3rem; color: #94A3B8;">
             <i class="fas fa-clipboard-check fa-3x" style="margin-bottom: 1rem;"></i>
             <p>Nenhuma inspeção recente encontrada.</p>
-            <button class="btn btn-primary" onclick="window.location.href='/upload'"
-                style="margin-top: 1rem; border-radius: 20px;">
-                Começar Primeira Inspeção
-            </button>
         </div>
         {% endif %}
     </div>
@@ -479,6 +493,58 @@
 </style>
 
 <script>
+    // --- Filter Logic ---
+    function populateEstFilters() {
+        const estSet = new Set();
+        document.querySelectorAll('.est-name-display').forEach(el => {
+            const name = el.textContent.trim();
+            if (name) estSet.add(name);
+        });
+
+        const select = document.getElementById('estFilter');
+        // keep first option
+        while (select.options.length > 1) { select.remove(1); }
+
+        Array.from(estSet).sort().forEach(est => {
+            const opt = document.createElement('option');
+            opt.value = est;
+            opt.textContent = est;
+            select.appendChild(opt);
+        });
+    }
+
+    function filterInspections() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const est = document.getElementById('estFilter').value.toLowerCase();
+        const items = document.querySelectorAll('.inspection-item');
+        let visibleCount = 0;
+
+        items.forEach(item => {
+            const name = item.dataset.name || '';
+            const itemEst = item.dataset.est || '';
+
+            const matchSearch = name.includes(search) || itemEst.includes(search);
+            const matchEst = est === "" || itemEst === est;
+
+            if (matchSearch && matchEst) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        const msg = document.getElementById('noResultsMsg');
+        if (visibleCount === 0 && items.length > 0) {
+            msg.style.display = 'block';
+        } else {
+            msg.style.display = 'none';
+        }
+    }
+
+    // Init Filters on Load
+    document.addEventListener('DOMContentLoaded', populateEstFilters);
+
     function openUploadModal() {
         document.getElementById('uploadModal').style.display = 'flex';
         // Reset form state
