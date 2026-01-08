@@ -1095,7 +1095,9 @@
 
     // Iniciar Polling
     updateLists();
-    setInterval(updateLists, 15000);
+    // Iniciar Polling (Otimizado para 60s para reduzir custos de BD)
+    updateLists();
+    setInterval(updateLists, 60000);
 </script>
 
 <style>
