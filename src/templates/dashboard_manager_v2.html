@@ -766,11 +766,28 @@
                     `;
                     tbody.insertAdjacentHTML('beforeend', newRow);
 
-                    // Update Dropdowns
+                    // Update Dropdowns & Checkbox Lists
+                    // 1. Update Selects (if any)
                     document.querySelectorAll('select[name="establishment_ids"]').forEach(sel => {
                         const opt = new Option(est.name, est.id);
                         sel.add(opt);
                     });
+
+                    // 2. Update Checkbox List in Create Consultant Modal
+                    // Find container by looking for the one inside the modal
+                    const modalCheckList = document.querySelector('#createConsultantModal .modal-body div[style*="overflow-y"]');
+                    if (modalCheckList) {
+                        const div = document.createElement('div');
+                        div.className = 'form-check';
+                        div.innerHTML = `
+                            <input class="form-check-input" type="checkbox" name="establishment_ids"
+                                value="${est.id}" id="chk-${est.id}">
+                            <label class="form-check-label" for="chk-${est.id}">
+                                ${est.name}
+                            </label>
+                        `;
+                        modalCheckList.appendChild(div);
+                    }
                 }
             } else {
                 showToast(data.error || 'Erro desconhecido', 'error');
