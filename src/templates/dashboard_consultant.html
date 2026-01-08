@@ -643,9 +643,23 @@
         }, 5000);
     }
 
+    // State for Exit Warning
+    let isProcessing = false;
+
+    window.onbeforeunload = function (e) {
+        if (isProcessing) {
+            e.preventDefault();
+            e.returnValue = 'O processamento do relatório será interrompido se você sair. Deseja realmente sair?';
+            return e.returnValue;
+        }
+    };
+
     // Submit logic (AJAX with Progress)
     document.getElementById('uploadForm').addEventListener('submit', function (e) {
         e.preventDefault(); // Prevent standard submit
+
+        // Set State
+        isProcessing = true;
 
         const btn = document.getElementById('btnSubmitUpload');
         const text = document.getElementById('btnText');
@@ -697,7 +711,7 @@
                         </p>
                         <div style="background: #F1F5F9; border-radius: 8px; padding: 0.75rem; display: inline-block;">
                              <p style="font-size: 0.85rem; color: #64748B; margin: 0; font-weight: 500;">
-                                <i class="fas fa-clock" style="margin-right: 6px;"></i> Isso pode levar até 1 minuto. Não feche.
+                                <i class="fas fa-clock" style="margin-right: 6px;"></i> Isso pode levar até 1 minuto. <strong>Por favor, não saia desta tela.</strong>
                              </p>
                         </div>
                         <style>@keyframes pulse { 0% { transform: scale(0.95); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 0.2; } 100% { transform: scale(0.95); opacity: 0.5; } }</style>
@@ -721,6 +735,7 @@
         };
 
         const showError = (msg) => {
+            isProcessing = false; // Reset state
             const form = document.getElementById('uploadForm');
             const title = document.querySelector('#uploadModal h2');
             const errView = document.getElementById('uploadErrorView');
@@ -743,6 +758,7 @@
         };
 
         xhr.onload = function () {
+            isProcessing = false; // Finished
             if (xhr.status === 200) {
                 // Success UI
                 if (progressBar) {
@@ -773,6 +789,7 @@
         };
 
         xhr.onerror = function () {
+            isProcessing = false;
             showError('Erro de conexão. Verifique sua internet.');
             showToast('Erro de conexão.', 'error');
         };

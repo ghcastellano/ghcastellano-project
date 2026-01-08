@@ -1084,7 +1084,7 @@
                 <button type="button" class="btn-close" style="background:none; border:none; font-size:1.5rem;"
                     onclick="closeCreateConsultantModal()">&times;</button>
             </div>
-            <form action="{{ url_for('manager.create_consultant') }}" method="POST">
+            <form id="formCreateConsultant" action="{{ url_for('manager.create_consultant') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3" style="margin-bottom:1rem;">
@@ -1136,7 +1136,7 @@
                 <button type="button" class="btn-close" style="background:none; border:none; font-size:1.5rem;"
                     onclick="closeCreateEstModal()">&times;</button>
             </div>
-            <form action="{{ url_for('manager.create_establishment') }}" method="POST">
+            <form id="formCreateEst" action="{{ url_for('manager.create_establishment') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-3" style="margin-bottom:1rem;">
