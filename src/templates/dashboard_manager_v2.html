@@ -602,24 +602,46 @@
     // Explicitly expose to window - Force Direct DOM manipulation to avoid Bootstrap conflicts
     window.openCreateConsultantModal = function () {
         const el = document.getElementById('createConsultantModal');
-        if (el) el.style.display = 'block';
+        if (el) {
+            el.style.display = 'block';
+            el.removeAttribute('aria-hidden');
+            el.setAttribute('aria-modal', 'true');
+            el.focus();
+        }
     };
     window.openCreateEstModal = function () {
         const el = document.getElementById('createEstModal');
-        if (el) el.style.display = 'block';
+        if (el) {
+            el.style.display = 'block';
+            el.removeAttribute('aria-hidden');
+            el.setAttribute('aria-modal', 'true');
+            el.focus();
+        }
     };
     window.closeCreateConsultantModal = function () {
         const el = document.getElementById('createConsultantModal');
-        if (el) el.style.display = 'none';
+        if (el) {
+            el.style.display = 'none';
+            el.setAttribute('aria-hidden', 'true');
+            el.removeAttribute('aria-modal');
+        }
     };
     window.closeCreateEstModal = function () {
         const el = document.getElementById('createEstModal');
-        if (el) el.style.display = 'none';
+        if (el) {
+            el.style.display = 'none';
+            el.setAttribute('aria-hidden', 'true');
+            el.removeAttribute('aria-modal');
+        }
     };
 
     window.closeEditModal = (id) => {
         const el = document.getElementById(id || 'editEstCard');
-        if (el) el.style.display = 'none';
+        if (el) {
+            el.style.display = 'none';
+            el.setAttribute('aria-hidden', 'true');
+            el.removeAttribute('aria-modal');
+        }
     };
 
 
