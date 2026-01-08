@@ -58,6 +58,7 @@ from src.models_db import User, Company, Establishment, Job, JobStatus, UserRole
 from datetime import datetime
 from src.auth import role_required, admin_required, login_manager, auth_bp
 from src.services.email_service import EmailService
+from src.services.storage_service import storage_service
 
 # Configurações do App
 app.secret_key = os.urandom(24)
@@ -358,8 +359,28 @@ def upload_file():
                     pasta_id = FOLDER_IN
                 
                 # 4. Upload para o Drive
+                # 4. Upload para o Drive (com Fallback para Storage/GCS)
+                id_drive = None
+                link_drive = None
+                
                 if drive_service:
-                    id_drive, link_drive = drive_service.upload_file(caminho_temp, pasta_id, file.filename)
+                    try:
+                        id_drive, link_drive = drive_service.upload_file(caminho_temp, pasta_id, file.filename)
+                    except Exception as e:
+                        if "quota" in str(e).lower() or "403" in str(e) or "storage" in str(e).lower():
+                            logger.warning(f"⚠️ Drive Quota Error via API. Falling back to Alternate Storage for {file.filename}")
+                            # Fallback to GCS / Local
+                            try:
+                                link_drive = storage_service.upload_file(file, "evidence", file.filename)
+                                # Generate a "Fake" ID that indicates GCS/Local source
+                                # Processor will see "gcs:" prefix and use storage_service.download_file
+                                id_drive = f"gcs:{file.filename}"
+                                logger.info(f"✅ Fallback Upload Success: {id_drive}")
+                            except Exception as store_e:
+                                logger.error(f"❌ Fallback Upload Failed: {store_e}")
+                                raise e # Raise original error if fallback also fails
+                        else:
+                            raise e
                     
                     # 5. Criar Job (company_id agora pode ser nulo se est_alvo for None)
                     db = next(get_db())

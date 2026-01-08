@@ -144,7 +144,7 @@ class DriveService:
         # Retry Logic (3 Attempts)
         import time
         import random
-        max_retries = 3
+        max_retries = 2
         
         for attempt in range(max_retries):
             try:
@@ -163,6 +163,12 @@ class DriveService:
                 return file.get('id'), file.get('webViewLink')
 
             except Exception as e:
+                msg = str(e).lower()
+                # Fail fast on Quota/Auth errors (don't retry as they won't change)
+                if "quota" in msg or "403" in msg or "limit" in msg or "usage" in msg:
+                    logger.warning(f"🛑 Aborting retries for {filename} due to detailed error: {msg}")
+                    raise e
+
                 logger.warning(f"⚠️ Upload attempt {attempt+1}/{max_retries} failed for {filename}: {str(e)}")
                 if attempt == max_retries - 1:
                     logger.error(f"❌ Upload failed permanently for {filename}")

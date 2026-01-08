@@ -79,5 +79,44 @@ class StorageService:
                 logger.error(f"❌ Erro no Upload Local: {e}")
                 raise e
 
+    def download_file(self, file_path_or_url):
+        """
+        Baixa arquivo do GCS ou Local.
+        Se GCS, espera path relativo ao bucket ou url.
+        """
+        # Limpar prefixo se vier do processador
+        clean_path = file_path_or_url.replace(f"https://storage.googleapis.com/{self.bucket_name}/", "")
+        if clean_path.startswith("gcs:"):
+            clean_path = clean_path.replace("gcs:", "")
+
+        if self.client and self.bucket_name:
+            try:
+                bucket = self.client.bucket(self.bucket_name)
+                blob = bucket.blob(clean_path)
+                return blob.download_as_bytes()
+            except Exception as e:
+                logger.error(f"❌ Erro Download GCS: {e}")
+                return None
+        else:
+            try:
+                # Local: Remove /static prefix if present to find real path
+                if clean_path.startswith("/static/"):
+                    clean_path = clean_path.replace("/static/", "src/static/")
+                elif clean_path.startswith("static/"):
+                    clean_path = "src/" + clean_path
+                
+                # Check root relative
+                if not os.path.exists(clean_path):
+                     # Try looking in src/static/uploads/evidence if simple filename
+                     possible = os.path.join("src/static/uploads/evidence", clean_path)
+                     if os.path.exists(possible):
+                         clean_path = possible
+
+                with open(clean_path, "rb") as f:
+                    return f.read()
+            except Exception as e:
+                logger.error(f"❌ Erro Download Local: {e}")
+                return None
+
 # Singleton
 storage_service = StorageService()
