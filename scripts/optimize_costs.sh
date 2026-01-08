@@ -23,7 +23,7 @@ else
     echo "⚠️ Encontradas imagens antigas. Deletando..."
     for digest in $IMAGES_TO_DELETE; do
         echo "🗑️ Deletando $REPO@$digest..."
-        gcloud container images delete "$REPO@$digest" --force --quiet || echo "⚠️ Falha ao deletar $digest (Ignorado)"
+        gcloud container images delete "$REPO@$digest" --force-delete-tags --quiet || echo "⚠️ Falha ao deletar $digest (Ignorado)"
     done
     echo "✅ Limpeza concluída! Custo estimado futuro: < R$ 1,00/mês."
 fi
