@@ -87,11 +87,17 @@ def delete_company(company_id):
         if company:
             db.delete(company)
             db.commit()
+            if request.accept_mimetypes.accept_json:
+                 return jsonify({'success': True, 'message': 'Empresa removida.'}), 200
             flash('Empresa removida.', 'success')
         else:
+            if request.accept_mimetypes.accept_json:
+                 return jsonify({'error': 'Empresa não encontrada.'}), 404
             flash('Empresa não encontrada.', 'error')
     except Exception as e:
         db.rollback()
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': str(e)}), 500
         flash(f'Erro ao remover empresa: {e}', 'error')
     finally:
         db.close()
@@ -114,9 +120,19 @@ def create_establishment():
         est = Establishment(company_id=uuid.UUID(company_id), name=name, drive_folder_id=drive_id)
         db.add(est)
         db.commit()
+        
+        if request.accept_mimetypes.accept_json:
+             return jsonify({
+                 'success': True,
+                 'message': f'Estabelecimento {name} criado!',
+                 'establishment': {'id': str(est.id), 'name': est.name}
+             }), 201
+             
         flash(f'Estabelecimento {name} criado!', 'success')
     except Exception as e:
         db.rollback()
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': str(e)}), 500
         flash(f'Erro ao criar estabelecimento: {e}', 'error')
     finally:
         db.close()
@@ -211,9 +227,16 @@ def delete_manager(user_id):
         if user and user.role == UserRole.MANAGER:
             db.delete(user)
             db.commit()
+            if request.accept_mimetypes.accept_json:
+                 return jsonify({'success': True, 'message': 'Gestor removido.'}), 200
             flash('Gestor removido.', 'success')
+        else:
+            if request.accept_mimetypes.accept_json:
+                 return jsonify({'error': 'Gestor não encontrado.'}), 404
     except Exception as e:
         db.rollback()
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': str(e)}), 500
         flash(f'Erro: {e}', 'error')
     finally:
         db.close()

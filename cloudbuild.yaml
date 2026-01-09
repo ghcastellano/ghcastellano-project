@@ -4,4 +4,16 @@ steps:
       - '--destination=gcr.io/$PROJECT_ID/mvp-web'
       - '--cache=false'
       # - '--cache-ttl=24h'
+  
+  # [CUSTOS] ZELADOR AUTOMÁTICO: Garante que a política de limpeza existe a cada deploy
+  # Mantém apenas as 5 últimas versões, deletando antigas automaticamente.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "🔧 Configurando Política de Custos (Manter últimas 5 versões)..."
+        echo '{"rule":[{"action":{"type":"DELETE"},"condition":{"tagState":"ANY","olderThan":"7d"}},{"action":{"type":"DELETE"},"condition":{"tagState":"ANY","numNewerVersions":5}},{"action":{"type":"KEEP"},"condition":{"tagState":"TAGGED","tagPrefixes":["latest"]}}]}' > policy.json
+        gcloud artifacts repositories set-cleanup-policies mvp-web --project=$PROJECT_ID --location=us-central1 --policy=policy.json --quiet || echo "⚠️ Aviso: Não foi possível definir a política de limpeza (Permissões de Admin necessárias). O build continuará."
+
 timeout: 1200s

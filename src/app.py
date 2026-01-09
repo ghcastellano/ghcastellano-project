@@ -63,6 +63,7 @@ from src.services.storage_service import storage_service
 # Configurações do App
 app.secret_key = os.urandom(24)
 app.config['SECRET_KEY'] = config.SECRET_KEY
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB Upload Limit
 csrf = CSRFProtect(app)
 
 # Cloud Run Load Balancer Fix (HTTPS / CSRF)
@@ -382,8 +383,9 @@ def upload_file():
                         else:
                             raise e
                     
-                    # 5. Criar Job (company_id agora pode ser nulo se est_alvo for None)
+                    # 5. Criar Job
                     db = next(get_db())
+                    job = None # [FIX] Initialize variable for error handling safety
                     try:
                         # [FIX] Create Inspection Record Immediately for UI Visibility
                         from src.models_db import Inspection, InspectionStatus
@@ -393,7 +395,7 @@ def upload_file():
                             drive_web_link=link_drive,
                             status=InspectionStatus.PROCESSING,
                             establishment_id=est_alvo.id if est_alvo else None,
-                            client_id=current_user.company_id # Ensure ownership is distinct from establishment
+                            client_id=None # [FIX] Removed invalid current_user.company_id assignment (FK Mismatch)
                         )
                         db.add(new_insp)
                         db.flush() 
@@ -439,9 +441,10 @@ def upload_file():
                         
                     except Exception as job_e:
                         logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")
-                        job.status = JobStatus.FAILED
-                        job.error_log = str(job_e)
-                        db.commit()
+                        if job:
+                            job.status = JobStatus.FAILED
+                            job.error_log = str(job_e)
+                            db.commit()
                         falha += 1
                         
                         # [NOTIFY] Avisar consultor sobre erro crítico
@@ -479,15 +482,34 @@ def upload_file():
                 if os.path.exists(caminho_temp):
                     os.remove(caminho_temp)
         
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
         if sucesso > 0:
             flash(f'{sucesso} relatório(s) enviado(s) para processamento.', 'success')
-        # if falha > 0: flash message handled inside loop for specificity
             
+        if is_ajax:
+            if falha > 0 and sucesso == 0:
+                # Falha total
+                msg = "Falha no envio do relatório. Verifique se é um PDF válido."
+                # Tenta pegar a última mensagem de flash de erro se houver
+                flashed_msgs = get_flashed_messages(category_filter=['error'])
+                if flashed_msgs:
+                    msg = flashed_msgs[-1]
+                return jsonify({'error': msg}), 500
+            elif falha > 0 and sucesso > 0:
+                # Parcial
+                return jsonify({'message': f'{sucesso} enviados, {falha} falharam. Verifique Dashboard.', 'partial': True}), 207
+            else:
+                # Sucesso total
+                return jsonify({'message': f'{sucesso} relatório(s) processado(s) com sucesso!'}), 200
+
         return redirect(url_for('dashboard_consultant'))
             
     except Exception as e:
         logger.error(f"Erro geral no upload: {e}")
         flash(f"Ocorreu um erro inesperado: {str(e)}", 'error')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+             return jsonify({'error': f"Erro interno: {str(e)}"}), 500
         return redirect(url_for('dashboard_consultant'))
 
 @app.route('/api/status')

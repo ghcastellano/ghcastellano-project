@@ -764,6 +764,9 @@
             if (closeBtn) closeBtn.style.display = 'block';
         };
 
+        // Aumentado para 5 minutos (300s) para evitar timeout em arquivos de 6MB+ em redes lentas
+        xhr.timeout = 300000;
+
         xhr.onload = function () {
             isProcessing = false; // Finished
             if (xhr.status === 200) {
@@ -779,6 +782,9 @@
                 // Slightly longer delay to allow user to read the toast and processing message
                 setTimeout(() => { window.location.reload(); }, 4000);
 
+            } else if (xhr.status === 413) {
+                showError('Arquivo muito grande. O limite é 10MB.');
+                showToast('Arquivo excedeu o limite de tamanho.', 'error');
             } else {
                 let errorMsg = 'Erro ao enviar arquivo.';
                 try {
@@ -787,7 +793,7 @@
                 } catch (e) {
                     console.error("JSON Parse Error:", e, xhr.responseText);
                     if (xhr.responseText.includes('<!doctype html>')) {
-                        errorMsg = "Sessão expirada. Tente recarregar a página.";
+                        errorMsg = "Sessão expirada ou erro interno. Tente recarregar.";
                     }
                 }
                 showError(errorMsg);
@@ -799,6 +805,11 @@
             isProcessing = false;
             showError('Erro de conexão. Verifique sua internet.');
             showToast('Erro de conexão.', 'error');
+        };
+
+        xhr.ontimeout = function () {
+            isProcessing = false;
+            showError('O envio demorou muito e expirou. Tente um arquivo menor ou verifique sua conexão.');
         };
 
         xhr.send(formData);

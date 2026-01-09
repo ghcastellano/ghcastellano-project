@@ -272,6 +272,7 @@ def create_establishment():
             company_id=current_user.company_id, # Link auto to manager's company
             drive_folder_id="", # Optional init
             responsible_name=request.form.get('responsible_name'),
+            responsible_email=request.form.get('responsible_email'), # NEW FIELD
             responsible_phone=request.form.get('responsible_phone')
         )
         db.add(est)
@@ -286,7 +287,10 @@ def create_establishment():
                  'establishment': {
                      'id': str(est.id),
                      'name': est.name,
-                     'code': est.code
+                     'code': est.code,
+                     'responsible_name': est.responsible_name,
+                     'responsible_email': est.responsible_email,
+                     'responsible_phone': est.responsible_phone
                  }
              }), 201
              
@@ -326,13 +330,17 @@ def update_establishment(est_id):
         est.name = name
         est.code = code
         est.responsible_name = request.form.get('responsible_name')
+        est.responsible_email = request.form.get('responsible_email') # NEW FIELD
         est.responsible_phone = request.form.get('responsible_phone')
         db.commit()
         
         est_data = {
             'id': str(est.id),
             'name': est.name,
-            'code': est.code
+            'code': est.code,
+            'responsible_name': est.responsible_name,
+            'responsible_email': est.responsible_email,
+            'responsible_phone': est.responsible_phone
         }
         return jsonify({'success': True, 'message': 'Estabelecimento atualizado!', 'establishment': est_data}), 200
     except Exception as e:

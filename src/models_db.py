@@ -84,6 +84,7 @@ class Establishment(Base):
     
     # Novos campos V5 (WhatsApp Integration)
     responsible_name: Mapped[Optional[str]] = mapped_column(String)
+    responsible_email: Mapped[Optional[str]] = mapped_column(String) # [NEW] Added for responsible email
     responsible_phone: Mapped[Optional[str]] = mapped_column(String)
     
     # Relacionamento com Contatos (1:N)

@@ -227,13 +227,10 @@
                                             onclick="openEditCompany(this.dataset.id, this.dataset.name, this.dataset.cnpj)">
                                             <i class="ph-bold ph-pencil-simple"></i>
                                         </button>
-                                        <form action="{{ url_for('admin.delete_company', company_id=company.id) }}"
-                                            method="POST" style="display: inline;"
-                                            onsubmit="return confirm('ATENÇÃO: Apagar {{ company.name }} removerá TODOS os dados. Continuar?');">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                            <button type="submit" class="btn-delete-icon"><i
-                                                    class="ph-bold ph-trash"></i></button>
-                                        </form>
+                                        <button class="btn-delete-icon"
+                                            onclick="deleteCompany('{{ company.id }}', '{{ company.name }}')">
+                                            <i class="ph-bold ph-trash"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -368,13 +365,11 @@
                                                 title="Editar">
                                                 <i class="ph-bold ph-pencil-simple"></i>
                                             </button>
-                                            <form action="{{ url_for('admin.delete_manager', user_id=manager.id) }}"
-                                                method="POST" style="display: inline;"
-                                                onsubmit="return confirm('Remover acesso de {{ manager.name }}?')">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                                <button type="submit" class="btn-icon btn-icon-delete"
-                                                    title="Excluir"><i class="ph-bold ph-trash"></i></button>
-                                            </form>
+                                            <button class="btn-icon btn-icon-delete"
+                                                onclick="deleteManager('{{ manager.id }}', '{{ manager.name }}')"
+                                                title="Excluir">
+                                                <i class="ph-bold ph-trash"></i>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -459,69 +454,155 @@
         window.scrollTo(0, 0);
     }
 
+    // --- TOAST SYSTEM (Ported from Manager) ---
+    function showToast(message, type = 'success') {
+        const toastId = 'toast-' + Math.random().toString(36).substr(2, 9);
+        const color = type === 'success' ? '#10b981' : '#ef4444';
+        const bg = type === 'success' ? '#ecfdf5' : '#fef2f2';
+
+        const html = `
+            <div id="${toastId}" style="
+                position: fixed; top: 20px; right: 20px; z-index: 9999;
+                background: ${bg}; border-left: 4px solid ${color};
+                padding: 1rem 1.5rem; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                display: flex; align-items: center; gap: 12px;
+                transform: translateX(100%); transition: transform 0.3s ease-out;
+            ">
+                <i class="ph-bold ${type === 'success' ? 'ph-check-circle' : 'ph-warning-circle'}" style="color: ${color}; font-size: 1.2rem;"></i>
+                <div style="font-weight: 500; color: #1f2937;">${message}</div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+
+        setTimeout(() => {
+            const el = document.getElementById(toastId);
+            if (el) el.style.transform = 'translateX(0)';
+        }, 100);
+
+        setTimeout(() => {
+            const el = document.getElementById(toastId);
+            if (el) {
+                el.style.transform = 'translateX(120%)';
+                setTimeout(() => el.remove(), 300);
+            }
+        }, 4000);
+    }
+
+    // --- AJAX DELETE ACTIONS ---
+    async function deleteCompany(id, name) {
+        if (!confirm(`ATENÇÃO: Apagar ${name} removerá TODOS os dados da empresa. Continuar?`)) return;
+        try {
+            const res = await fetch(`/admin/company/${id}/delete`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast('Empresa removida com sucesso', 'success');
+                const row = document.getElementById(`row-company-${id}`);
+                if (row) row.remove();
+            } else {
+                showToast(data.error || 'Erro ao remover', 'error');
+            }
+        } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
+    }
+
+    async function deleteManager(id, name) {
+        if (!confirm(`Remover acesso de ${name}?`)) return;
+        try {
+            const res = await fetch(`/admin/manager/${id}/delete`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast('Gestor removido com sucesso', 'success');
+                // Remove row. Note: Managers might be in complex hierarchy, but simple row removal usually works visually.
+                // If row is inside a group that becomes empty, it stays empty visually (acceptable).
+                // Or we reload if we want perfection.
+                // window.location.reload(); // Safer for managers list structure?
+                // Users requested "fluid", so removing row is better.
+                // NOTE: The manager row has no ID in the provided template? 
+                // Wait, I need to check if manager row has ID. 
+                // In my previously seen code: <tr id="row-company-{{ company.id }}"> exists.
+                // But for managers layout? 
+                // Let's assume I need to add IDs to manager rows in the template update step.
+                // Actually, let's just reload for managers to be safe on hierarchy, OR I will add IDs now.
+                window.location.reload();
+            } else {
+                showToast(data.error || 'Erro ao remover', 'error');
+            }
+        } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
+    }
+
+    // --- UPDATED HANDLERS ---
     async function handleCreateCompany(e) {
         e.preventDefault();
-        const form = e.target;
         const btn = document.getElementById('btnCreateCompany');
         btn.disabled = true; btn.innerHTML = 'Criando...';
         try {
-            const formData = new FormData(form);
+            const formData = new FormData(e.target);
             const res = await fetch("{{ url_for('admin.create_company') }}", { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            if (res.ok) { window.location.reload(); } else { alert('Erro ao criar empresa'); }
-        } catch (err) { console.error(err); alert('Erro de conexão'); }
+            const data = await res.json();
+            if (res.ok) {
+                showToast('Empresa criada!', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else { showToast(data.error || 'Erro', 'error'); }
+        } catch (err) { showToast('Erro de conexão', 'error'); }
         finally { btn.disabled = false; btn.innerHTML = 'Criar'; }
     }
 
     async function handleUpdateCompany(e) {
         e.preventDefault();
-        const id = document.getElementById('edit_company_id').value;
-        const form = e.target;
         const btn = document.getElementById('btnUpdateCompany');
         btn.disabled = true; btn.innerHTML = 'Salvando...';
         try {
-            const formData = new FormData(form);
+            const formData = new FormData(e.target);
+            const id = document.getElementById('edit_company_id').value;
             const res = await fetch(`/admin/company/${id}/update`, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            if (res.ok) { window.location.reload(); } else { alert('Erro ao atualizar'); }
-        } catch (err) { console.error(err); alert('Erro'); }
+            const data = await res.json();
+            if (res.ok) {
+                showToast('Atualizado!', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else { showToast(data.error || 'Erro', 'error'); }
+        } catch (err) { showToast('Erro', 'error'); }
         finally { btn.disabled = false; btn.innerHTML = 'Salvar'; }
-    }
-
-    function toggleCreateManager() {
-        const el = document.getElementById('createManagerCard');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        document.getElementById('editManagerCard').style.display = 'none';
-    }
-
-    function openEditManager(id, name, email, companyId) {
-        document.getElementById('createManagerCard').style.display = 'none';
-        document.getElementById('editManagerCard').style.display = 'block';
-        document.getElementById('edit_manager_id').value = id;
-        document.getElementById('edit_manager_name').value = name;
-        document.getElementById('edit_manager_email').value = email;
-        if (companyId && companyId !== 'None') {
-            document.getElementById('edit_manager_company').value = companyId;
-        }
-        window.scrollTo(0, 0);
     }
 
     async function handleCreateManager(e) {
         e.preventDefault();
-        const form = e.target;
-        // Same logic as before
-        const formData = new FormData(form);
-        const res = await fetch("{{ url_for('admin.create_manager') }}", { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-        if (res.ok) window.location.reload();
-        else alert('Erro');
+        const btn = document.getElementById('btnCreateManager');
+        btn.disabled = true; btn.innerHTML = 'Criando...';
+        try {
+            const formData = new FormData(e.target);
+            const res = await fetch("{{ url_for('admin.create_manager') }}", { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message || 'Gestor criado!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else { showToast(data.error || 'Erro', 'error'); }
+        } catch (err) { showToast('Erro de conexão', 'error'); }
+        finally { btn.disabled = false; btn.innerHTML = 'Salvar'; }
     }
 
     async function handleUpdateManager(e) {
         e.preventDefault();
-        const id = document.getElementById('edit_manager_id').value;
-        const form = e.target;
-        const formData = new FormData(form);
-        const res = await fetch(`/admin/manager/${id}/update`, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-        if (res.ok) window.location.reload();
-        else alert('Erro ao atualizar');
+        const btn = document.getElementById('btnUpdateManager');
+        btn.disabled = true; btn.innerHTML = 'Salvando...';
+        try {
+            const formData = new FormData(e.target);
+            const id = document.getElementById('edit_manager_id').value;
+            const res = await fetch(`/admin/manager/${id}/update`, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            if (res.ok) {
+                showToast('Gestor atualizado!', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else { showToast(data.error || 'Erro', 'error'); }
+        } catch (err) { showToast('Erro', 'error'); }
+        finally { btn.disabled = false; btn.innerHTML = 'Atualizar'; }
     }
 
     // Monitoring
@@ -598,32 +679,51 @@
             if (l.status === 'RUNNING') color = 'text-primary';
             return `<div style="font-family:monospace; font-size:0.85em; padding: 2px 0;" class="${color}">
                 [${l.timestamp.split('T')[1].split('.')[0]}] <b>${l.stage}:</b> ${l.message}
-             </div>`;
+            </div>`;
         }).join('');
     }
 
     function renderLogsPreview(logs) {
-        // Optional: Draw a mini progress bar or dots
         if (!logs || logs.length === 0) return '';
-        // 5 steps: INIT, DOWNLOAD, AI, PDF, DB
-        const count = logs.length;
-        // Simple visual indicator of depth
-        return `<div style="display: flex; gap: 2px; margin-top: 4px;">
-            ${logs.map(l => {
-            let color = '#e5e7eb';
-            if (l.status === 'SUCCESS') color = '#22c55e';
-            if (l.status === 'RUNNING') color = '#3b82f6';
-            if (l.status === 'FAILED') color = '#ef4444';
-            return `<div style="width: 6px; height: 6px; border-radius: 50%; background: ${color};" title="${l.stage}: ${l.message}"></div>`;
+        // Small dots for last 3 steps
+        const last3 = logs.slice(-3);
+        return `<div style="display:flex; gap:2px; margin-top:2px;">
+            ${last3.map(l => {
+            let color = '#cbd5e1';
+            if (l.status == 'SUCCESS') color = '#34d399';
+            if (l.status == 'FAILED') color = '#f87171';
+            return `<div style="width:6px; height:6px; borderRadius:50%; background:${color};" title="${l.stage}"></div>`
         }).join('')}
         </div>`;
     }
+</script>
+</div>`;
+}).join('');
+}
 
-    setInterval(() => {
-        if (document.getElementById('monitoring').classList.contains('active')) {
-            updateMonitoring();
-        }
-    }, 10000);
+function renderLogsPreview(logs) {
+// Optional: Draw a mini progress bar or dots
+if (!logs || logs.length === 0) return '';
+// 5 steps: INIT, DOWNLOAD, AI, PDF, DB
+const count = logs.length;
+// Simple visual indicator of depth
+return `<div style="display: flex; gap: 2px; margin-top: 4px;">
+    ${logs.map(l => {
+    let color = '#e5e7eb';
+    if (l.status === 'SUCCESS') color = '#22c55e';
+    if (l.status === 'RUNNING') color = '#3b82f6';
+    if (l.status === 'FAILED') color = '#ef4444';
+    return `<div style="width: 6px; height: 6px; border-radius: 50%; background: ${color};"
+        title="${l.stage}: ${l.message}"></div>`;
+    }).join('')}
+</div>`;
+}
+
+setInterval(() => {
+if (document.getElementById('monitoring').classList.contains('active')) {
+updateMonitoring();
+}
+}, 10000);
 </script>
 <style>
     .btn-delete-icon {

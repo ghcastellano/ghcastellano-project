@@ -105,32 +105,67 @@
         justify-content: flex-end;
     }
 
-    .btn-action {
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #e2e8f0;
-        background: white;
+    .btn-edit-icon {
+        background: transparent;
         color: var(--text-secondary);
-        transition: all 0.2s;
+        border: none;
+        padding: 0.5rem;
+        border-radius: 6px;
         cursor: pointer;
+        transition: all 0.2s;
     }
 
-    .btn-action:hover {
-        border-color: var(--accent-color);
-        color: var(--accent-color);
-        background: #f5f3ff;
+    .btn-edit-icon:hover {
+        background: #f1f5f9;
+        color: var(--primary-color);
     }
 
-    .btn-action-delete:hover {
-        border-color: var(--danger-color);
-        color: var(--danger-color);
-        background: #fef2f2;
+    .btn-delete-icon {
+        background: #fee2e2;
+        color: #ef4444;
+        border: none;
+        padding: 0.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-delete-icon:hover {
+        background: #fecaca;
+        color: #dc2626;
     }
 </style>
+<script>
+    // ... previous scripts ...
+
+    window.openEditEst = function (id, name, code, respName, respEmail, respPhone) {
+        document.getElementById('createEstCard').style.display = 'none';
+        const card = document.getElementById('editEstCard');
+        card.style.display = 'block';
+
+        document.getElementById('edit_est_id').value = id;
+        document.getElementById('edit_est_name').value = name;
+        document.getElementById('edit_est_code').value = code || '';
+        document.getElementById('edit_est_resp_name').value = respName || '';
+        document.getElementById('edit_est_resp_email').value = respEmail || ''; // Populating Email
+        document.getElementById('edit_est_resp_phone').value = respPhone || '';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Update DOM after Save
+    // Inside handleUpdateEst...
+    // if (row && data.establishment) {
+    //    ...
+    //    // Update Edit Button Data
+    //    const editBtn = row.querySelector('button[title="Editar"]');
+    //    if (editBtn) {
+    //        editBtn.dataset.name = est.name;
+    //        ...
+    //        editBtn.dataset.respEmail = est.responsible_email || ''; // Update Dataset
+    //    }
+    // }
+</script>
 
 <div class="admin-wrapper-grid">
     <!-- Sidebar -->
@@ -339,118 +374,253 @@
             </div>
 
             <!-- 2. Establishments Section -->
-            <div id="establishments-view" class="section-view">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
-                    <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Lojas</h1>
-                    <button class="btn btn-accent" onclick="openCreateEstModal()">
-                        <i class="ph-bold ph-storefront"></i> Nova Loja
-                    </button>
-                </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Lojas</h1>
+                <button class="btn btn-accent" onclick="toggleCreateEst()">
+                    <i class="ph-bold ph-storefront"></i> Nova Loja
+                </button>
+            </div>
 
-                <div class="card">
-                    <div class="table-container">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>Código</th>
-                                    <th class="text-right">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-establishments-body">
-                                {% for est in establishments %}
-                                <tr id="row-est-{{ est.id }}">
-                                    <td>
-                                        <div style="display:flex; align-items:center; gap:0.75rem;">
-                                            <div class="user-avatar-sm"
-                                                style="background: linear-gradient(135deg, #10b981, #059669);">
-                                                <i class="ph ph-storefront"></i>
-                                            </div>
-                                            <div style="font-weight: 600;">{{ est.name }}</div>
-                                        </div>
-                                    </td>
-                                    <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or '-'
-                                        }}</td>
-                                    <td class="text-right">
-                                        <div class="btn-icon-group">
-                                            <button class="btn-action" data-id="{{ est.id }}" data-name="{{ est.name }}"
-                                                data-code="{{ est.code or '' }}"
-                                                onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code)"
-                                                title="Editar">
-                                                <i class="ph ph-pencil-simple"></i>
-                                            </button>
-                                            <button class="btn-action btn-action-delete"
-                                                onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
-                                                title="Remover">
-                                                <i class="ph ph-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- Create Est Card -->
+            <div class="card" id="createEstCard" style="display:none; margin-bottom:2rem;">
+                <div class="card-body">
+                    <form id="formCreateEst" onsubmit="handleCreateEstablishment(event)">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div><label class="form-label">Nome</label><input name="name" class="form-control" required
+                                    placeholder="Ex: Matriz"></div>
+                            <div><label class="form-label">Código</label><input name="code" class="form-control"
+                                    placeholder="LOJA-01"></div>
+                        </div>
+                        <hr style="margin:1rem 0; border-color:#f1f5f9;">
+                        <h6 style="color:var(--text-secondary); margin-bottom:1rem; font-size:0.85rem;">Responsável
+                            (Contato)</h6>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                            <div><label class="form-label">Nome</label><input name="responsible_name"
+                                    class="form-control"></div>
+                            <div><label class="form-label">Email (Recebimento de Relatórios)</label><input type="email"
+                                    name="responsible_email" class="form-control" placeholder="email@loja.com"></div>
+                            <div><label class="form-label">Telefone</label><input name="responsible_phone"
+                                    class="form-control"></div>
+                        </div>
+                        <div class="text-right" style="margin-top:1rem;">
+                            <button type="button" class="btn btn-secondary"
+                                onclick="toggleCreateEst()">Cancelar</button>
+                            <button type="submit" class="btn btn-accent" id="btnCreateEst">Salvar Loja</button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
-            <!-- 3. Consultants Section -->
-            <div id="consultants-view" class="section-view">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
-                    <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Consultores</h1>
-                    <button class="btn btn-primary" onclick="openCreateConsultantModal()">
-                        <i class="ph-bold ph-user-plus"></i> Novo Consultor
-                    </button>
+            <!-- Edit Est Card -->
+            <div class="card" id="editEstCard" style="display:none; margin-bottom:2rem; border:1px solid #3b82f6;">
+                <div class="card-header" style="background:none; padding-bottom:0;">
+                    <h4 style="margin:0; color:#1e40af;">Editar Loja</h4>
                 </div>
+                <div class="card-body">
+                    <form id="editEstForm" onsubmit="handleUpdateEst(event)">
+                        <input type="hidden" id="edit_est_id">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div><label class="form-label">Nome</label><input id="edit_est_name" name="name"
+                                    class="form-control" required></div>
+                            <div><label class="form-label">Código</label><input id="edit_est_code" name="code"
+                                    class="form-control"></div>
+                        </div>
+                        <hr style="margin:1rem 0; border-color:#e2e8f0;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                            <div><label class="form-label">Nome Resp.</label><input id="edit_est_resp_name"
+                                    name="responsible_name" class="form-control"></div>
+                            <div><label class="form-label">Email (Relatórios)</label><input id="edit_est_resp_email"
+                                    name="responsible_email" class="form-control"></div>
+                            <div><label class="form-label">Tel Resp.</label><input id="edit_est_resp_phone"
+                                    name="responsible_phone" class="form-control"></div>
+                        </div>
+                        <div class="text-right" style="margin-top:1rem;">
+                            <button type="button" class="btn btn-secondary"
+                                onclick="document.getElementById('editEstCard').style.display='none'">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="btnUpdateEst">Atualizar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
-                <div class="card">
-                    <div class="table-container">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>Email</th>
-                                    <th class="text-right">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-consultants-body">
-                                {% for consultant in consultants %}
-                                <tr id="row-consultant-{{ consultant.id }}">
-                                    <td>
-                                        <div style="display:flex; align-items:center; gap:0.75rem;">
-                                            <div class="user-avatar-sm">{{ consultant.name[0].upper() }}</div>
-                                            <div style="font-weight: 600;">{{ consultant.name }}</div>
+            <div class="card">
+                <div class="table-container">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Código</th>
+                                <th class="text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-establishments-body">
+                            {% for est in establishments %}
+                            <tr id="row-est-{{ est.id }}">
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                                        <div class="user-avatar-sm"
+                                            style="background: linear-gradient(135deg, #10b981, #059669);">
+                                            <i class="ph ph-storefront"></i>
                                         </div>
-                                    </td>
-                                    <td style="color: var(--text-secondary);">{{ consultant.email }}</td>
-                                    <td class="text-right">
-                                        <div class="btn-icon-group">
-                                            <button class="btn-action" data-id="{{ consultant.id }}"
-                                                data-name="{{ consultant.name }}" data-email="{{ consultant.email }}"
-                                                data-stores='[{% for est in consultant.establishments %}"{{ est.id }}"{{ "," if not loop.last }}{% endfor %}]'
-                                                onclick="openEditConsultant(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.stores)"
-                                                title="Editar">
-                                                <i class="ph ph-pencil-simple"></i>
-                                            </button>
-                                            <button class="btn-action btn-action-delete"
-                                                onclick="if(confirm('Tem certeza?')) deleteConsultant('{{ consultant.id }}')"
-                                                title="Remover">
-                                                <i class="ph ph-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="3" class="text-center text-muted">Nenhum consultor.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                        <div style="font-weight: 600;">{{ est.name }}</div>
+                                    </div>
+                                </td>
+                                <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or '-'
+                                    }}</td>
+                                <td class="text-right">
+                                    <div class="btn-icon-group">
+                                        <button class="btn-edit-icon" data-id="{{ est.id }}" data-name="{{ est.name }}"
+                                            data-code="{{ est.code or '' }}"
+                                            data-resp-name="{{ est.responsible_name or '' }}"
+                                            data-resp-email="{{ est.responsible_email or '' }}"
+                                            data-resp-phone="{{ est.responsible_phone or '' }}"
+                                            onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code, this.dataset.respName, this.dataset.respEmail, this.dataset.respPhone)"
+                                            title="Editar">
+                                            <i class="ph-bold ph-pencil-simple"></i>
+                                        </button>
+                                        <button class="btn-delete-icon"
+                                            onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
+                                            title="Remover">
+                                            <i class="ph-bold ph-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
+
+        <!-- 3. Consultants Section -->
+        <div id="consultants-view" class="section-view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Consultores</h1>
+                <button class="btn btn-primary" onclick="toggleCreateConsultant()">
+                    <i class="ph-bold ph-user-plus"></i> Novo Consultor
+                </button>
+            </div>
+
+            <!-- Create Consultant Card -->
+            <div class="card" id="createConsultantCard" style="display:none; margin-bottom:2rem;">
+                <div class="card-body">
+                    <form id="formCreateConsultant" onsubmit="handleCreateConsultant(event)">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div><label class="form-label">Nome</label><input name="name" class="form-control" required>
+                            </div>
+                            <div><label class="form-label">Email</label><input type="email" name="email"
+                                    class="form-control" required></div>
+                        </div>
+                        <div style="margin-top:1rem;">
+                            <label class="form-label">Vincular Lojas</label>
+                            <div
+                                style="max-height:150px; overflow-y:auto; border:1px solid #e2e8f0; padding:0.5rem; border-radius:4px;">
+                                {% for est in all_establishments %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="establishment_ids"
+                                        value="{{ est.id }}" id="chk-{{ est.id }}">
+                                    <label class="form-check-label" for="chk-{{ est.id }}">{{ est.name }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="text-right" style="margin-top:1rem;">
+                            <button type="button" class="btn btn-secondary"
+                                onclick="toggleCreateConsultant()">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="btnCreateConsultant">Salvar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Edit Consultant Card -->
+            <div class="card" id="editConsultantCard"
+                style="display:none; margin-bottom:2rem; border:1px solid #3b82f6;">
+                <div class="card-header" style="background:none; padding-bottom:0;">
+                    <h4 style="margin:0; color:#1e40af;">Editar Consultor</h4>
+                </div>
+                <div class="card-body">
+                    <form id="editConsultantForm" onsubmit="handleUpdateConsultant(event)">
+                        <input type="hidden" id="edit_consultant_id">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div><label class="form-label">Nome</label><input id="edit_consultant_name" name="name"
+                                    class="form-control" required></div>
+                            <div><label class="form-label">Email</label><input id="edit_consultant_email" name="email"
+                                    class="form-control" required></div>
+                        </div>
+                        <div style="margin-top:1rem;">
+                            <label class="form-label">Lojas Vinculadas</label>
+                            <select id="edit_consultant_ests" name="establishment_ids" class="form-control" multiple
+                                style="height:120px;">
+                                {% for est in all_establishments %}
+                                <option value="{{ est.id }}">{{ est.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Segure Ctrl/Cmd para selecionar múltiplas.</small>
+                        </div>
+                        <div style="margin-top:1rem;">
+                            <label class="form-label">Nova Senha (Opcional)</label>
+                            <input type="password" name="password" class="form-control"
+                                placeholder="Deixar em branco para manter">
+                        </div>
+                        <div class="text-right" style="margin-top:1rem;">
+                            <button type="button" class="btn btn-secondary"
+                                onclick="document.getElementById('editConsultantCard').style.display='none'">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="btnUpdateConsultant">Atualizar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th class="text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-consultants-body">
+                            {% for consultant in consultants %}
+                            <tr id="row-consultant-{{ consultant.id }}">
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                                        <div class="user-avatar-sm">{{ consultant.name[0].upper() }}</div>
+                                        <div style="font-weight: 600;">{{ consultant.name }}</div>
+                                    </div>
+                                </td>
+                                <td style="color: var(--text-secondary);">{{ consultant.email }}</td>
+                                <td class="text-right">
+                                    <div class="btn-icon-group">
+                                        <button class="btn-edit-icon" data-id="{{ consultant.id }}"
+                                            data-name="{{ consultant.name }}" data-email="{{ consultant.email }}"
+                                            data-stores='[{% for est in consultant.establishments %}"{{ est.id }}"{{ "," if not loop.last }}{% endfor %}]'
+                                            onclick="openEditConsultant(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.stores)"
+                                            title="Editar">
+                                            <i class="ph-bold ph-pencil-simple"></i>
+                                        </button>
+                                        <button class="btn-delete-icon"
+                                            onclick="if(confirm('Tem certeza?')) deleteConsultant('{{ consultant.id }}')"
+                                            title="Remover">
+                                            <i class="ph-bold ph-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">Nenhum consultor.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+</div>
 
 
 
@@ -599,53 +769,72 @@
         if (elE) createEstModal = new bootstrap.Modal(elE);
     });
 
-    // Explicitly expose to window - Force Direct DOM manipulation to avoid Bootstrap conflicts
-    window.openCreateConsultantModal = function () {
-        const el = document.getElementById('createConsultantModal');
-        if (el) {
+    // Simplified Toggle Logic (No Modals)
+    window.toggleCreateEst = function () {
+        const el = document.getElementById('createEstCard');
+        const editEl = document.getElementById('editEstCard');
+        if (el.style.display === 'none') {
             el.style.display = 'block';
-            el.classList.add('show'); // FIX: Ensure opacity is 1
-            el.removeAttribute('aria-hidden');
-            el.setAttribute('aria-modal', 'true');
-            el.focus();
-        }
-    };
-    window.openCreateEstModal = function () {
-        const el = document.getElementById('createEstModal');
-        if (el) {
-            el.style.display = 'block';
-            el.classList.add('show'); // FIX: Ensure opacity is 1
-            el.removeAttribute('aria-hidden');
-            el.setAttribute('aria-modal', 'true');
-            el.focus();
-        }
-    };
-    window.closeCreateConsultantModal = function () {
-        const el = document.getElementById('createConsultantModal');
-        if (el) {
+            editEl.style.display = 'none';
+        } else {
             el.style.display = 'none';
-            el.classList.remove('show');
-            el.setAttribute('aria-hidden', 'true');
-            el.removeAttribute('aria-modal');
-        }
-    };
-    window.closeCreateEstModal = function () {
-        const el = document.getElementById('createEstModal');
-        if (el) {
-            el.style.display = 'none';
-            el.classList.remove('show');
-            el.setAttribute('aria-hidden', 'true');
-            el.removeAttribute('aria-modal');
         }
     };
 
-    window.closeEditModal = (id) => {
-        const el = document.getElementById(id || 'editEstCard');
-        if (el) {
+    window.toggleCreateConsultant = function () {
+        const el = document.getElementById('createConsultantCard');
+        const editEl = document.getElementById('editConsultantCard');
+        if (el.style.display === 'none') {
+            el.style.display = 'block';
+            editEl.style.display = 'none';
+        } else {
             el.style.display = 'none';
-            el.setAttribute('aria-hidden', 'true');
-            el.removeAttribute('aria-modal');
         }
+    };
+
+    window.openEditEst = function (id, name, code, respName, respEmail, respPhone) {
+        document.getElementById('createEstCard').style.display = 'none';
+        const card = document.getElementById('editEstCard');
+        card.style.display = 'block';
+
+        document.getElementById('edit_est_id').value = id;
+        document.getElementById('edit_est_name').value = name;
+        document.getElementById('edit_est_code').value = code || '';
+        document.getElementById('edit_est_resp_name').value = respName || '';
+        document.getElementById('edit_est_resp_email').value = respEmail || '';
+        document.getElementById('edit_est_resp_phone').value = respPhone || '';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.openEditConsultant = function (id, name, email, storesJson) {
+        document.getElementById('createConsultantCard').style.display = 'none';
+        const card = document.getElementById('editConsultantCard');
+        card.style.display = 'block';
+
+        document.getElementById('edit_consultant_id').value = id;
+        document.getElementById('edit_consultant_name').value = name;
+        document.getElementById('edit_consultant_email').value = email;
+
+        // Handle Multi-Select (Select element now)
+        const select = document.getElementById('edit_consultant_ests');
+        if (select) {
+            Array.from(select.options).forEach(opt => opt.selected = false);
+            try {
+                let stores = [];
+                if (storesJson) {
+                    if (typeof storesJson === 'string') stores = JSON.parse(storesJson);
+                    else stores = storesJson;
+                }
+                if (Array.isArray(stores)) {
+                    stores.forEach(estId => {
+                        const opt = Array.from(select.options).find(o => o.value == estId);
+                        if (opt) opt.selected = true;
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
 
@@ -779,7 +968,11 @@
                             <td class="text-right">
                                 <div class="btn-icon-group">
                                     <button class="btn-action" data-id="${est.id}" data-name="${est.name}" data-code="${est.code || ''}"
-                                        onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code)" title="Editar">
+                                        data-resp-name="${est.responsible_name || ''}"
+                                        data-resp-email="${est.responsible_email || ''}"
+                                        data-resp-phone="${est.responsible_phone || ''}"
+                                        onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code, this.dataset.respName, this.dataset.respEmail, this.dataset.respPhone)"
+                                        title="Editar">
                                         <i class="ph ph-pencil-simple"></i>
                                     </button>
                                     <button class="btn-action btn-action-delete"
@@ -908,6 +1101,9 @@
                     if (editBtn) {
                         editBtn.dataset.name = est.name;
                         editBtn.dataset.code = est.code || '';
+                        editBtn.dataset.respName = est.responsible_name || '';
+                        editBtn.dataset.respEmail = est.responsible_email || '';
+                        editBtn.dataset.respPhone = est.responsible_phone || '';
                     }
                 }
             }
@@ -1117,151 +1313,7 @@
 </style>
 
 <!-- MODALS (Re-injected) -->
-<!-- Create Consultant Modal -->
-<div class="modal fade" id="createConsultantModal" tabindex="-1" aria-hidden="true"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1050; background:rgba(0,0,0,0.5);">
-    <div class="modal-dialog modal-dialog-centered"
-        style="margin: 1.75rem auto; max-width: 500px; background: white; border-radius: 8px; padding: 20px;">
-        <div class="modal-content" style="border:none;">
-            <div class="modal-header"
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h5 class="modal-title" style="font-weight:600;">Novo Consultor</h5>
-                <button type="button" class="btn-close" style="background:none; border:none; font-size:1.5rem;"
-                    onclick="closeCreateConsultantModal()">&times;</button>
-            </div>
-            <form id="formCreateConsultant" action="{{ url_for('manager.create_consultant') }}" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-body">
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Nome Completo</label>
-                        <input type="text" name="name" class="form-control" required
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control" required
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Vincular Lojas</label>
-                        <div
-                            style="max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 4px;">
-                            {% for est in all_establishments %}
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="establishment_ids"
-                                    value="{{ est.id }}" id="chk-{{ est.id }}">
-                                <label class="form-check-label" for="chk-{{ est.id }}">
-                                    {{ est.name }}
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <small class="text-muted">Selecione as lojas que este consultor atenderá.</small>
-                    </div>
-                </div>
-                <div class="modal-footer" style="text-align:right; margin-top:1rem;">
-                    <button type="button" class="btn btn-secondary"
-                        onclick="closeCreateConsultantModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnCreateConsultant">Salvar Consultor</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Create Establishment Modal -->
-<div class="modal fade" id="createEstModal" tabindex="-1" aria-hidden="true"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1050; background:rgba(0,0,0,0.5);">
-    <div class="modal-dialog modal-dialog-centered"
-        style="margin: 1.75rem auto; max-width: 500px; background: white; border-radius: 8px; padding: 20px;">
-        <div class="modal-content" style="border:none;">
-            <div class="modal-header"
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h5 class="modal-title" style="font-weight:600;">Nova Loja</h5>
-                <button type="button" class="btn-close" style="background:none; border:none; font-size:1.5rem;"
-                    onclick="closeCreateEstModal()">&times;</button>
-            </div>
-            <form id="formCreateEst" action="{{ url_for('manager.create_establishment') }}" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-body">
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Nome da Loja</label>
-                        <input type="text" name="name" class="form-control" required placeholder="Ex: Filial Centro"
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Código (Opcional)</label>
-                        <input type="text" name="code" class="form-control" placeholder="Ex: LOJA-01"
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                    <hr>
-                    <h6 style="color: #64748b; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Responsável
-                        Local (Contato)</h6>
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Nome do Responsável</label>
-                        <input type="text" name="responsible_name" class="form-control" placeholder="Ex: Gerente João"
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Telefone/WhatsApp</label>
-                        <input type="text" name="responsible_phone" class="form-control" placeholder="Ex: 5511999999999"
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                </div>
-                <div class="modal-footer" style="text-align:right; margin-top:1rem;">
-                    <button type="button" class="btn btn-secondary" onclick="closeCreateEstModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnCreateEst">Criar Loja</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Establishment Modal -->
-<div class="modal fade" id="editEstCard" tabindex="-1" aria-hidden="true"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1050; background:rgba(0,0,0,0.5);">
-    <div class="modal-dialog modal-dialog-centered"
-        style="margin: 1.75rem auto; max-width: 500px; background: white; border-radius: 8px; padding: 20px;">
-        <input type="hidden" id="edit_est_id">
-        <div class="modal-content" style="border:none;">
-            <div class="modal-header"
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h5 class="modal-title" style="font-weight:600;">Editar Loja</h5>
-                <button type="button" class="btn-close" style="background:none; border:none; font-size:1.5rem;"
-                    onclick="closeEditModal()">&times;</button>
-            </div>
-            <form id="editEstForm" onsubmit="handleUpdateEst(event)">
-                <div class="modal-body">
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Nome da Loja</label>
-                        <input type="text" id="edit_est_name" name="name" class="form-control" required
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Código</label>
-                        <input type="text" id="edit_est_code" name="code" class="form-control"
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                    <hr>
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Responsável</label>
-                        <input type="text" id="edit_est_resp_name" name="responsible_name" class="form-control"
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                    <div class="mb-3" style="margin-bottom:1rem;">
-                        <label class="form-label">Telefone</label>
-                        <input type="text" id="edit_est_resp_phone" name="responsible_phone" class="form-control"
-                            style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    </div>
-                </div>
-                <div class="modal-footer" style="text-align:right; margin-top:1rem;">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnUpdateEst">Salvar Alterações</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Modals Removed - Replaced by Inline Cards -->
 
 
 
