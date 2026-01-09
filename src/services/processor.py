@@ -225,8 +225,9 @@ class ProcessorService:
             logger.error("Erro processando arquivo", filename=filename, error=msg)
             self._log_trace(file_id, "ERROR", "FAILED", msg)
             try:
-                self.drive_service.move_file(file_id, self.folder_error)
-                self._log_trace(file_id, "ERROR", "MOVED", "File moved to Error folder")
+                if not file_id.startswith('gcs:'):
+                    self.drive_service.move_file(file_id, self.folder_error)
+                    self._log_trace(file_id, "ERROR", "MOVED", "File moved to Error folder")
             except:
                 pass
             raise # Re-raise to let caller (app.py) know it failed
@@ -321,12 +322,31 @@ class ProcessorService:
             HTML(string=html_out, base_url="src/templates").write_pdf(temp_pdf, stylesheets=css)
             
             # Upload PDF
-            _, pdf_link = self.drive_service.upload_file(temp_pdf, self.folder_out, output_filename)
+            try:
+                # Primary: Drive
+                _, pdf_link = self.drive_service.upload_file(temp_pdf, self.folder_out, output_filename)
+            except Exception as e:
+                if "quota" in str(e).lower() or "403" in str(e) or "storage" in str(e).lower():
+                     logger.warning(f"⚠️ Drive Quota Limit for Output PDF. Falling back to StorageService for {output_filename}")
+                     from src.services.storage_service import StorageService # Lazy import
+                     # Assuming storage_service is not a class member yet? Wait, it is global in app.py but here? 
+                     # Better to use the one passed or import global. 
+                     # Checking imports... storage_service is not imported in this file globally. 
+                     # I see 'storage_service' in process_single_file in previous edits (Step 15426). 
+                     # Let's import it safely.
+                     from src.app import storage_service
+                     pdf_link = storage_service.upload_file(temp_pdf, "output", output_filename) # Using 'output' bucket/folder
+                else:
+                    raise e
             
             # Upload JSON
             with open(temp_json, "w", encoding="utf-8") as f:
                 f.write(data.model_dump_json(indent=2))
-            self.drive_service.upload_file(temp_json, self.folder_out, json_filename)
+            
+            try:
+                self.drive_service.upload_file(temp_json, self.folder_out, json_filename)
+            except:
+                pass # JSON backup failure is acceptable
             
             # Cleanup
             if os.path.exists(temp_pdf): os.remove(temp_pdf)

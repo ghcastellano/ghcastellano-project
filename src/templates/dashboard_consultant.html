@@ -237,6 +237,11 @@
         color: #1E40AF;
     }
 
+    .status-rejected {
+        background: #FEE2E2;
+        color: #B91C1C;
+    }
+
     /* Mobile Responsive */
     @media (max-width: 768px) {
         .dashboard-container {
@@ -351,6 +356,8 @@
                     <span class="status-badge status-approved">APROVADO</span>
                     {% elif 'PENDING' in insp.status or 'WAITING' in insp.status %}
                     <span class="status-badge status-pending">EM ANÁLISE</span>
+                    {% elif 'REJECTED' in insp.status or 'ERROR' in insp.status or 'FAILED' in insp.status %}
+                    <span class="status-badge status-rejected">FALHA</span>
                     {% else %}
                     <span class="status-badge status-processing">{{ insp.status.replace('_', ' ') }}</span>
                     {% endif %}
