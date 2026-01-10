@@ -149,6 +149,13 @@ def debug_config():
 try:
     init_db()
     logger.info("✅ Banco de dados inicializado com sucesso")
+
+    # [AUTO-PATCH] Self-Healing Schema & SA Log
+    try:
+        from src.patcher import run_auto_patch
+        run_auto_patch()
+    except Exception as e:
+        logger.error(f"❌ Falha no Auto-Patch: {e}")
 except Exception as e:
     logger.error(f"❌ Falha crítica na inicialização do Banco de Dados: {e}")
     # Não vamos rodar sem BD, pois causa 500 em quase tudo. Deixe quebrar para o Cloud Run reiniciar.
