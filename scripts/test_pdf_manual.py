@@ -21,9 +21,9 @@ if not os.getenv("OPENAI_API_KEY"):
     sys.exit(1)
 
 from src.app import app
+from src.database import db_session, engine
 from src.services.processor import ProcessorService
 from src.models_db import Company, Job, JobStatus, Establishment
-from src.database import db_session
 
 def mock_download_file(file_id):
     local_path = "data/backup/quest_resposta (3).pdf"
@@ -37,6 +37,10 @@ def mock_download_file(file_id):
 
 def run_test():
     with app.app_context():
+        # FORCE RECONNECT
+        engine.dispose()
+        print("🔄 Engine Disposed for Schema Refresh")
+        
         session = db_session()
         
         # 1. Get Valid Company (or Create)
@@ -82,7 +86,7 @@ def run_test():
             
             if result_link:
                 logger.info(f"✅ SUCCESS! Output Link: {result_link}")
-                logger.info(f"📊 Extraction Data (Summary): {job.output_payload.get('resumo', 'N/A') if job.output_payload else 'No Payload'}")
+                logger.info(f"📊 Extraction Data (Summary): {job.result_payload.get('resumo', 'N/A') if job.result_payload else 'No Payload'}")
             else:
                 logger.error("❌ Processing returned None (Failure)")
         

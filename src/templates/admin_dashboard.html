@@ -525,12 +525,6 @@
                 // Or we reload if we want perfection.
                 // window.location.reload(); // Safer for managers list structure?
                 // Users requested "fluid", so removing row is better.
-                // NOTE: The manager row has no ID in the provided template? 
-                // Wait, I need to check if manager row has ID. 
-                // In my previously seen code: <tr id="row-company-{{ company.id }}"> exists.
-                // But for managers layout? 
-                // Let's assume I need to add IDs to manager rows in the template update step.
-                // Actually, let's just reload for managers to be safe on hierarchy, OR I will add IDs now.
                 window.location.reload();
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');

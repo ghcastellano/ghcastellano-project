@@ -1,7 +1,7 @@
 openai
 pypdf
 google-api-python-client
-weasyprint==60.1
+weasyprint>=63.0
 uvicorn
 structlog
 python-dotenv

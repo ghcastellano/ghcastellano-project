@@ -70,11 +70,21 @@ class StorageService:
                 os.makedirs(target_dir, exist_ok=True)
                 
                 target_path = os.path.join(target_dir, filename)
-                file_obj.seek(0)
-                file_obj.save(target_path)
+                if hasattr(file_obj, 'save'):
+                    file_obj.seek(0) # Ensure we are at start of file if it was read
+                    file_obj.save(target_path)
+                else:
+                    # Fallback for standard Python file objects (io.BufferedReader, etc.)
+                    import shutil
+                    # Ensure we are at start of file if it was read
+                    if hasattr(file_obj, 'seek'):
+                        file_obj.seek(0)
+                    
+                    with open(target_path, 'wb') as dest_f:
+                        shutil.copyfileobj(file_obj, dest_f)
                 
-                # Return relative URL
-                return f"/static/uploads/{destination_folder}/{filename}"
+                logger.info(f"✅ Arquivo salvo localmente: {target_path}")
+                return f"/static/uploads/{filename}"
             except Exception as e:
                 logger.error(f"❌ Erro no Upload Local: {e}")
                 raise e

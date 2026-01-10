@@ -89,12 +89,16 @@ app.register_blueprint(dev_bp)
 logger.info("🛠️ Dev Routes registered at /dev")
 try:
     from src.auth import auth_bp
-    from src.admin_routes import admin_bp
+    from src.admin_routes import admin_bp, cron_sync_drive
     from src.manager_routes import manager_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp) 
     app.register_blueprint(manager_bp)
+    
+    # Exempt Cron from CSRF (Done here to avoid circular import)
+    csrf.exempt(cron_sync_drive)
+    
     logger.info("✅ Blueprints Registrados: auth, admin, manager")
     
     # Debug: List all rules
@@ -394,8 +398,8 @@ def upload_file():
                             drive_file_id=id_drive,
                             drive_web_link=link_drive,
                             status=InspectionStatus.PROCESSING,
-                            establishment_id=est_alvo.id if est_alvo else None,
-                            client_id=None # [FIX] Removed invalid current_user.company_id assignment (FK Mismatch)
+                            establishment_id=est_alvo.id if est_alvo else None
+                            # client_id removed
                         )
                         db.add(new_insp)
                         db.flush() 
@@ -762,8 +766,10 @@ def review_page(file_id):
                      contacts_list.append({'name': inspection.establishment.responsible_name, 'phone': inspection.establishment.responsible_phone, 'id': 'default'})
 
             # Users list for Email Modal (Fetch all users for now, or just company users)
+            # Users list for Email Modal
             from src.models_db import User
-            users_list = db.query(User).filter(User.company_id == inspection.client_id).all() # Or company_id
+            company_id = inspection.establishment.company_id if inspection.establishment else None
+            users_list = db.query(User).filter(User.company_id == company_id).all() if company_id else []
             
         else:
             # Fallback for unproccessed/legacy items
@@ -1086,7 +1092,8 @@ if __name__ == '__main__':
         port = int(os.environ.get('PORT', 8080))
         print(f"🚀 STARTING APP ON PORT {port}...")
         print(f"📂 Current Dir: {os.getcwd()}")
-        app.run(host='0.0.0.0', port=port, debug=True)
+        debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
+        app.run(host='0.0.0.0', port=port, debug=debug_mode)
     except Exception as e:
         print(f"❌ CRITICAL ERROR IN APP.RUN: {e}")
         import traceback

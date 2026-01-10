@@ -23,5 +23,6 @@ class ChecklistSanitario(BaseModel):
     pontuacao_geral: float = Field(description="Pontuação total obtida no estabelecimento.")
     pontuacao_maxima_geral: float = Field(description="Pontuação máxima possível para o estabelecimento.")
     aproveitamento_geral: float = Field(description="Percentual de aproveitamento global (0-100).")
+    data_inspecao: Optional[str] = Field(description="Data em que a inspeção foi realizada, encontrada no cabeçalho ou corpo do texto (DD/MM/AAAA).", default=None)
     pontos_fortes: str = Field(description="Lista de pontos positivos e boas práticas observadas.", default="")
     areas_inspecionadas: List[AreaInspecao] = Field(description="Lista de áreas inspecionadas com seus respectivos itens.")

@@ -60,7 +60,7 @@ class ProcessorService:
                 
             from openai import OpenAI
             self.client = OpenAI(api_key=api_key) if api_key else None
-            self.model_name = "gpt-4o" # Using robust model for detailed extraction
+            self.model_name = "gpt-4o-mini" # [COST-OPTIMIZATION] 15x Cheaper, supports Structured Outputs
         except Exception as e:
             logger.error("Falha ao inicializar OpenAI", error=str(e))
             self.client = None
@@ -238,8 +238,9 @@ class ProcessorService:
         Sua tarefa é analisar o texto do relatório de auditoria e transformá-lo em um CHECKLIST DE PLANO DE AÇÃO ESTRUTURADO.
         
         DIRETRIZES:
-        1. Identifique o Estabelecimento e crie um Resumo Geral robusto indicando as principais áreas críticas.
-        2. Calcule ou extraia a PONTUAÇÃO GERAL e o APROVEITAMENTO GERAL do estabelecimento do relatório.
+        1. Identifique o Estabelecimento e a DATA DA INSPEÇÃO (Checklist Base).
+        2. Crie um Resumo Geral robusto indicando as principais áreas críticas.
+        3. Calcule ou extraia a PONTUAÇÃO GERAL e o APROVEITAMENTO GERAL do estabelecimento do relatório.
         3. Para cada ÁREA FÍSICA (ex: 'Cozinha', 'Estoque Seco', 'Vestiários'):
            - Crie um 'resumo_area' curto e informativo.
            - Extraia 'pontuacao_obtida', 'pontuacao_maxima' e calcule o 'aproveitamento' (%).
@@ -292,7 +293,7 @@ class ProcessorService:
             temp_json = f"/tmp/{json_filename}"
             
             # Render HTML
-            template = self.jinja_env.get_template('base_layout.html')
+            template = self.jinja_env.get_template('pdf_template.html') # Updated to Validated Template
             # Pass data as 'relatorio' to match template
             html_out = template.render(relatorio=data, data_geracao=datetime.now().strftime("%d/%m/%Y"))
             
@@ -302,10 +303,23 @@ class ProcessorService:
                 
             HTML(string=html_out, base_url="src/templates").write_pdf(temp_pdf, stylesheets=css)
             
+            # Local Backup for Verification (Run BEFORE upload to ensure capture even if upload fails)
+            local_output_dir = "data/output"
+            if os.path.exists(local_output_dir):
+                import shutil
+                local_path = os.path.join(local_output_dir, output_filename)
+                shutil.copy(temp_pdf, local_path)
+                logger.info(f"📂 PDF Saved Locally: {local_path}")
+            
             # Upload PDF
             try:
                 # Primary: Drive
-                _, pdf_link = self.drive_service.upload_file(temp_pdf, self.folder_out, output_filename)
+                upload_res = self.drive_service.upload_file(temp_pdf, self.folder_out, output_filename)
+                if isinstance(upload_res, tuple) and len(upload_res) >= 2:
+                    _, pdf_link = upload_res
+                else:
+                    pdf_link = None # Handle unexpected return (e.g. Mock returning single value or None)
+                    logger.warning(f"⚠️ Drive upload returned unexpected format: {upload_res}")
             except Exception as e:
                 if "quota" in str(e).lower() or "403" in str(e) or "storage" in str(e).lower():
                      logger.warning(f"⚠️ Drive Quota Limit for Output PDF. Falling back to StorageService for {output_filename}")
@@ -316,7 +330,8 @@ class ProcessorService:
                      # I see 'storage_service' in process_single_file in previous edits (Step 15426). 
                      # Let's import it safely.
                      from src.app import storage_service
-                     pdf_link = storage_service.upload_file(temp_pdf, "output", output_filename) # Using 'output' bucket/folder
+                     with open(temp_pdf, 'rb') as f_obj:
+                        pdf_link = storage_service.upload_file(f_obj, "output", output_filename) # Using 'output' bucket/folder
                 else:
                     raise e
             
@@ -337,7 +352,9 @@ class ProcessorService:
         except Exception as e:
             import traceback
             import sys
-            logger.error("PDF Gen Error", error=str(e))
+            error_details = traceback.format_exc()
+            print(f"CRITICAL PDF ERROR: {error_details}") # Force stdout
+            logger.error("PDF Gen Error", error=str(e), traceback=error_details)
             return None
 
     def calculate_hash(self, content: bytes) -> str:
