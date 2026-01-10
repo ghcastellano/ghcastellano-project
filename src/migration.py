@@ -63,52 +63,16 @@ def run_migrations(db_session=None): # Renamed to generic
             conn.commit()
 
             # 4. Data Migration (Client -> Company+Establishment)
-            result = conn.execute(text("SELECT id, name, cnpj, drive_root_folder_id FROM clients;"))
-            clients = result.fetchall()
+            # [LEGACY REMOVED] Table 'clients' dropped. Logic preserved for history but disabled.
+            # result = conn.execute(text("SELECT id, name, cnpj, drive_root_folder_id FROM clients;"))
+            # clients = result.fetchall()
             
-            if clients:
-                for client in clients:
-                    c_id, c_name, c_cnpj, c_drive = client
-                    
-                    # Create/Get Company
-                    # Use INSERT ON CONFLICT DO NOTHING then SELECT to ensure we get ID even if exists
-                    # Or just simple SELECT first (less concurrency safe but ok for this scale)
-                    
-                    # Try insert
-                    conn.execute(text("""
-                        INSERT INTO companies (name, cnpj) 
-                        VALUES (:name, :cnpj)
-                        ON CONFLICT (cnpj) DO NOTHING;
-                    """), {"name": c_name, "cnpj": c_cnpj})
-                    
-                    # Get ID
-                    company_id = conn.execute(text("SELECT id FROM companies WHERE cnpj = :cnpj"), {"cnpj": c_cnpj}).fetchone()[0]
-
-                    # Create/Get Establishment
-                    # Deduplicate by drive_folder_id to avoid dupes? Or name+company?
-                    # Let's use drive_folder_id as unique key effectively for migration
-                    
-                    conn.execute(text("""
-                        INSERT INTO establishments (company_id, name, drive_folder_id)
-                        VALUES (:cid, :name, :drive_id)
-                        ON CONFLICT DO NOTHING;
-                        -- No unique constraint on drive_folder_id usually, but prevents crashes if we had one
-                        -- Actually we rely on basic insert here. To be idempotent, let's check existence first.
-                    """), {"cid": company_id, "name": c_name, "drive_id": c_drive})
-                    
-                    # Fetch Est ID (assuming one per company for this migration logic, or by drive_id)
-                    est_row = conn.execute(text("SELECT id FROM establishments WHERE drive_folder_id = :d"), {"d": c_drive}).fetchone()
-                    
-                    if est_row:
-                        est_id = est_row[0]
-                        # Link Inspections
-                        conn.execute(text("UPDATE inspections SET establishment_id = :eid WHERE client_id = :cid AND establishment_id IS NULL;"), 
-                                     {"eid": est_id, "cid": c_id})
-                
-                conn.commit()
-                logger.info("✅ Data migration completed.")
+            # if clients:
+            #     for client in clients:
+            #         # ... (Legacy Migration Logic Removed) ...
+            #         pass
             
-            logger.info("✅ Database Migration Checked/Applied.")
+            logger.info("✅ Database Migration Checked/Applied (Legacy Clients Skipped).")
             
     except Exception as e:
         logger.error(f"⚠️ Migration Error: {e}")

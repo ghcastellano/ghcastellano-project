@@ -1,0 +1,63 @@
+WARNING:src.services.storage_service:📂 Storage Service: Bucket não definido. Usando armazenamento LOCAL.
+INFO:mvp-app:⚡ Migrações Puladas (Modo Dev)
+INFO:mvp-app:🔧 Carregando Blueprints...
+INFO:mvp-app:🛠️ Dev Routes registered at /dev
+INFO:mvp-app:✅ Blueprints Registrados: auth, admin, manager
+INFO:mvp-app:📍 Rotas Registradas: ['/static/<path:filename>', '/dev/', '/dev/manager/review', '/dev/consultant/review', '/dev/api/mock-save', '/dev/mock-pdf-test', '/auth/login', '/auth/logout', '/auth/change-password', '/admin/', '/admin/company/new', '/admin/company/<uuid:company_id>/delete', '/admin/establishment/new', '/admin/manager/new', '/admin/manager/<uuid:user_id>/delete', '/admin/test-job', '/admin/company/<uuid:company_id>/update', '/admin/manager/<uuid:user_id>/update', '/admin/api/monitor', '/admin/api/cron/sync_drive', '/dashboard/manager', '/manager/consultant/new', '/manager/consultant/<uuid:user_id>/update', '/manager/consultant/<uuid:user_id>/delete', '/manager/establishment/new', '/manager/establishment/<uuid:est_id>/update', '/manager/establishment/<uuid:est_id>/delete', '/manager/plan/<file_id>', '/manager/plan/<file_id>/save', '/api/status']
+INFO:mvp-app:🔌 Tentando conectar ao banco: ep-shiny-dream-a4i0k0a3-pooler.us-east-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+INFO:mvp-app:🔌 Connection Pooling ENABLED (Size: 2, Overflow: 3)
+INFO:mvp-app:✅ Conexão com Banco de Dados Inicializada
+INFO:mvp-app:✅ Banco de dados inicializado com sucesso
+INFO:mvp-app:🏗️ Criando tabelas (Schema Initialization)...
+INFO:mvp-app:⚡ Inicialização de Schema Pulada (Modo Dev)
+INFO:mvp-app:⚡ Migrações Puladas (Modo Dev)
+INFO:mvp-app:✅ Serviço do Drive Inicializado
+INFO:mvp-app:✅ Serviço de Email Inicializado (MOCK)
+INFO:mvp-app:✅ Serviço de PDF Inicializado
+2026-01-10 07:24:42 [info     ] Initializing ProcessorService (OpenAI Mode) folder_backup= folder_error= folder_in= folder_out=
+2026-01-10 07:24:42 [info     ] OpenAI Key Status              prefix=sk-proj-UV... suffix=...kckA
+INFO:ManualTest:🏢 Using Company: Empresa 2 (1592ccab-d90d-4091-9951-5076a34b80a5)
+INFO:ManualTest:⚙️ Initializing ProcessorService...
+🔄 Engine Disposed for Schema Refresh
+2026-01-10 07:24:44 [info     ] Initializing ProcessorService (OpenAI Mode) folder_backup= folder_error= folder_in= folder_out=
+2026-01-10 07:24:44 [info     ] OpenAI Key Status              prefix=sk-proj-UV... suffix=...kckA
+INFO:ManualTest:🚀 Starting Processing (This calls Real OpenAI)...
+2026-01-10 07:24:45 [info     ] 📝 Trace [INIT]: Started processing quest_resposta (3).pdf file_id=local_test_file
+2026-01-10 07:24:46 [info     ] 📝 Trace [DOWNLOAD]: Downloading from Drive... file_id=local_test_file
+INFO:ManualTest:📂 [MOCK-DRIVE] Serving local file: data/backup/quest_resposta (3).pdf
+2026-01-10 07:24:46 [info     ] 📝 Trace [DOWNLOAD]: Download complete file_id=local_test_file
+2026-01-10 07:24:48 [info     ] 📝 Trace [AI_ANALYSIS]: Sending to OpenAI... file_id=local_test_file
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-01-10 07:25:03 [info     ] 📝 Trace [AI_ANALYSIS]: Analysis complete file_id=local_test_file
+2026-01-10 07:25:04 [info     ] 📝 Trace [PDF_GEN]: Generating Action Plan PDF... file_id=local_test_file
+WARNING:weasyprint:Ignored `min-height: 100vh` at 80:5, invalid value.
+WARNING:weasyprint:Ignored `position: sticky` at 91:5, invalid value.
+WARNING:weasyprint:Ignored `box-shadow: var(--shadow-sm)` at 94:5, unknown property.
+WARNING:weasyprint:Ignored `backdrop-filter: blur(8px)` at 95:5, unknown property.
+WARNING:weasyprint:Ignored `box-shadow: var(--shadow-sm)` at 165:5, unknown property.
+WARNING:weasyprint:Ignored `box-shadow: var(--shadow-md)` at 172:5, unknown property.
+WARNING:weasyprint:Ignored `box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1)` at 261:5, unknown property.
+WARNING:weasyprint:Ignored `box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1)` at 311:5, unknown property.
+WARNING:weasyprint:Ignored `overflow-x: auto` at 316:5, unknown property.
+WARNING:weasyprint:Expected a media type, got '(max-width: 768px)'
+WARNING:weasyprint:Invalid media type ' (max-width: 768px) ' the whole @media rule was ignored at 407:1.
+WARNING:weasyprint:Ignored `box-shadow: 0 2px 4px rgba(0,0,0,0.05)` at 1:105, unknown property.
+2026-01-10 07:25:04 [info     ] 📂 PDF Saved Locally: data/output/Plano_Acao_quest_resposta (3).pdf
+2026-01-10 07:25:04 [warning  ] ⚠️ Drive upload returned unexpected format: <MagicMock name='mock.upload_file()' id='4848741616'>
+2026-01-10 07:25:05 [info     ] 📝 Trace [PDF_GEN]: PDF generated: None file_id=local_test_file
+2026-01-10 07:25:05 [info     ] Plano gerado e salvo           link=None
+2026-01-10 07:25:06 [info     ] 📝 Trace [DB_SAVE]: Saving to Database... file_id=local_test_file
+2026-01-10 07:25:06 [info     ] 📍 Target Establishment: KFC BAURU (ID: 8b9b90fc-a536-434c-bdac-26eb77f89618)
+2026-01-10 07:25:06 [info     ] ✅ Inspection 3edf533b-d892-49e2-984d-78be67bcf75a updated/created
+2026-01-10 07:25:07 [info     ] 🆕 ActionPlan created
+2026-01-10 07:25:07 [info     ] 🗑️ Deleted 0 old items
+2026-01-10 07:25:07 [info     ] 🔍 Iterating 4 areas
+2026-01-10 07:25:07 [info     ]   📂 Area: Área de atendimento / salão de consumo (0 items)
+2026-01-10 07:25:07 [info     ]   📂 Area: Cozinha / Área de Manipulação 01 (3 items)
+2026-01-10 07:25:07 [info     ]   📂 Area: Saloão / Vestiário de Funcionários (0 items)
+2026-01-10 07:25:07 [info     ]   📂 Area: Estoque / Depósito (1 items)
+2026-01-10 07:25:07 [info     ] 📊 Stats generated: 4 items, 4 NCs
+2026-01-10 07:25:07 [info     ] ✅ DB Save Success (ChecklistSanitario Structure)
+2026-01-10 07:25:08 [info     ] 📝 Trace [COMPLETED]: Processing completely finished. file_id=local_test_file
+INFO:ManualTest:✅ SUCCESS! Output Link: {'usage': {'prompt_tokens': 6936, 'completion_tokens': 845, 'total_tokens': 7781}, 'output_link': None}
+INFO:ManualTest:📊 Extraction Data (Summary): No Payload

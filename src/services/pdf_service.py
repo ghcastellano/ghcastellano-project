@@ -19,7 +19,7 @@ class PDFService:
         self.jinja_env = Environment(loader=FileSystemLoader(self.template_dir))
         self.jinja_env.filters['resolve_path'] = self.resolve_path
 
-    def generate_pdf_bytes(self, data: dict, original_filename: str = "relatorio", template_name: str = "base_layout.html") -> bytes:
+    def generate_pdf_bytes(self, data: dict, original_filename: str = "relatorio", template_name: str = "pdf_template.html") -> bytes:
         """
         Gera bytes do PDF a partir de um dicionário de dados.
         """

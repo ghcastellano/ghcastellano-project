@@ -112,6 +112,22 @@ class Contact(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
 
+class Visit(Base):
+    __tablename__ = "visits"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    visit_date: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    status: Mapped[VisitStatus] = mapped_column(default=VisitStatus.SCHEDULED)
+    
+    # Foreign Keys
+    consultant_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"))
+    establishment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("establishments.id"))
+    
+    # Relationships
+    consultant: Mapped["User"] = relationship(back_populates="visits")
+    # establishment: Mapped["Establishment"] = relationship(back_populates="visits") # Add back_populates to Est if needed
+    inspections: Mapped[List["Inspection"]] = relationship(back_populates="visit")
+
 
 class User(UserMixin, Base):
     __tablename__ = "users"
@@ -144,66 +160,30 @@ class User(UserMixin, Base):
     visits: Mapped[List["Visit"]] = relationship(back_populates="consultant")
     approved_plans: Mapped[List["ActionPlan"]] = relationship(back_populates="approved_by")
 
-class Client(Base):
-    """
-    LEGADO: Mantido temporariamente para migração. 
-    Idealmente será substituído por Company.
-    """
-    __tablename__ = "clients"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    cnpj: Mapped[Optional[str]] = mapped_column(String, unique=True)
-    drive_root_folder_id: Mapped[str] = mapped_column(String, nullable=False)
-    drive_folder_link: Mapped[Optional[str]] = mapped_column(String)
-
-    # Relacionamentos
-    visits: Mapped[List["Visit"]] = relationship(back_populates="client")
-    inspections: Mapped[List["Inspection"]] = relationship(back_populates="client")
-
-class Visit(Base):
-    __tablename__ = "visits"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clients.id"), nullable=False) # Legado
-    consultant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    scheduled_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False) 
-    status: Mapped[VisitStatus] = mapped_column(default=VisitStatus.SCHEDULED)
-    drive_visit_folder_id: Mapped[Optional[str]] = mapped_column(String)
-
-    # Relacionamentos
-    client: Mapped["Client"] = relationship(back_populates="visits")
-    consultant: Mapped["User"] = relationship(back_populates="visits") 
-    inspections: Mapped[List["Inspection"]] = relationship(back_populates="visit")
-
 class Inspection(Base):
     __tablename__ = "inspections"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    visit_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("visits.id"), nullable=True)
-    client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clients.id"), nullable=True) # Tornado opcional para V3
-    
-    # Novo campo V3
-    establishment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("establishments.id"), nullable=True, index=True) # Added Index
-    
-    drive_file_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    drive_file_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     drive_web_link: Mapped[Optional[str]] = mapped_column(String)
-    
-    # Novo campo V5 (Duplicidade)
-    file_hash: Mapped[Optional[str]] = mapped_column(String, index=True)
-    
     status: Mapped[InspectionStatus] = mapped_column(default=InspectionStatus.PROCESSING)
-    
-    # Armazena resposta bruta da IA para auditoria
-    ai_raw_response: Mapped[dict] = mapped_column(JSONB, nullable=True)
-    
-    # Traceability Logs (V15)
-    processing_logs: Mapped[list] = mapped_column(JSONB, nullable=True) # List of dicts
-    
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relacionamentos Foreign Keys
+    establishment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("establishments.id"), nullable=True)
+    visit_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("visits.id"), nullable=True)
+    
+    # Dados de Processamento
+    processing_logs: Mapped[Optional[list]] = mapped_column(JSONB, default=list) # Log estruturado
+    ai_raw_response: Mapped[dict] = mapped_column(JSONB, nullable=True)
+    file_hash: Mapped[Optional[str]] = mapped_column(String, index=True) # Checksum para evitar duplicatas
 
     # Relacionamentos
-    client: Mapped["Client"] = relationship(back_populates="inspections")
+    # client: Mapped["Client"] = relationship(back_populates="inspections") # REMOVED
+    establishment: Mapped[Optional["Establishment"]] = relationship(back_populates="inspections")
+    visit: Mapped[Optional["Visit"]] = relationship(back_populates="inspections")
+    action_plan: Mapped[Optional["ActionPlan"]] = relationship(back_populates="inspection", uselist=False)
     establishment: Mapped[Optional["Establishment"]] = relationship(back_populates="inspections")
     visit: Mapped[Optional["Visit"]] = relationship(back_populates="inspections")
     action_plan: Mapped[Optional["ActionPlan"]] = relationship(back_populates="inspection", uselist=False)

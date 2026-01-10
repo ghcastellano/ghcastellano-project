@@ -1,12 +1,14 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from src.database import get_db
 from datetime import datetime
-from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus
+from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus, Inspection, InspectionStatus
 from sqlalchemy.orm import joinedload
 from functools import wraps
 import uuid
+import os
+import logging
 from datetime import datetime
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')

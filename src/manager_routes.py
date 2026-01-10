@@ -406,7 +406,7 @@ def edit_plan(file_id):
                     inspection = Inspection(
                         drive_file_id=file_id,
                         status=InspectionStatus.PENDING_MANAGER_REVIEW,
-                        client_id=None, # Legacy field, made nullable in V12
+                        # client_id removed
                         establishment_id=est.id if est else None,
                         ai_raw_response=data
                     )
@@ -672,10 +672,7 @@ def api_status():
              # Fix: Include orphans (establishment_id is Null) but owned by company (client_id)
              from sqlalchemy import or_
              query = query.filter(
-                 or_(
-                     Inspection.establishment_id.in_(est_ids),
-                     Inspection.client_id == current_user.company_id
-                 )
+                 Inspection.establishment_id.in_(est_ids)
              )
         
         # Filter by Specific Establishment if selected

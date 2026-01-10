@@ -3,7 +3,7 @@ Funções auxiliares para consultas ao banco de dados na aplicação web.
 Todas as queries usam SQLAlchemy para interagir com o PostgreSQL (Supabase).
 """
 from sqlalchemy.orm import joinedload
-from src.models_db import Client, Inspection, ActionPlan, ActionPlanItem, InspectionStatus, Establishment, Company
+from src.models_db import Inspection, ActionPlan, ActionPlanItem, InspectionStatus, Establishment, Company
 from src import database
 import logging
 import uuid
@@ -15,8 +15,7 @@ def get_pending_inspections(establishment_id=None):
     try:
         session = database.db_session()
         query = session.query(Inspection).options(
-            joinedload(Inspection.establishment),
-            joinedload(Inspection.client) # Fallback
+            joinedload(Inspection.establishment)
         ).filter(
             Inspection.status == InspectionStatus.PROCESSING
         )
@@ -31,7 +30,6 @@ def get_pending_inspections(establishment_id=None):
             # Determine name
             est_name = 'Desconhecido'
             if insp.establishment: est_name = insp.establishment.name
-            elif insp.client: est_name = insp.client.name
             
             result.append({
                 'id': str(insp.id),
@@ -63,7 +61,6 @@ def get_processed_inspections_raw(company_id=None, establishment_id=None):
         # Otimização: Eager Load Action Plan para evitar N+1 ao acessar propriedades (score, resumo)
         query = session.query(Inspection).options(
             joinedload(Inspection.establishment),
-            joinedload(Inspection.client),
             joinedload(Inspection.action_plan) # Eager load for stats access
         ).filter(
             Inspection.status.in_(statuses)
@@ -86,7 +83,6 @@ def get_processed_inspections_raw(company_id=None, establishment_id=None):
             
             est_name = 'Desconhecido'
             if insp.establishment: est_name = insp.establishment.name
-            elif insp.client: est_name = insp.client.name
             
             result.append({
                 'id': insp.drive_file_id,
@@ -124,8 +120,7 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
         ]
         
         query = session.query(Inspection).options(
-            joinedload(Inspection.establishment),
-            joinedload(Inspection.client)
+            joinedload(Inspection.establishment)
         ).filter(
             Inspection.status.in_(statuses)
         )
@@ -150,7 +145,6 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
             ai_data = insp.ai_raw_response or {}
             est_name = 'Desconhecido'
             if insp.establishment: est_name = insp.establishment.name
-            elif insp.client: est_name = insp.client.name
             
             result.append({
                 'id': insp.drive_file_id,
@@ -193,7 +187,6 @@ def get_consultant_pending_inspections(establishment_id=None):
             # Safe establishment name resolve
             est_name = 'Desconhecido'
             if insp.establishment: est_name = insp.establishment.name
-            elif insp.client: est_name = insp.client.name
             
             result.append({
                 'id': insp.drive_file_id,
@@ -216,7 +209,6 @@ def get_inspection_details(drive_file_id):
     try:
         session = database.db_session()
         inspection = session.query(Inspection).options(
-            joinedload(Inspection.client),
             joinedload(Inspection.action_plan).joinedload(ActionPlan.items)
         ).filter(Inspection.drive_file_id == drive_file_id).first()
         
@@ -230,9 +222,9 @@ def get_inspection_details(drive_file_id):
         result = {
             'id': inspection.drive_file_id,
             'name': ai_data.get('titulo', 'Relatório Processado'),
-            'establishment': inspection.client.name if inspection.client else 'Desconhecido',
+            'establishment': inspection.establishment.name if inspection.establishment else 'Desconhecido',
             'date': ai_data.get('data_inspecao', ''),
-            'pdf_name': f"{inspection.client.name if inspection.client else 'relatorio'}.pdf",
+            'pdf_name': f"{inspection.establishment.name if inspection.establishment else 'relatorio'}.pdf",
             'pdf_link': f"/download_pdf/{inspection.drive_file_id}",
             'review_link': f"/review/{inspection.drive_file_id}",
             'action_plan': {
@@ -261,7 +253,6 @@ def get_batch_inspection_details(drive_file_ids):
     try:
         session = database.db_session()
         inspections = session.query(Inspection).options(
-            joinedload(Inspection.client),
             joinedload(Inspection.action_plan)
         ).filter(Inspection.drive_file_id.in_(drive_file_ids)).all()
         
@@ -271,9 +262,9 @@ def get_batch_inspection_details(drive_file_ids):
             results[inspection.drive_file_id] = {
                 'id': inspection.drive_file_id,
                 'name': ai_data.get('titulo', 'Relatório Processado'),
-                'establishment': inspection.client.name if inspection.client else 'Desconhecido',
+                'establishment': inspection.establishment.name if inspection.establishment else 'Desconhecido',
                 'date': ai_data.get('data_inspecao', ''),
-                'pdf_name': f"{inspection.client.name if inspection.client else 'relatorio'}.pdf",
+                'pdf_name': f"{inspection.establishment.name if inspection.establishment else 'relatorio'}.pdf",
                 'pdf_link': f"/download_pdf/{inspection.drive_file_id}",
                 'review_link': f"/review/{inspection.drive_file_id}"
             }
