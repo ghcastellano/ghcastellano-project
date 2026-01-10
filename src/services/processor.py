@@ -140,13 +140,13 @@ class ProcessorService:
         filename = file_meta['name']
         
         # 0. Start Trace
-        self._log_trace(file_id, "INIT", "STARTED", f"Started processing {filename}")
+        self._log_trace(file_id, "INIT", "STARTED", f"Iniciando processamento de {filename}")
         
         try:
             # 1. Download & Hash Check (Idempotency)
-            self._log_trace(file_id, "DOWNLOAD", "RUNNING", "Downloading from Drive...")
+            self._log_trace(file_id, "DOWNLOAD", "RUNNING", "Baixando arquivo do Drive...")
             file_content = self.drive_service.download_file(file_id)
-            self._log_trace(file_id, "DOWNLOAD", "SUCCESS", "Download complete")
+            self._log_trace(file_id, "DOWNLOAD", "SUCCESS", "Download concluído")
             
             file_hash = self.calculate_hash(file_content)
             
@@ -161,11 +161,11 @@ class ProcessorService:
                 return {'status': 'skipped', 'reason': 'duplicate', 'existing_id': existing_insp.drive_file_id}
 
             # 2. Analyze (OCR + OpenAI)
-            self._log_trace(file_id, "AI_ANALYSIS", "RUNNING", "Sending to OpenAI...")
+            self._log_trace(file_id, "AI_ANALYSIS", "RUNNING", "Enviando para análise da IA (OpenAI)...")
             result = self.analyze_with_openai(file_content)
             data: ChecklistSanitario = result['data'] # Now Typed as ChecklistSanitario
             usage = result['usage']
-            self._log_trace(file_id, "AI_ANALYSIS", "SUCCESS", "Analysis complete", details=usage)
+            self._log_trace(file_id, "AI_ANALYSIS", "SUCCESS", "Análise de IA concluída", details=usage)
             
             # Update Job Metrics immediately (Legacy/Optional)
             if job:
@@ -179,11 +179,11 @@ class ProcessorService:
             file_hash = self.calculate_hash(file_content)
             
             # 4. Generate & Upload PDF
-            self._log_trace(file_id, "PDF_GEN", "RUNNING", "Generating Action Plan PDF...")
+            self._log_trace(file_id, "PDF_GEN", "RUNNING", "Gerando PDF do Plano de Ação...")
             output_link = None
             try:
                 output_link = self.generate_pdf(data, filename)
-                self._log_trace(file_id, "PDF_GEN", "SUCCESS", f"PDF generated: {output_link}")
+                self._log_trace(file_id, "PDF_GEN", "SUCCESS", f"PDF gerado com sucesso: {output_link}")
                 logger.info("Plano gerado e salvo", link=output_link)
             except Exception as pdf_err:
                  msg = f"PDF Gen Failed (Ignored): {pdf_err}"
@@ -191,9 +191,9 @@ class ProcessorService:
                  self._log_trace(file_id, "PDF_GEN", "WARNING", msg)
 
             # 5. Save to DB (Crucial Step: Mapping Nested Areas to Flat Items)
-            self._log_trace(file_id, "DB_SAVE", "RUNNING", "Saving to Database...")
+            self._log_trace(file_id, "DB_SAVE", "RUNNING", "Salvando dados no Banco de Dados...")
             self._save_to_db_logic(data, file_id, filename, output_link, file_hash, company_id=company_id, override_est_id=establishment_id)
-            self._log_trace(file_id, "COMPLETED", "SUCCESS", "Processing completely finished.")
+            self._log_trace(file_id, "COMPLETED", "SUCCESS", "Processamento finalizado com sucesso.")
 
             # Return usage for caller (JobProcessor)
             return {

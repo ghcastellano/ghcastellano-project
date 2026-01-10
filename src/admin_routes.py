@@ -379,10 +379,12 @@ def api_monitor_stats():
     """
     API JSON para alimentar o Monitoramento de Inspeções (Traceability Logs).
     Substitui o antigo Job Monitor.
+    Agora enriquecido com dados de Custo e Tokens.
     """
     db = next(get_db())
     try:
-        from src.models_db import Inspection
+        from src.models_db import Inspection, Job
+        from sqlalchemy import text
         # Fetch Top 50 recent inspections
         inspections = db.query(Inspection).options(joinedload(Inspection.establishment)).order_by(Inspection.created_at.desc()).limit(50).all()
         
@@ -395,11 +397,13 @@ def api_monitor_stats():
             filename = "Unknown.pdf"
             if logs:
                 first_log = logs[0]
-                # Log format: "Started processing filename.pdf"
+                # Log format: "Started processing filename.pdf" or "Iniciando processamento de filename.pdf"
                 if first_log.get('stage') == 'INIT':
                     msg = first_log.get('message', '')
                     if "Started processing " in msg:
                         filename = msg.replace("Started processing ", "")
+                    elif "Iniciando processamento de " in msg:
+                        filename = msg.replace("Iniciando processamento de ", "")
             
             # Determine Last Status/Stage
             last_stage = "PENDING"
@@ -418,6 +422,36 @@ def api_monitor_stats():
                     duration = round((end - start).total_seconds(), 2)
                 except: pass
 
+            # --- COST / TOKEN ENRICHMENT ---
+            tokens_in = 0
+            tokens_out = 0
+            cost_usd = 0.0
+            job_status = None
+            
+            # Tentativa de Linkar com Job (assumindo file_id match)
+            # Nota: Isso pode ser N+1 query, mas para 50 itens é aceitável admin-side.
+            # Se performance degradar, fazer join ou eager load.
+            if insp.drive_file_id:
+                # Busca Job onde input_payload->>'file_id' == insp.drive_file_id
+                # Usando SQL texto para JSONB operator ->> (Postgres)
+                try:
+                    # Alternativa ORM pura se Job model tivesse mapeamento direto, mas input_payload é JSON
+                    # Vamos tentar buscar o job mais recente criado perto da inspection
+                    job = db.query(Job).filter(
+                        text("input_payload->>'file_id' = :fid")
+                    ).params(fid=insp.drive_file_id).order_by(Job.created_at.desc()).first()
+                    
+                    if job:
+                        tokens_in = job.cost_tokens_input or 0
+                        tokens_out = job.cost_tokens_output or 0
+                        job_status = job.status.value
+                        
+                        # Pricing (GPT-4o-mini rough estimate: $0.15/1M in, $0.60/1M out)
+                        # Ajuste conforme modelo real no processor.py
+                        cost_usd = (tokens_in / 1_000_000 * 0.15) + (tokens_out / 1_000_000 * 0.60)
+                except Exception as db_err:
+                    logger.warning(f"Erro linkando Job para {insp.id}: {db_err}")
+
             monitor_list.append({
                 'id': str(insp.id),
                 'filename': filename,
@@ -427,7 +461,10 @@ def api_monitor_stats():
                 'message': last_msg,
                 'duration': duration,
                 'created_at': insp.created_at.isoformat() if insp.created_at else None,
-                'logs': logs # Full logs for detail view
+                'logs': logs, # Full logs for detail view
+                'tokens_total': tokens_in + tokens_out,
+                'cost_usd': round(cost_usd, 5), # 5 decimal places for micro-costs
+                'job_status': job_status
             })
             
         return jsonify({'items': monitor_list})
