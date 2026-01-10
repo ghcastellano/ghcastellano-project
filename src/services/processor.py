@@ -20,27 +20,7 @@ from src.models_db import Inspection, ActionPlan, ActionPlanItem, ActionPlanItem
 
 # ... (rest of imports)
 
-    def process_single_file(self, file_meta, company_id=None, establishment_id=None, job=None):
-        file_id = file_meta['id']
-        filename = file_meta['name']
-        
-        # 0. Start Trace
-        self._log_trace(file_id, "INIT", "STARTED", f"Started processing {filename}")
-        
-        try:
-            # 1. Download & Hash Check (Idempotency)
-            self._log_trace(file_id, "DOWNLOAD", "RUNNING", "Downloading file...")
-            
-            if file_id.startswith('gcs:'):
-                # GCS / Local Fallback Mode
-                logger.info(f"🔄 Using StorageService for file: {file_id}")
-                file_content = storage_service.download_file(file_id)
-                if not file_content:
-                    raise Exception(f"Failed to download file from Storage: {file_id}")
-            else:
-                file_content = self.drive_service.download_file(file_id)
-            
-            self._log_trace(file_id, "DOWNLOAD", "SUCCESS", "Download complete")
+
 # Updated Model Import
 from src.models import ChecklistSanitario
 
@@ -182,6 +162,7 @@ class ProcessorService:
 
             # 2. Analyze (OCR + OpenAI)
             self._log_trace(file_id, "AI_ANALYSIS", "RUNNING", "Sending to OpenAI...")
+            result = self.analyze_with_openai(file_content)
             data: ChecklistSanitario = result['data'] # Now Typed as ChecklistSanitario
             usage = result['usage']
             self._log_trace(file_id, "AI_ANALYSIS", "SUCCESS", "Analysis complete", details=usage)
