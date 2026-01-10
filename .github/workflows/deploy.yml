@@ -6,22 +6,24 @@ on:
       - main
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: projeto-poc-ap
   REGION: us-central1
   SERVICE_NAME: mvp-web
 
 jobs:
   deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Authenticate with Google Cloud
+      - name: Google Auth
+        id: auth
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -29,78 +31,39 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker
 
-      - name: Build and Push Docker Image
-        # Build inside the GitHub runner (saves $$) instead of triggering Cloud Build
-        run: |
-          IMAGE_TAG="gcr.io/$PROJECT_ID/mvp-web:${{ github.sha }}"
-          docker build -t $IMAGE_TAG .
-          docker push $IMAGE_TAG
-          echo "IMAGE=$IMAGE_TAG" >> $GITHUB_ENV
+      - name: Build and Push Container
+        run: |-
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
       - name: Deploy to Cloud Run
-        run: |
-          # 2. Fresh Deploy with new String Literals & Resource Limits (Zero Cost)
-          echo "🚀 Deploying new version..."
-          gcloud run deploy $SERVICE_NAME \
-            --image $IMAGE \
-            --region $REGION \
-            --project $PROJECT_ID \
-            --platform managed \
-            --allow-unauthenticated \
-            --min-instances 0 \
-            --max-instances 1 \
-            --memory 1024Mi \
-            --cpu 1 \
-            --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }},\
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},\
-            SECRET_KEY=${{ secrets.SECRET_KEY }},\
-            WEBHOOK_SECRET_TOKEN=${{ secrets.WEBHOOK_SECRET_TOKEN }},\
-            FOLDER_ID_01_ENTRADA_RELATORIOS=${{ secrets.FOLDER_ID_01_ENTRADA_RELATORIOS }},\
-            FOLDER_ID_02_PLANOS_GERADOS=${{ secrets.FOLDER_ID_02_PLANOS_GERADOS }},\
-            FOLDER_ID_03_PROCESSADOS_BACKUP=${{ secrets.FOLDER_ID_03_PROCESSADOS_BACKUP }},\
-            FOLDER_ID_99_ERROS=${{ secrets.FOLDER_ID_99_ERROS }},\
-            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},\
-            GCP_LOCATION=${{ env.REGION }},\
-            AWS_SES_SENDER=${{ secrets.AWS_SES_SENDER }},\
-            WHATSAPP_PHONE_ID=${{ secrets.WHATSAPP_PHONE_ID }},\
-            WHATSAPP_DESTINATION_PHONE=${{ secrets.WHATSAPP_DESTINATION_PHONE }},\
-            WHATSAPP_TOKEN=${{ secrets.WHATSAPP_TOKEN }},\
-            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }},\
-            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }},\
-            DB_POOL_SIZE=2,\
-            DB_MAX_OVERFLOW=3,\
-            DB_POOL_TIMEOUT=30,\
-            DB_POOL_RECYCLE=1800"
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          region: ${{ env.REGION }}
+          flags: '--allow-unauthenticated'
+          env_vars: |
+            FLASK_DEBUG=0
+            FOLDER_ID_01_ENTRADA_RELATORIOS=1F8NcC0aR9MQnHDCEJdbx_BuanK8rg08B
+            FOLDER_ID_02_PLANOS_GERADOS=15Cip-MIZS8zWaXZen4n0jN8NWPo0LedP
+            FOLDER_ID_03_PROCESSADOS_BACKUP=1mGSz1GqyZRgninE8oC5LvBKfHptJ2qh1
+            FOLDER_ID_99_ERROS=15B46XHBTGWWojwGHbMzp-Ic7kFJOwYYe
+            AWS_REGION=us-east-1
+            AWS_SES_SENDER=noreply@seudominio.com
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
 
-      - name: Verify Deployment & Health Check
-        if: success()
+      # Optional: Prune old images (Zero Cost Architecture) kept inline or via script
+      - name: Cleanup Old Versions
         run: |
-          echo "🏥 Verifying Service Health..."
-          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region $REGION --format 'value(status.url)')
-          echo "Target URL: $SERVICE_URL"
-          
-          # Wait a bit for propagation
-          sleep 10
-          
-          # Try to access Login Page (fail on HTTP error)
-          if curl -f -s -o /dev/null "$SERVICE_URL/auth/login"; then
-             echo "✅ Health Check Passed! App is answering 200 OK."
-          else
-             echo "❌ Health Check Failed! Fetching recent Cloud Run logs..."
-             echo "--------------------------------------------------------"
-             gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=$SERVICE_NAME AND severity>=ERROR" \
-               --limit 30 \
-               --format="table(timestamp,severity,textPayload,jsonPayload.message)" \
-               --freshness=10m
-             echo "--------------------------------------------------------"
-             exit 1
-          fi
-
-      - name: Optimize Registry Costs (Cleanup)
-        if: always()
-        run: |
-          echo "💰 Cleaning up old container images to ensure Zero Cost..."
-          # Make script executable just in case
-          chmod +x scripts/optimize_costs.sh
-          # Run script (requires gcloud logic present in runner)
-          ./scripts/optimize_costs.sh
+           chmod +x scripts/cleanup_cloud.sh
+           ./scripts/cleanup_cloud.sh
+        shell: bash
+        env:
+          # Pass CLI auth implicitly provided by google-github-actions/auth
+          # Ensure gcloud commands in script use the authenticated session
+          CLOUDSDK_CORE_PROJECT: ${{ env.PROJECT_ID }}
