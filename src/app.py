@@ -61,8 +61,14 @@ from src.services.email_service import EmailService
 from src.services.storage_service import storage_service
 
 # Configurações do App
-app.secret_key = os.urandom(24)
-app.config['SECRET_KEY'] = config.SECRET_KEY
+app.secret_key = os.getenv('SECRET_KEY')
+if not app.secret_key:
+    # Fallback ONLY if ENV is missing (prevents 500 Error in Prod if Setup fails)
+    logger.warning("⚠️ SECRET_KEY not found in environment. Generating random key (Sessions will invalidate on restart).")
+    import secrets
+    app.secret_key = secrets.token_hex(32)
+    
+app.config['SECRET_KEY'] = app.secret_key
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB Upload Limit
 csrf = CSRFProtect(app)
 
