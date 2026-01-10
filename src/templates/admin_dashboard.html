@@ -399,6 +399,7 @@
                                     <th>Estabelecimento</th>
                                     <th>Status</th>
                                     <th>Etapa</th>
+                                    <th>Tokens/Custo</th>
                                     <th>Duração</th>
                                 </tr>
                             </thead>
@@ -634,6 +635,10 @@
                                 </div>
                                 ${renderLogsPreview(item.logs)}
                            </td>
+                            <td class="text-sm">
+                                <div style="font-weight: 600; color: #475569;">${item.tokens_total > 0 ? item.tokens_total.toLocaleString() : '-'}</div>
+                                <div style="font-size: 0.8em; color: #64748b;">$${item.cost_usd > 0 ? item.cost_usd : '0.00'}</div>
+                            </td>
                            <td class="text-sm text-muted">${item.duration ? item.duration + 's' : '-'}</td>
                        </tr>
                     `).join('');
