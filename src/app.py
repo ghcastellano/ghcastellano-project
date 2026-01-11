@@ -339,6 +339,10 @@ def upload_file():
         sucesso = 0
         falha = 0
 
+        # [FIX] Capture user details early to avoid DetachedInstanceError in exception handler
+        user_email = current_user.email
+        user_name = current_user.name
+
         for file in uploaded_files:
             if not file or file.filename == '':
                 continue
@@ -466,9 +470,9 @@ def upload_file():
 
                         if result and 'output_link' in result:
                             # Save link in payload or another field if available
-                            current_payload = dict(job.output_payload) if job.output_payload else {}
+                            current_payload = dict(job.result_payload) if job.result_payload else {}
                             current_payload['pdf_link'] = result['output_link']
-                            job.output_payload = current_payload
+                            job.result_payload = current_payload
 
                         db.commit()
                         
@@ -485,10 +489,10 @@ def upload_file():
                         
                         # [NOTIFY] Avisar consultor sobre erro crítico
                         try:
-                            if app.email_service and current_user.email:
+                            if app.email_service and user_email:
                                 subj = f"Erro no Processamento: {file.filename}"
                                 body = f"""
-                                Olá {current_user.name},
+                                Olá {user_name},
                                 
                                 Ocorreu um erro ao processar o relatório "{file.filename}".
                                 
@@ -497,7 +501,7 @@ def upload_file():
                                 
                                 Por favor, verifique o arquivo e tente novamente. Se o erro persistir, contate o suporte.
                                 """
-                                app.email_service.send_email(current_user.email, subj, body)
+                                app.email_service.send_email(user_email, subj, body)
                         except Exception as mail_e:
                             logger.error(f"Falha ao enviar email de erro: {mail_e}")
 
@@ -558,7 +562,7 @@ def get_status():
     import uuid
     est_id = request.args.get('establishment_id')
     est_uuid = None
-    if est_id:
+    if est_id and est_id.strip(): # Safely handle empty string
         try:
             est_uuid = uuid.UUID(est_id)
         except:
@@ -576,29 +580,35 @@ def get_status():
                 # Consultor vê apenas seus trabalhos
                 # Jobs pendentes (técnico) + Vistorias em Aprovação (negócio)
                 try:
+                    # [FIX] Safe access to relationships to prevent lazy load error outside session if needed
                     my_est_ids = [est.id for est in current_user.establishments] if current_user.establishments else []
-                except: my_est_ids = []
+                    user_company_id = current_user.company_id
+                except: 
+                    my_est_ids = []
+                    user_company_id = None
                 
                 pending_jobs = get_pending_jobs(
-                    company_id=current_user.company_id, 
+                    company_id=user_company_id, 
                     establishment_ids=my_est_ids
                 ) 
                 
                 # Fix: User has no establishment_id, use relationship list
-                est_id = current_user.establishments[0].id if current_user.establishments else None
+                filter_est_id = my_est_ids[0] if my_est_ids else None
                 
                 # Fetch Waiting Approval (Legacy View)
-                pending_approval = get_consultant_pending_inspections(establishment_id=est_id)
+                pending_approval = get_consultant_pending_inspections(establishment_id=filter_est_id)
                 
                 # Combine technical jobs with business pending items
                 pending = pending_jobs 
                 
-                processed_raw = get_consultant_inspections(company_id=current_user.company_id, establishment_id=est_id)
+                processed_raw = get_consultant_inspections(company_id=user_company_id, allowed_establishment_ids=my_est_ids)
             else:
                 # Gestor vê tudo ou filtrado
+                user_company_id = current_user.company_id
+                
                 pending = get_pending_jobs(
-                    company_id=current_user.company_id, 
-                    allow_all=(current_user.company_id is None),
+                    company_id=user_company_id, 
+                    allow_all=(user_company_id is None),
                     establishment_ids=[est_uuid] if est_uuid else None
                 ) 
                 pending_approval = [] # Gestor sees everything in processed_raw usually, or we can add specific section too
