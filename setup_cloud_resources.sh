@@ -65,26 +65,26 @@ gcloud services enable cloudscheduler.googleapis.com
 
 TARGET_URI="${SERVICE_URL}/api/cron/sync_drive"
 
-if gcloud scheduler jobs describe $SCHEDULER_JOB_NAME --location=$REGION > /dev/null 2>&1; then
-    echo "🔄 Atualizando Job existente: $SCHEDULER_JOB_NAME"
-    gcloud scheduler jobs update http $SCHEDULER_JOB_NAME \
-        --location=$REGION \
-        --schedule="*/15 * * * *" \
-        --uri="$TARGET_URI" \
-        --http-method=POST \
-        --oidc-service-account-email=$SERVICE_ACCOUNT_EMAIL \
-        --oidc-token-audience=$TARGET_URI
-else
-    echo "🆕 Criando Job: $SCHEDULER_JOB_NAME"
-    gcloud scheduler jobs create http $SCHEDULER_JOB_NAME \
-        --location=$REGION \
-        --schedule="*/15 * * * *" \
-        --uri="$TARGET_URI" \
-        --http-method=POST \
-        --oidc-service-account-email=$SERVICE_ACCOUNT_EMAIL \
-        --oidc-token-audience=$TARGET_URI
-fi
-echo "✅ Cloud Scheduler configurado para bater em $TARGET_URI a cada 15 min."
+# if gcloud scheduler jobs describe $SCHEDULER_JOB_NAME --location=$REGION > /dev/null 2>&1; then
+#     echo "🔄 Atualizando Job existente: $SCHEDULER_JOB_NAME"
+#     gcloud scheduler jobs update http $SCHEDULER_JOB_NAME \
+#         --location=$REGION \
+#         --schedule="*/15 * * * *" \
+#         --uri="$TARGET_URI" \
+#         --http-method=POST \
+#         --oidc-service-account-email=$SERVICE_ACCOUNT_EMAIL \
+#         --oidc-token-audience=$TARGET_URI
+# else
+#     echo "🆕 Criando Job: $SCHEDULER_JOB_NAME"
+#     gcloud scheduler jobs create http $SCHEDULER_JOB_NAME \
+#         --location=$REGION \
+#         --schedule="*/15 * * * *" \
+#         --uri="$TARGET_URI" \
+#         --http-method=POST \
+#         --oidc-service-account-email=$SERVICE_ACCOUNT_EMAIL \
+#         --oidc-token-audience=$TARGET_URI
+# fi
+# echo "✅ Cloud Scheduler configurado para bater em $TARGET_URI a cada 15 min."
 
 echo "--------------------------------------------------"
 echo "🎉 Setup CLOUD concluído com sucesso!"
