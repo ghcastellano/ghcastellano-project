@@ -52,7 +52,7 @@ def generate_token():
     # Output Compacto para ENV VAR
     json_output = json.dumps(token_data)
     
-    filename = 'user_token.json'
+    filename = 'user_credentials.json'
     with open(filename, 'w') as f:
         f.write(json_output)
 
