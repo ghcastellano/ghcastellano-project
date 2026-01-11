@@ -60,6 +60,9 @@
             <h3 style="margin-top: 0; color: #475569; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
                 <span style="background: #f1f5f9; padding: 4px; border-radius: 6px;">⏳</span>
                 Na Fila (Entrada)
+                <button onclick="updateLists()" class="btn-icon-small" title="Atualizar Agora"
+                    style="background:none; border:none; cursor:pointer;"
+                    onmouseover="this.style.transform='rotate(180deg)'">🔄</button>
             </h3>
             <ul id="list-pending" class="file-list" style="margin-top: 1rem;">
                 <li class="file-item"
@@ -416,6 +419,7 @@
 
         // Initial load and periodic update
         updateLists();
-        setInterval(updateLists, 10000); // 10s is enough for Drive poll
+        updateLists();
+        // setInterval(updateLists, 10000); // Removido para Zero Cost / Sob Demanda
     </script>
     {% endblock %}

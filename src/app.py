@@ -69,7 +69,7 @@ if not app.secret_key:
     app.secret_key = secrets.token_hex(32)
     
 app.config['SECRET_KEY'] = app.secret_key
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB Upload Limit
+app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024 # 32MB Upload Limit
 csrf = CSRFProtect(app)
 
 # Cloud Run Load Balancer Fix (HTTPS / CSRF)

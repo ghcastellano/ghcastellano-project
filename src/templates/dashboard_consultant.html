@@ -783,7 +783,7 @@
                 setTimeout(() => { window.location.reload(); }, 4000);
 
             } else if (xhr.status === 413) {
-                showError('Arquivo muito grande. O limite é 10MB.');
+                showError('Arquivo muito grande. O limite é 32MB.');
                 showToast('Arquivo excedeu o limite de tamanho.', 'error');
             } else {
                 let errorMsg = 'Erro ao enviar arquivo.';
