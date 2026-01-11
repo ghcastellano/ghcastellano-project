@@ -786,4 +786,71 @@ triggerManualSync(true); // Silent mode
         cursor: pointer;
     }
 </style>
+
+<script>
+    // --- GENERIC AJAX FORM HANDLER (UX OPTIMIZATION) ---
+    // Faz com que todos os formulários funcionem via AJAX automaticamente
+    document.addEventListener('DOMContentLoaded', () => {
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            // Se tiver action, e não for marcado como no-ajax
+            if (form.getAttribute('action') && !form.classList.contains('no-ajax')) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const originalText = submitBtn ? submitBtn.innerHTML : '';
+
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="ph-bold ph-spinner spin-anim"></i> Processando...';
+                    }
+
+                    try {
+                        const formData = new FormData(form);
+                        const res = await fetch(form.action, {
+                            method: form.method || 'POST',
+                            body: formData,
+                            headers: { 'Accept': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+                        });
+
+                        // Tenta ler JSON, se falhar (ex: redirect HTML) trata erro
+                        let data;
+                        try { data = await res.json(); } catch (e) { data = { error: 'Resposta inválida do servidor.' }; }
+
+                        if (res.ok) {
+                            showToast(data.message || 'Operação realizada com sucesso!', 'success');
+
+                            // 1. Reseta o form
+                            form.reset();
+
+                            // 2. Fecha Modais (Cards de Create/Edit)
+                            const parentCard = form.closest('.card');
+                            if (parentCard && (parentCard.id.includes('create') || parentCard.id.includes('edit'))) {
+                                parentCard.style.display = 'none';
+                            }
+
+                            // 3. Atualiza a tela (Idealmente sem reload, mas reload é seguro para garantir dados)
+                            // "Sensação de ser mais rápido": Delay de 500ms é bom para ver o toast.
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 500);
+
+                        } else {
+                            showToast(data.error || 'Erro ao processar.', 'error');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        showToast('Erro de conexão ou servidor offline.', 'error');
+                    } finally {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }
+                    }
+                });
+            }
+        });
+    });
+</script>
 {% endblock %}

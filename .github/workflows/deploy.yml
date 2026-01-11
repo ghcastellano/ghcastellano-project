@@ -58,12 +58,18 @@ jobs:
             SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
 
       # Optional: Prune old images (Zero Cost Architecture) kept inline or via script
-      - name: Cleanup Old Versions
+      - name: 🧹 Cleanup Old Images & Revisions (Zero Cost - Max 2)
         run: |
-           chmod +x scripts/cleanup_cloud.sh
-           ./scripts/cleanup_cloud.sh
-        shell: bash
-        env:
-          # Pass CLI auth implicitly provided by google-github-actions/auth
-          # Ensure gcloud commands in script use the authenticated session
-          CLOUDSDK_CORE_PROJECT: ${{ env.PROJECT_ID }}
+          echo "Starting Cleanup (keeping only 2 latest)..."
+          # 1. Clean Cloud Run Revisions (Keep 2 newest)
+          echo "Cleaning Revisions..."
+          # tail -n +3 means: output starting from line 3 (deleting 3rd, 4th, etc.)
+          gcloud run revisions list --service ${{ env.SERVICE_NAME }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --sort-by=~createTime --format="value(name)" | tail -n +3 | xargs -I {} gcloud run revisions delete {} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --quiet || echo "No revisions to delete"
+          
+          # 2. Clean GCR Images (Keep 2 newest)
+          echo "Cleaning Registry Images..."
+          DIGESTS=$(gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} --project ${{ env.PROJECT_ID }} --sort-by=~TIMESTAMP --format="get(digest)" | tail -n +3)
+          for DIGEST in $DIGESTS; do
+              gcloud container images delete "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}@$DIGEST" --project ${{ env.PROJECT_ID }} --quiet --force-delete-tags || echo "Failed to delete $DIGEST"
+          done
+          echo "Cleanup Complete."
