@@ -36,9 +36,20 @@ class DriveService:
             # 2. [NEW] Authenticate as User (OAuth) via Env Var - Fixes Storage Quota
             elif os.getenv('GCP_OAUTH_TOKEN'):
                 # import json (Removed to avoid UnboundLocalError)
+                import base64
                 from google.oauth2.credentials import Credentials as UserCredentials
                 logger.info("🔑 Autenticando usando OAuth User Token (GCP_OAUTH_TOKEN)...")
-                info = json.loads(os.getenv('GCP_OAUTH_TOKEN'))
+                
+                token_str = os.getenv('GCP_OAUTH_TOKEN')
+                # Auto-Detect Base64: If it doesn't look like JSON (starts with {), try decoding
+                if token_str and not token_str.strip().startswith('{'):
+                    try:
+                        token_str = base64.b64decode(token_str).decode('utf-8')
+                        logger.info("🔓 Token decodificado de Base64 com sucesso.")
+                    except Exception as e:
+                        logger.error(f"⚠️ Falha ao decodificar Base64 Token, tentando raw: {e}")
+                
+                info = json.loads(token_str)
                 self.creds = UserCredentials.from_authorized_user_info(info, self.scopes)
 
             # 3. Tenta carregar da Env Var GCP_SA_KEY (Prod / GitHub Actions)
