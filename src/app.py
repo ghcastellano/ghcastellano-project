@@ -95,12 +95,14 @@ app.register_blueprint(dev_bp)
 logger.info("🛠️ Dev Routes registered at /dev")
 try:
     from src.auth import auth_bp
-    from src.admin_routes import admin_bp, cron_sync_drive
+    from src.admin_routes import admin_bp
     from src.manager_routes import manager_bp
+    from src.cron_routes import cron_bp, cron_sync_drive
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp) 
     app.register_blueprint(manager_bp)
+    app.register_blueprint(cron_bp)
     
     # Exempt Cron from CSRF (Done here to avoid circular import)
     csrf.exempt(cron_sync_drive)

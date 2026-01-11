@@ -13,15 +13,31 @@ def run_auto_patch():
     logger.info("🛠️ [AUTO-PATCH] Verificando integridade do schema do banco...")
     
     # Debug SA Email for User
+    sa_email = None
+    
+    # Tentativa 1: google.auth
     try:
         import google.auth
         creds, project = google.auth.default()
         if hasattr(creds, 'service_account_email'):
-            logger.info(f"📧 SERVICE ACCOUNT EMAIL (SHARE DRIVE WITH THIS): {creds.service_account_email}")
-        else:
-            logger.info("📧 Não foi possível detectar email da Service Account (Credentials type mismatch).")
-    except Exception as e:
-        logger.warning(f"📧 Erro ao detectar SA Email: {e}")
+            sa_email = creds.service_account_email
+    except: pass
+
+    # Tentativa 2: Metadata Server (Cloud Run / GCE)
+    if not sa_email:
+        try:
+            import requests # Certifique-se que requests está instalado, geralmente está
+            url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+            headers = {"Metadata-Flavor": "Google"}
+            resp = requests.get(url, headers=headers, timeout=2)
+            if resp.status_code == 200:
+                sa_email = resp.text.strip()
+        except: pass
+        
+    if sa_email:
+        logger.info(f"📧 SERVICE ACCOUNT EMAIL (SHARE DRIVE WITH THIS): {sa_email}")
+    else:
+        logger.info("📧 Não foi possível detectar email da Service Account.")
     
     patches = [
         # Table: inspections
