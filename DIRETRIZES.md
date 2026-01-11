@@ -37,6 +37,11 @@ Este projeto usa uma estratégia híbrida para manter custo Zero e Alta Seguran�
 *   **Adaptação Automática:**
     *   O script `setup_secrets.py` deve ser rodado ao iniciar o ambiente para garantir que tudo está no lugar.
 
+## 5. Higiene e Manutenção 🧹
+*   **Limpeza Automática:** 
+    *   O espaço em disco é sagrado. Rode `python scripts/clean_workspace.py` periodicamente.
+    *   Arquivos temporários, logs antigos e venvs redundantes devem ser removidos sem piedade.
+
 ## 4. commits
 *   Sempre use [Conventional Commits](https://www.conventionalcommits.org/pt-br) em Português.
     *   `feat: ...` -> `feat: adiciona login...`
