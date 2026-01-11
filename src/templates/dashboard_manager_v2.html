@@ -664,9 +664,8 @@
         const menuOverview = document.getElementById('menu-overview');
         if (menuOverview) showSection('overview', menuOverview);
 
-        // Start Polling
+        // Initial Load Only (No Polling)
         updateLists();
-        setInterval(updateLists, 30000);
 
         // Inject Loading Overlay
         const loaderHTML = `
