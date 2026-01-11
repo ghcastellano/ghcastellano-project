@@ -107,6 +107,36 @@ def clean_workspace():
                      freed_space += size
             except: pass
 
+    # 5. Debug Text Files and Server Logs
+    # Delete debug_*.txt and server_*.log
+    debug_files = glob.glob("debug_*.txt") + glob.glob("server_*.log")
+    for f in debug_files:
+        try:
+             size = os.path.getsize(f)
+             print(f"🐞 Removendo arquivo de debug: {f} ({format_bytes(size)})")
+             os.remove(f)
+             freed_space += size
+        except: pass
+
+    # 6. Temporary PDF Uploads (Local Evidence)
+    # Files in src/static/uploads/evidence older than 24h
+    upload_dirs = ["src/static/uploads/evidence", "data/backup"]
+    for d in upload_dirs:
+        if os.path.exists(d):
+            for f in glob.glob(os.path.join(d, "*")):
+                try:
+                    if os.path.isfile(f):
+                        stats = os.stat(f)
+                        size = stats.st_size
+                        age_hours = (today - stats.st_mtime) / 3600
+                        
+                        # Delete if older than 24 hours
+                        if age_hours > 24:
+                             print(f"📂 Removendo upload/backup temporário antigo: {f} ({format_bytes(size)})")
+                             os.remove(f)
+                             freed_space += size
+                except: pass
+
     print(f"\n✅ Limpeza Concluída!")
     print(f"🚀 Espaço Liberado: {format_bytes(freed_space)}")
     
