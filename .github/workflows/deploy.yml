@@ -31,6 +31,20 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker
 
+      - name: Prepare Safe Secrets
+        env:
+          OAUTH_SECRET: ${{ secrets.GCP_OAUTH_TOKEN }}
+        run: |
+          # Base64 encode the secret to ensure it passes safely through gcloud CLI args
+          # and prevents log leakage due to command arg splitting.
+          TOKEN_B64=$(echo -n "$OAUTH_SECRET" | base64 -w 0)
+          
+          # Mask the new value so it doesn't leak if printed explicitly
+          echo "::add-mask::$TOKEN_B64"
+          
+          # Export to Env Var for next steps
+          echo "GCP_OAUTH_TOKEN_B64=$TOKEN_B64" >> $GITHUB_ENV
+
       - name: Build and Push Container
         run: |-
           docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
@@ -56,8 +70,7 @@ jobs:
             AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
             AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
             SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
-            # Base64 encode to prevent JSON splitting in logs and gcloud args
-            GCP_OAUTH_TOKEN=$(echo -n '${{ secrets.GCP_OAUTH_TOKEN }}' | base64 -w 0)
+            GCP_OAUTH_TOKEN=${{ env.GCP_OAUTH_TOKEN_B64 }}
 
       # Optional: Prune old images (Zero Cost Architecture) kept inline or via script
       - name: 🧹 Cleanup Old Images & Revisions (Zero Cost - Max 2)
