@@ -49,7 +49,18 @@ class DriveService:
                     except Exception as e:
                         logger.error(f"⚠️ Falha ao decodificar Base64 Token, tentando raw: {e}")
                 
-                info = json.loads(token_str)
+                try:
+                    info = json.loads(token_str)
+                except json.JSONDecodeError as json_error:
+                    # Common User Error: Pasting Python Dict (Single Quotes) instead of JSON
+                    try:
+                        import ast
+                        logger.warning(f"⚠️ JSON inválido (Single Quotes?), tentando ast.literal_eval... Erro original: {json_error}")
+                        info = ast.literal_eval(token_str)
+                    except Exception as ast_error:
+                        logger.error(f"❌ Falha crítica ao parsear token OAuth: {ast_error}")
+                        raise json_error
+                
                 self.creds = UserCredentials.from_authorized_user_info(info, self.scopes)
 
             # 3. Tenta carregar da Env Var GCP_SA_KEY (Prod / GitHub Actions)
