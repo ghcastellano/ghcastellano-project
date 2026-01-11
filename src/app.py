@@ -450,13 +450,30 @@ def upload_file():
                             job=job
                         )
                         
-                        # Updates Status
+                        # Updates Job Status & Metrics (Explicit Save)
                         job.status = JobStatus.COMPLETED
                         job.finished_at = datetime.utcnow()
+                        
+                        if result and 'usage' in result:
+                            usage = result['usage']
+                            job.cost_tokens_input = usage.get('prompt_tokens', 0)
+                            job.cost_tokens_output = usage.get('completion_tokens', 0)
+                            # Simple Cost Est (GPT-4o-mini: $0.15/1M in, $0.60/1M out)
+                            # This is just an estimate, exact logic can be in model
+                            input_cost = (job.cost_tokens_input / 1_000_000) * 0.15
+                            output_cost = (job.cost_tokens_output / 1_000_000) * 0.60
+                            job.cost_usd = input_cost + output_cost
+
+                        if result and 'output_link' in result:
+                            # Save link in payload or another field if available
+                            current_payload = dict(job.output_payload) if job.output_payload else {}
+                            current_payload['pdf_link'] = result['output_link']
+                            job.output_payload = current_payload
+
                         db.commit()
                         
                         sucesso += 1
-                        logger.info(f"✅ [SYNC] Processamento concluído: {file.filename}")
+                        logger.info(f"✅ [SYNC] Processamento concluído: {file.filename} (Cost: ${job.cost_usd:.4f})")
                         
                     except Exception as job_e:
                         logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")

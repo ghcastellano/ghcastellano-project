@@ -659,18 +659,17 @@ def api_status():
     
     db = next(get_db())
     try:
-        # Base Query
-        # Ensure we only fetch existing columns
-        # Note: processing_logs might be missing in some dev DBs
+        # 1. Fetch Processed/Visible Inspections
         query = db.query(Inspection).options(defer(Inspection.processing_logs), joinedload(Inspection.establishment))
         
         # Filter by Company (Security)
+        est_ids = []
         if current_user.company_id:
              # Find establishments of this company
              company_ests = db.query(Establishment).filter(Establishment.company_id == current_user.company_id).all()
              est_ids = [e.id for e in company_ests]
              # Fix: Include orphans (establishment_id is Null) but owned by company (client_id)
-             from sqlalchemy import or_
+             # Note: Inspection model might not have client_id populated reliably in this version.
              query = query.filter(
                  Inspection.establishment_id.in_(est_ids)
              )
@@ -688,11 +687,13 @@ def api_status():
         pending_list = []
         processed_list = []
         
+        # 2. Add pending items from Inspections (if they have establishment linked)
         for insp in all_inspections:
             est_name = insp.establishment.name if insp.establishment else "Desconhecido"
             
             if insp.status == InspectionStatus.PROCESSING:
-                pending_list.append({'name': est_name})
+                # We handle duplicates below or just add
+                pass # Skip strict inspection pending, use Jobs for source of truth on pending
             else:
                 # Format Date
                 date_str = insp.created_at.strftime('%d/%m/%Y %H:%M') if insp.created_at else ''
@@ -707,6 +708,31 @@ def api_status():
                     'status': insp.status.value,
                     'review_link': review_link
                 })
+
+        # 3. [FIX] Fetch Pending JOBS (Source of Truth for Processing)
+        # This ensures we see uploads even if Establishment Match failed (NULL ID)
+        if current_user.company_id:
+            from src.models_db import Job, JobStatus
+            jobs_query = db.query(Job).filter(
+                Job.company_id == current_user.company_id,
+                Job.status.in_([JobStatus.PENDING, JobStatus.RUNNING])
+            )
+            # Filter by Est if selected (if job input has it) 
+            # Note: Input payload might have establishment_id as string
+            pending_jobs = jobs_query.order_by(Job.created_at.desc()).all()
+            
+            for job in pending_jobs:
+                # Check if filtered by establishment
+                if establishment_id:
+                    payload_est = job.input_payload.get('establishment_id') if job.input_payload else None
+                    if payload_est and payload_est != establishment_id:
+                        continue
+                
+                fname = "Relatório em Processamento"
+                if job.input_payload and 'filename' in job.input_payload:
+                    fname = job.input_payload['filename']
+                
+                pending_list.append({'name': fname})
                 
         return jsonify({
             'pending': pending_list,

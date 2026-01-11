@@ -17,6 +17,7 @@ secrets.sh
 *.pem
 service-account-*.json
 deploy_keys/
+user_credentials.json
 
 # Google Cloud
 client_secret.json

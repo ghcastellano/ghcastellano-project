@@ -374,121 +374,124 @@
             </div>
 
             <!-- 2. Establishments Section -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
-                <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Lojas</h1>
-                <button class="btn btn-accent" onclick="toggleCreateEst()">
-                    <i class="ph-bold ph-storefront"></i> Nova Loja
-                </button>
-            </div>
-
-            <!-- Create Est Card -->
-            <div class="card" id="createEstCard" style="display:none; margin-bottom:2rem;">
-                <div class="card-body">
-                    <form id="formCreateEst" onsubmit="handleCreateEstablishment(event)">
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                            <div><label class="form-label">Nome</label><input name="name" class="form-control" required
-                                    placeholder="Ex: Matriz"></div>
-                            <div><label class="form-label">Código</label><input name="code" class="form-control"
-                                    placeholder="LOJA-01"></div>
-                        </div>
-                        <hr style="margin:1rem 0; border-color:#f1f5f9;">
-                        <h6 style="color:var(--text-secondary); margin-bottom:1rem; font-size:0.85rem;">Responsável
-                            (Contato)</h6>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
-                            <div><label class="form-label">Nome</label><input name="responsible_name"
-                                    class="form-control"></div>
-                            <div><label class="form-label">Email (Recebimento de Relatórios)</label><input type="email"
-                                    name="responsible_email" class="form-control" placeholder="email@loja.com"></div>
-                            <div><label class="form-label">Telefone</label><input name="responsible_phone"
-                                    class="form-control"></div>
-                        </div>
-                        <div class="text-right" style="margin-top:1rem;">
-                            <button type="button" class="btn btn-secondary"
-                                onclick="toggleCreateEst()">Cancelar</button>
-                            <button type="submit" class="btn btn-accent" id="btnCreateEst">Salvar Loja</button>
-                        </div>
-                    </form>
+            <div id="establishments-view" class="section-view">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Lojas</h1>
+                    <button class="btn btn-accent" onclick="toggleCreateEst()">
+                        <i class="ph-bold ph-storefront"></i> Nova Loja
+                    </button>
                 </div>
-            </div>
 
-            <!-- Edit Est Card -->
-            <div class="card" id="editEstCard" style="display:none; margin-bottom:2rem; border:1px solid #3b82f6;">
-                <div class="card-header" style="background:none; padding-bottom:0;">
-                    <h4 style="margin:0; color:#1e40af;">Editar Loja</h4>
+                <!-- Create Est Card -->
+                <div class="card" id="createEstCard" style="display:none; margin-bottom:2rem;">
+                    <div class="card-body">
+                        <form id="formCreateEst" onsubmit="handleCreateEstablishment(event)">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div><label class="form-label">Nome</label><input name="name" class="form-control"
+                                        required placeholder="Ex: Matriz"></div>
+                                <div><label class="form-label">Código</label><input name="code" class="form-control"
+                                        placeholder="LOJA-01"></div>
+                            </div>
+                            <hr style="margin:1rem 0; border-color:#f1f5f9;">
+                            <h6 style="color:var(--text-secondary); margin-bottom:1rem; font-size:0.85rem;">Responsável
+                                (Contato)</h6>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                                <div><label class="form-label">Nome</label><input name="responsible_name"
+                                        class="form-control"></div>
+                                <div><label class="form-label">Email (Recebimento de Relatórios)</label><input
+                                        type="email" name="responsible_email" class="form-control"
+                                        placeholder="email@loja.com"></div>
+                                <div><label class="form-label">Telefone</label><input name="responsible_phone"
+                                        class="form-control"></div>
+                            </div>
+                            <div class="text-right" style="margin-top:1rem;">
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="toggleCreateEst()">Cancelar</button>
+                                <button type="submit" class="btn btn-accent" id="btnCreateEst">Salvar Loja</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form id="editEstForm" onsubmit="handleUpdateEst(event)">
-                        <input type="hidden" id="edit_est_id">
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                            <div><label class="form-label">Nome</label><input id="edit_est_name" name="name"
-                                    class="form-control" required></div>
-                            <div><label class="form-label">Código</label><input id="edit_est_code" name="code"
-                                    class="form-control"></div>
-                        </div>
-                        <hr style="margin:1rem 0; border-color:#e2e8f0;">
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
-                            <div><label class="form-label">Nome Resp.</label><input id="edit_est_resp_name"
-                                    name="responsible_name" class="form-control"></div>
-                            <div><label class="form-label">Email (Relatórios)</label><input id="edit_est_resp_email"
-                                    name="responsible_email" class="form-control"></div>
-                            <div><label class="form-label">Tel Resp.</label><input id="edit_est_resp_phone"
-                                    name="responsible_phone" class="form-control"></div>
-                        </div>
-                        <div class="text-right" style="margin-top:1rem;">
-                            <button type="button" class="btn btn-secondary"
-                                onclick="document.getElementById('editEstCard').style.display='none'">Cancelar</button>
-                            <button type="submit" class="btn btn-primary" id="btnUpdateEst">Atualizar</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
 
-            <div class="card">
-                <div class="table-container">
-                    <table class="modern-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Código</th>
-                                <th class="text-right">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-establishments-body">
-                            {% for est in establishments %}
-                            <tr id="row-est-{{ est.id }}">
-                                <td>
-                                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                                        <div class="user-avatar-sm"
-                                            style="background: linear-gradient(135deg, #10b981, #059669);">
-                                            <i class="ph ph-storefront"></i>
+                <!-- Edit Est Card -->
+                <div class="card" id="editEstCard" style="display:none; margin-bottom:2rem; border:1px solid #3b82f6;">
+                    <div class="card-header" style="background:none; padding-bottom:0;">
+                        <h4 style="margin:0; color:#1e40af;">Editar Loja</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="editEstForm" onsubmit="handleUpdateEst(event)">
+                            <input type="hidden" id="edit_est_id">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <div><label class="form-label">Nome</label><input id="edit_est_name" name="name"
+                                        class="form-control" required></div>
+                                <div><label class="form-label">Código</label><input id="edit_est_code" name="code"
+                                        class="form-control"></div>
+                            </div>
+                            <hr style="margin:1rem 0; border-color:#e2e8f0;">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;">
+                                <div><label class="form-label">Nome Resp.</label><input id="edit_est_resp_name"
+                                        name="responsible_name" class="form-control"></div>
+                                <div><label class="form-label">Email (Relatórios)</label><input id="edit_est_resp_email"
+                                        name="responsible_email" class="form-control"></div>
+                                <div><label class="form-label">Tel Resp.</label><input id="edit_est_resp_phone"
+                                        name="responsible_phone" class="form-control"></div>
+                            </div>
+                            <div class="text-right" style="margin-top:1rem;">
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="document.getElementById('editEstCard').style.display='none'">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" id="btnUpdateEst">Atualizar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Código</th>
+                                    <th class="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-establishments-body">
+                                {% for est in establishments %}
+                                <tr id="row-est-{{ est.id }}">
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                                            <div class="user-avatar-sm"
+                                                style="background: linear-gradient(135deg, #10b981, #059669);">
+                                                <i class="ph ph-storefront"></i>
+                                            </div>
+                                            <div style="font-weight: 600;">{{ est.name }}</div>
                                         </div>
-                                        <div style="font-weight: 600;">{{ est.name }}</div>
-                                    </div>
-                                </td>
-                                <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or '-'
-                                    }}</td>
-                                <td class="text-right">
-                                    <div class="btn-icon-group">
-                                        <button class="btn-edit-icon" data-id="{{ est.id }}" data-name="{{ est.name }}"
-                                            data-code="{{ est.code or '' }}"
-                                            data-resp-name="{{ est.responsible_name or '' }}"
-                                            data-resp-email="{{ est.responsible_email or '' }}"
-                                            data-resp-phone="{{ est.responsible_phone or '' }}"
-                                            onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code, this.dataset.respName, this.dataset.respEmail, this.dataset.respPhone)"
-                                            title="Editar">
-                                            <i class="ph-bold ph-pencil-simple"></i>
-                                        </button>
-                                        <button class="btn-delete-icon"
-                                            onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
-                                            title="Remover">
-                                            <i class="ph-bold ph-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    </td>
+                                    <td style="font-family: monospace; color: var(--text-secondary);">{{ est.code or '-'
+                                        }}</td>
+                                    <td class="text-right">
+                                        <div class="btn-icon-group">
+                                            <button class="btn-edit-icon" data-id="{{ est.id }}"
+                                                data-name="{{ est.name }}" data-code="{{ est.code or '' }}"
+                                                data-resp-name="{{ est.responsible_name or '' }}"
+                                                data-resp-email="{{ est.responsible_email or '' }}"
+                                                data-resp-phone="{{ est.responsible_phone or '' }}"
+                                                onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code, this.dataset.respName, this.dataset.respEmail, this.dataset.respPhone)"
+                                                title="Editar">
+                                                <i class="ph-bold ph-pencil-simple"></i>
+                                            </button>
+                                            <button class="btn-delete-icon"
+                                                onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
+                                                title="Remover">
+                                                <i class="ph-bold ph-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
