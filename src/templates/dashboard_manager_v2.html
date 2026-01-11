@@ -1315,93 +1315,95 @@
 </style>
 
 <!-- MODALS (Re-injected) -->
-// --- GENERIC AJAX FORM HANDLER (Applied to Manager Dashboard) ---
-document.addEventListener('DOMContentLoaded', () => {
-const forms = document.querySelectorAll('form');
-forms.forEach(form => {
-if (form.getAttribute('action') && !form.classList.contains('no-ajax')) {
-form.addEventListener('submit', async (e) => {
-e.preventDefault();
-const submitBtn = form.querySelector('button[type="submit"]');
-const originalText = submitBtn ? submitBtn.innerHTML : '';
+<script>
+    // --- GENERIC AJAX FORM HANDLER (Applied to Manager Dashboard) ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            if (form.getAttribute('action') && !form.classList.contains('no-ajax')) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const originalText = submitBtn ? submitBtn.innerHTML : '';
 
-if(submitBtn) {
-submitBtn.disabled = true;
-submitBtn.innerHTML = '<i class="ph-bold ph-spinner spin-anim"></i> Processando...';
-}
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="ph-bold ph-spinner spin-anim"></i> Processando...';
+                    }
 
-try {
-const formData = new FormData(form);
-const res = await fetch(form.action, {
-method: form.method || 'POST',
-body: formData,
-headers: { 'Accept': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
-});
+                    try {
+                        const formData = new FormData(form);
+                        const res = await fetch(form.action, {
+                            method: form.method || 'POST',
+                            body: formData,
+                            headers: { 'Accept': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+                        });
 
-let data;
-try { data = await res.json(); } catch(e) { data = { error: 'Resposta inválida.' }; }
+                        let data;
+                        try { data = await res.json(); } catch (e) { data = { error: 'Resposta inválida.' }; }
 
-if (res.ok) {
-showToast(data.message || 'Sucesso!', 'success');
-form.reset();
+                        if (res.ok) {
+                            showToast(data.message || 'Sucesso!', 'success');
+                            form.reset();
 
-// Close any parent card/modal
-const parentCard = form.closest('.card');
-if (parentCard && (parentCard.id.includes('create') || parentCard.id.includes('edit'))) {
-parentCard.style.display = 'none';
-}
+                            // Close any parent card/modal
+                            const parentCard = form.closest('.card');
+                            if (parentCard && (parentCard.id.includes('create') || parentCard.id.includes('edit'))) {
+                                parentCard.style.display = 'none';
+                            }
 
-// Reload for speed sensation + data consistency
-setTimeout(() => window.location.reload(), 500);
-} else {
-showToast(data.error || 'Erro ao processar', 'error');
-}
-} catch (err) {
-console.error(err);
-showToast('Erro de conexão.', 'error');
-} finally {
-if(submitBtn) {
-submitBtn.disabled = false;
-submitBtn.innerHTML = originalText;
-}
-}
-});
-}
-});
-});
+                            // Reload for speed sensation + data consistency
+                            setTimeout(() => window.location.reload(), 500);
+                        } else {
+                            showToast(data.error || 'Erro ao processar', 'error');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        showToast('Erro de conexão.', 'error');
+                    } finally {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }
+                    }
+                });
+            }
+        });
+    });
 
-// --- UPDATED DELETE FUNCTIONS (With Toast + Delay) ---
-async function deleteConsultant(id, name) {
-if (!confirm(`Remover consultor ${name}?`)) return;
-try {
-const res = await fetch(`/manager/consultant/${id}/delete`, {
-method: 'POST',
-headers: {'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value}
-});
-if (res.ok) {
-showToast('Consultor removido!', 'success');
-setTimeout(() => window.location.reload(), 500);
-} else {
-const data = await res.json();
-showToast(data.error || 'Erro ao remover', 'error');
-}
-} catch (e) { showToast('Erro de conexão', 'error'); }
-}
+    // --- UPDATED DELETE FUNCTIONS (With Toast + Delay) ---
+    async function deleteConsultant(id, name) {
+        if (!confirm(`Remover consultor ${name}?`)) return;
+        try {
+            const res = await fetch(`/manager/consultant/${id}/delete`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+            });
+            if (res.ok) {
+                showToast('Consultor removido!', 'success');
+                setTimeout(() => window.location.reload(), 500);
+            } else {
+                const data = await res.json();
+                showToast(data.error || 'Erro ao remover', 'error');
+            }
+        } catch (e) { showToast('Erro de conexão', 'error'); }
+    }
 
-async function deleteEstablishment(id, name) {
-if (!confirm(`Remover loja ${name}?`)) return;
-try {
-const res = await fetch(`/manager/establishment/${id}/delete`, {
-method: 'POST',
-headers: {'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value}
-});
-if (res.ok) {
-showToast('Loja removida!', 'success');
-setTimeout(() => window.location.reload(), 500);
-} else {
-const data = await res.json();
-showToast(data.error || 'Erro ao remover', 'error');
-}
-} catch (e) { showToast('Erro de conexão', 'error'); }
-}
+    async function deleteEstablishment(id, name) {
+        if (!confirm(`Remover loja ${name}?`)) return;
+        try {
+            const res = await fetch(`/manager/establishment/${id}/delete`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+            });
+            if (res.ok) {
+                showToast('Loja removida!', 'success');
+                setTimeout(() => window.location.reload(), 500);
+            } else {
+                const data = await res.json();
+                showToast(data.error || 'Erro ao remover', 'error');
+            }
+        } catch (e) { showToast('Erro de conexão', 'error'); }
+    }
+</script>
 {% endblock %}
