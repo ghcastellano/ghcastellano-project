@@ -78,7 +78,11 @@ class EmailService:
                 logger.info(f"Email sent to {to_email} via SES. MsgId: {response['MessageId']}")
                 return True
             except ClientError as e:
-                logger.error(f"SES Error: {e.response['Error']['Message']}")
+                msg = e.response['Error']['Message']
+                if "not verified" in msg:
+                    logger.warning(f"SES Sandbox Warning: {msg}. Email failed but system continues.")
+                else:
+                    logger.error(f"SES Error: {msg}")
                 return False
         else:
             # Mock Provider

@@ -797,14 +797,13 @@
                     }
                 }
                 showError(errorMsg);
-                showToast('Erro ao enviar relatório.', 'error');
+                // Toast removed to prioritize persistent modal
             }
         };
 
         xhr.onerror = function () {
             isProcessing = false;
             showError('Erro de conexão. Verifique sua internet.');
-            showToast('Erro de conexão.', 'error');
         };
 
         xhr.ontimeout = function () {

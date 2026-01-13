@@ -211,6 +211,8 @@ def handle_500(e):
     tb = traceback.format_exc()
     logger.error(f"💥 ERRO 500 DETECTADO: {e}\nTraceback:\n{tb}")
     # Resposta extremamente simples para evitar Erros 500 recursivos (Template errors)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+         return jsonify({'error': f"Erro Interno: {str(e)}"}), 500
     return "Erro Interno no Servidor (500). Verifique os logs do Cloud Run para o Traceback.", 500
 
 try:
@@ -558,90 +560,91 @@ def upload_file():
 @app.route('/api/status')
 @login_required
 def get_status():
-    if not drive_service:
-        return jsonify({'error': 'Drive unavailable'}), 500
+    try:
+        if not drive_service:
+            return jsonify({'error': 'Drive unavailable'}), 500
 
-    # Retrieve filter param
-    import uuid
-    est_id = request.args.get('establishment_id')
-    est_uuid = None
-    if est_id and est_id.strip(): # Safely handle empty string
-        try:
-            est_uuid = uuid.UUID(est_id)
-        except:
-            pass # Ignore invalid UUID
-            
-    # Tenta banco primeiro, fallback para Drive se vazio ou erro
-    use_db = os.getenv('DATABASE_URL') is not None
-    
-    if use_db:
-        try:
-            from src.db_queries import get_pending_inspections, get_processed_inspections_raw, get_consultant_inspections, get_pending_jobs, get_consultant_pending_inspections
-            
-            # Lógica baseada em Role
-            if current_user.role == UserRole.CONSULTANT:
-                # Consultor vê apenas seus trabalhos
-                # Jobs pendentes (técnico) + Vistorias em Aprovação (negócio)
-                try:
-                    # [FIX] Safe access to relationships to prevent lazy load error outside session if needed
+        # Retrieve filter param
+        import uuid
+        est_id = request.args.get('establishment_id')
+        est_uuid = None
+        if est_id and est_id.strip() and est_id != 'null' and est_id != 'undefined': # Robust check
+            try:
+                est_uuid = uuid.UUID(est_id)
+            except:
+                pass # Ignore invalid UUID
+                
+        # Tenta banco primeiro, fallback para Drive se vazio ou erro
+        use_db = os.getenv('DATABASE_URL') is not None
+        
+        if use_db:
+            try:
+                from src.db_queries import get_pending_inspections, get_processed_inspections_raw, get_consultant_inspections, get_pending_jobs, get_consultant_pending_inspections
+                
+                # Lógica baseada em Role
+                if current_user.role == UserRole.CONSULTANT:
+                    # [FIX] Safe access to relationships
                     my_est_ids = [est.id for est in current_user.establishments] if current_user.establishments else []
                     user_company_id = current_user.company_id
-                except: 
-                    my_est_ids = []
-                    user_company_id = None
+                    
+                    pending_jobs = get_pending_jobs(
+                        company_id=user_company_id, 
+                        establishment_ids=my_est_ids
+                    ) 
+                    
+                    # Fix: User has no establishment_id, use relationship list
+                    filter_est_id = my_est_ids[0] if my_est_ids else None
+                    
+                    # Fetch Waiting Approval (Legacy View)
+                    pending_approval = get_consultant_pending_inspections(establishment_id=filter_est_id)
+                    
+                    # Combine technical jobs with business pending items
+                    pending = pending_jobs 
+                    
+                    processed_raw = get_consultant_inspections(company_id=user_company_id, allowed_establishment_ids=my_est_ids)
+                else:
+                    # Gestor vê tudo ou filtrado
+                    user_company_id = current_user.company_id
+                    
+                    pending = get_pending_jobs(
+                        company_id=user_company_id, 
+                        allow_all=(user_company_id is None),
+                        establishment_ids=[est_uuid] if est_uuid else None
+                    ) 
+                    pending_approval = [] 
+                    processed_raw = get_processed_inspections_raw(company_id=current_user.company_id, establishment_id=est_uuid)
                 
-                pending_jobs = get_pending_jobs(
-                    company_id=user_company_id, 
-                    establishment_ids=my_est_ids
-                ) 
-                
-                # Fix: User has no establishment_id, use relationship list
-                filter_est_id = my_est_ids[0] if my_est_ids else None
-                
-                # Fetch Waiting Approval (Legacy View)
-                pending_approval = get_consultant_pending_inspections(establishment_id=filter_est_id)
-                
-                # Combine technical jobs with business pending items
-                pending = pending_jobs 
-                
-                processed_raw = get_consultant_inspections(company_id=user_company_id, allowed_establishment_ids=my_est_ids)
-            else:
-                # Gestor vê tudo ou filtrado
-                user_company_id = current_user.company_id
-                
-                pending = get_pending_jobs(
-                    company_id=user_company_id, 
-                    allow_all=(user_company_id is None),
-                    establishment_ids=[est_uuid] if est_uuid else None
-                ) 
-                pending_approval = [] # Gestor sees everything in processed_raw usually, or we can add specific section too
-                processed_raw = get_processed_inspections_raw(company_id=current_user.company_id, establishment_id=est_uuid)
-            
-            # Se o banco retornou dados (ou consultor vazio mas ok), usa eles
-            if processed_raw is not None:  
-                def list_errors():
-                    try:
-                        # Improve error mapping here or just return raw names
-                        files = drive_service.list_files(FOLDER_ERROR, extension='.pdf')
-                        mapped_errors = []
-                        for f in files[:10]:
-                            mapped_errors.append({'name': f['name'], 'error': 'Erro no processamento (Verificar logs)'})
-                        return mapped_errors
-                    except Exception as e:
-                        logger.error(f"Erro listando falhas no Drive: {e}")
-                        return []
-                
-                return jsonify({
-                    'pending': pending,
-                    'in_approval': pending_approval, 
-                    'processed_raw': processed_raw,
-                    'errors': list_errors()
-                })
-            else:
-                # Banco vazio/falhou, usa Drive
-                logger.info("Database returned None, falling back to Drive")
-        except Exception as e:
-            logger.warning(f"Database query failed, falling back to Drive: {e}")
+                # Se o banco retornou dados (ou consultor vazio mas ok), usa eles
+                if processed_raw is not None:  
+                    def list_errors():
+                        try:
+                            # Improve error mapping here or just return raw names
+                            files = drive_service.list_files(FOLDER_ERROR, extension='.pdf')
+                            mapped_errors = []
+                            for f in files[:10]:
+                                mapped_errors.append({'name': f['name'], 'error': 'Erro no processamento (Verificar logs)'})
+                            return mapped_errors
+                        except Exception as e:
+                            logger.error(f"Erro listando falhas no Drive: {e}")
+                            return []
+                    
+                    return jsonify({
+                        'pending': pending,
+                        'in_approval': pending_approval, 
+                        'processed_raw': processed_raw,
+                        'errors': list_errors()
+                    })
+                else:
+                    # Banco vazio/falhou, usa Drive
+                    logger.info("Database returned None, falling back to Drive")
+            except Exception as e:
+                logger.warning(f"Database query failed, falling back to Drive: {e}")
+        
+    except Exception as fatal_e:
+        logger.error(f"FATAL ERROR in /api/status: {fatal_e}")
+        return jsonify({'error': str(fatal_e)}), 500
+
+    # Lógica original baseada no Drive (fallback)
     
     # Lógica original baseada no Drive (fallback) - APENAS GESTOR OU FALLBACK GERAL
     # Se for consultor e cair no fallback, ele veria tudo (segurança por obscuridade no MVP fallback)

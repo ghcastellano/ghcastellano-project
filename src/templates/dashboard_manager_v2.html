@@ -672,13 +672,48 @@
 
         // Inject Loading Overlay
         const loaderHTML = `
-            <div id="premium-loader" style="display:none; position:fixed; inset:0; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); z-index: 10000; align-items:center; justify-content:center; flex-direction:column; animation: fadeIn 0.3s ease;">
-                <div style="width: 50px; height: 50px; border: 4px solid #e2e8f0; border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                <div style="margin-top:1.5rem; font-weight:600; color:var(--text-primary); font-size: 1.1rem; letter-spacing: -0.02em;">Atualizando...</div>
-            </div>
-            <style>@keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }<` + `/style>
-        `;
+        <div id="premium-loader" style="display:none; position:fixed; inset:0; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); z-index: 10000; align-items:center; justify-content:center; flex-direction:column; animation: fadeIn 0.3s ease;">
+            <div style="width: 50px; height: 50px; border: 4px solid #e2e8f0; border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <div style="margin-top:1.5rem; font-weight:600; color:var(--text-primary); font-size: 1.1rem; letter-spacing: -0.02em;">Atualizando...</div>
+        </div>
+        <style>@keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }<` + `/style>
+    `;
         document.body.insertAdjacentHTML('beforeend', loaderHTML);
+
+        // --- PREMIUM UI: INPUT MASKS & VALIDATION ---
+        // Phone Mask (Celular/Fixo)
+        const phoneInputs = document.querySelectorAll('input[name="responsible_phone"]');
+        phoneInputs.forEach(input => {
+            input.placeholder = "(00) 00000-0000";
+            input.addEventListener('input', function (e) {
+                let v = e.target.value.replace(/\D/g, "");
+
+                // Limit length (11 digits for cell, 10 for landline)
+                if (v.length > 11) v = v.substring(0, 11);
+
+                if (v.length > 10) {
+                    // Cell: (11) 91234-5678
+                    v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3");
+                } else if (v.length > 5) {
+                    v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+                } else if (v.length > 2) {
+                    v = v.replace(/^(\d\d)(\d{0,5}).*/, "($1) $2");
+                } else {
+                    v = v.replace(/^(\d*)/, "($1");
+                }
+
+                e.target.value = v;
+
+                // Visual Feedback
+                if (v.length >= 14) { // Min length for valid mask
+                    input.style.borderColor = '#10B981';
+                    input.style.backgroundColor = '#ecfdf5';
+                } else {
+                    input.style.borderColor = '';
+                    input.style.backgroundColor = '';
+                }
+            });
+        });
     });
 
     window.showLoading = function () {

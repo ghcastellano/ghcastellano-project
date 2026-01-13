@@ -157,7 +157,7 @@ class ProcessorService:
             
             if existing_insp:
                 logger.info(f"♻️ Skipping duplicate file (Hash: {file_hash})")
-                self._log_trace(file_id, "SKIPPED", "SUCCESS", "Duplicate file detected. Skipping AI analysis.")
+                self._log_trace(file_id, "SKIPPED", "SUCCESS", "Arquivo duplicado detectado. Pulando análise de IA.")
                 return {'status': 'skipped', 'reason': 'duplicate', 'existing_id': existing_insp.drive_file_id}
 
             # 2. Analyze (OCR + OpenAI)
@@ -186,7 +186,7 @@ class ProcessorService:
                 self._log_trace(file_id, "PDF_GEN", "SUCCESS", f"PDF gerado com sucesso: {output_link}")
                 logger.info("Plano gerado e salvo", link=output_link)
             except Exception as pdf_err:
-                 msg = f"PDF Gen Failed (Ignored): {pdf_err}"
+                 msg = f"Falha na Geração do PDF (Ignorado): {pdf_err}"
                  logger.error(msg)
                  self._log_trace(file_id, "PDF_GEN", "WARNING", msg)
 
@@ -208,7 +208,7 @@ class ProcessorService:
             try:
                 if not file_id.startswith('gcs:'):
                     self.drive_service.move_file(file_id, self.folder_error)
-                    self._log_trace(file_id, "ERROR", "MOVED", "File moved to Error folder")
+                    self._log_trace(file_id, "ERROR", "MOVED", "Arquivo movido para pasta de Erros")
             except:
                 pass
             raise # Re-raise to let caller (app.py) know it failed

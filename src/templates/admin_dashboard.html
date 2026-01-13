@@ -845,6 +845,33 @@
     document.addEventListener('DOMContentLoaded', () => {
         console.log('🚀 Dashboard Loaded: Triggering Auto-Sync...');
         triggerManualSync(true); // Silent mode
+
+        // --- PREMIUM UI: INPUT MASKS & VALIDATION ---
+        const cnpjInputs = document.querySelectorAll('input[name="cnpj"]');
+        cnpjInputs.forEach(input => {
+            input.placeholder = "00.000.000/0000-00";
+            input.addEventListener('input', function (e) {
+                let v = e.target.value.replace(/\D/g, "");
+
+                // Mascara CNPJ
+                if (v.length > 14) v = v.substring(0, 14);
+                v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+                v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+                v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+                v = v.replace(/(\d{4})(\d)/, "$1-$2");
+
+                e.target.value = v;
+
+                // Visual Feedback
+                if (v.length === 18) {
+                    input.style.borderColor = '#10B981';
+                    input.style.backgroundColor = '#ecfdf5';
+                } else {
+                    input.style.borderColor = '';
+                    input.style.backgroundColor = '';
+                }
+            });
+        });
     });
 </script>
 <style>
@@ -879,4 +906,6 @@
         }
     }
 
-{% endblock %}
+        {
+        % endblock %
+    }
