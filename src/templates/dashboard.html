@@ -10,7 +10,8 @@
 
         <!-- Upload Section -->
         <div id="dropZone" class="glass-panel text-center p-8 active-zone mb-6">
-            <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
+            <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="space-y-4"
+                onsubmit="showLoading(event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div
                     class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 hover:bg-gray-50 transition">
@@ -28,9 +29,18 @@
                     <div id="filePreview" class="file-preview" style="display: none; margin-top: 1.5rem;">
                         <span style="font-size: 1.5rem;">📎</span>
                         <span id="fileName" style="font-weight: 500; color: #334155;">nome_do_arquivo.pdf</span>
-                        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                        <button type="submit" id="submitBtn" class="btn btn-primary"
+                            style="padding: 0.5rem 1rem; font-size: 0.9rem;">
                             Enviar Agora
                         </button>
+                    </div>
+                    <!-- Loading Indicator -->
+                    <div id="uploadLoading"
+                        style="display: none; margin-top: 1rem; color: #166534; font-weight: 500; text-align: center;">
+                        <div class="spinner"
+                            style="width: 20px; height: 20px; border-width: 3px; display: inline-block; vertical-align: middle; margin-right: 8px;">
+                        </div>
+                        Processando... (Pode levar até 60s)
                     </div>
             </form>
         </div>
@@ -418,7 +428,6 @@
         }
 
         // Initial load and periodic update
-        updateLists();
         updateLists();
         // setInterval(updateLists, 10000); // Removido para Zero Cost / Sob Demanda
     </script>
