@@ -1279,20 +1279,34 @@
         }
     }
 
+
     function getStatusBadge(status) {
         // Map backend enum to UI Badge
         const map = {
             'PROCESSING': { class: 'badge-primary', text: 'Processando' },
+            'PENDING': { class: 'badge-warning', text: 'Pendente' },
             'PENDING_MANAGER_REVIEW': { class: 'badge-warning', text: 'Aguardando Aprovação' },
             'WAITING_APPROVAL': { class: 'badge-warning', text: 'Aguardando Aprovação' },
             'APPROVED': { class: 'badge-success', text: 'Aprovado' },
             'PENDING_VERIFICATION': { class: 'badge-info', text: 'Em Verificação' },
             'COMPLETED': { class: 'badge-success', text: 'Concluído' },
-            'REJECTED': { class: 'badge-danger', text: 'Rejeitado' }
+            'REJECTED': { class: 'badge-danger', text: 'Rejeitado' },
+            'FAILED': { class: 'badge-danger', text: 'Falha' }
         };
 
         const badge = map[status] || { class: 'badge-secondary', text: status || 'Desconhecido' };
         return `<span class="badge ${badge.class}">${badge.text}</span>`;
+    }
+
+    // Format Currency (Simple BRL estimation)
+    function formatMoney(val) {
+        if (val === null || val === undefined) return '-';
+        // Assume val is already in USD or needs conversion
+        // If val < 10, it's likely USD. Let's show both or just BRL est.
+        // User requested "dolar do dia". Without API, we use fixed rate 6.0 safe margin.
+        const usd = parseFloat(val);
+        const brl = usd * 6.0;
+        return `R$ ${brl.toFixed(4)}`;
     }
 
     // Iniciar Polling

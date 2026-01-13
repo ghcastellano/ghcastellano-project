@@ -476,7 +476,8 @@ def upload_file():
                         db.commit()
                         
                         sucesso += 1
-                        logger.info(f"✅ [SYNC] Processamento concluído: {file.filename} (Cost: ${job.cost_usd:.4f})")
+                        total_cost = (job.cost_input_usd or 0) + (job.cost_output_usd or 0)
+                        logger.info(f"✅ [SYNC] Processamento concluído: {file.filename} (Cost: ${total_cost:.4f})")
                         
                     except Exception as job_e:
                         logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")
@@ -490,7 +491,7 @@ def upload_file():
                         try:
                             if app.email_service and user_email:
                                 subj = f"Erro no Processamento: {file.filename}"
-                                body = f"""
+                                body_text = f"""
                                 Olá {user_name},
                                 
                                 Ocorreu um erro ao processar o relatório "{file.filename}".
@@ -500,7 +501,10 @@ def upload_file():
                                 
                                 Por favor, verifique o arquivo e tente novamente. Se o erro persistir, contate o suporte.
                                 """
-                                app.email_service.send_email(user_email, subj, body)
+                                # HTML version optional, using same text for now
+                                body_html = f"<pre>{body_text}</pre>"
+                                
+                                app.email_service.send_email(user_email, subj, body_html, body_text)
                         except Exception as mail_e:
                             logger.error(f"Falha ao enviar email de erro: {mail_e}")
 
