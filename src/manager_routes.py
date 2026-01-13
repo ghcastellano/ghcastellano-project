@@ -202,7 +202,7 @@ def update_consultant(user_id):
             user.establishments = new_establishments
             
         db.commit()
-        db.commit()
+
         
         # Prepare response data
         consultant_data = {

@@ -184,9 +184,7 @@ class Inspection(Base):
     establishment: Mapped[Optional["Establishment"]] = relationship(back_populates="inspections")
     visit: Mapped[Optional["Visit"]] = relationship(back_populates="inspections")
     action_plan: Mapped[Optional["ActionPlan"]] = relationship(back_populates="inspection", uselist=False)
-    establishment: Mapped[Optional["Establishment"]] = relationship(back_populates="inspections")
-    visit: Mapped[Optional["Visit"]] = relationship(back_populates="inspections")
-    action_plan: Mapped[Optional["ActionPlan"]] = relationship(back_populates="inspection", uselist=False)
+
 
     # --- Pydantic/Template Adapters (V5 Dashboard) ---
     @property
