@@ -564,15 +564,15 @@ def get_status():
         if not drive_service:
             return jsonify({'error': 'Drive unavailable'}), 500
 
-        # Retrieve filter param
+        # Recupera parametro de filtro
         import uuid
         est_id = request.args.get('establishment_id')
         est_uuid = None
-        if est_id and est_id.strip() and est_id != 'null' and est_id != 'undefined': # Robust check
+        if est_id and est_id.strip() and est_id != 'null' and est_id != 'undefined': # Verificação robusta
             try:
                 est_uuid = uuid.UUID(est_id)
             except:
-                pass # Ignore invalid UUID
+                pass # Ignora UUID inválido
                 
         # Tenta banco primeiro, fallback para Drive se vazio ou erro
         use_db = os.getenv('DATABASE_URL') is not None
@@ -583,7 +583,7 @@ def get_status():
                 
                 # Lógica baseada em Role
                 if current_user.role == UserRole.CONSULTANT:
-                    # [FIX] Safe access to relationships
+                    # [FIX] Acesso seguro a relacionamentos
                     my_est_ids = [est.id for est in current_user.establishments] if current_user.establishments else []
                     user_company_id = current_user.company_id
                     
@@ -592,10 +592,10 @@ def get_status():
                         establishment_ids=my_est_ids
                     ) 
                     
-                    # Fix: User has no establishment_id, use relationship list
+                    # Fix: Usuário sem establishment_id, usa lista de relacionamentos
                     filter_est_id = my_est_ids[0] if my_est_ids else None
                     
-                    # Fetch Waiting Approval (Legacy View)
+                    # Busca Aguardando Aprovação (Visão Legada)
                     pending_approval = get_consultant_pending_inspections(establishment_id=filter_est_id)
                     
                     # Combine technical jobs with business pending items

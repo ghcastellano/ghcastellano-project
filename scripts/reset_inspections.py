@@ -1,26 +1,23 @@
 import sys
 import os
 
-# Manual .env loader (since running isolated)
-# Simple parser for KEY=VALUE
+# Carregador Manual de .env (já que rodamos isolado)
+# Parser simples para CHAVE=VALOR
 env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
 if os.path.exists(env_path):
-    print(f"Loading .env from {env_path}")
+    print(f"Carregando .env de {env_path}")
     with open(env_path) as f:
         for line in f:
             if line.strip() and not line.startswith('#'):
                 k, v = line.strip().split('=', 1)
-                # Strip potential quotes
+                # Remove aspas potenciais
                 v = v.strip("'").strip('"')
                 os.environ[k] = v
 
-# Add project root to path (parent of 'scripts')
+# Adiciona raiz do projeto ao path (pai de 'scripts')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Also add 'src' directly if needed? No, usually root is enough if we import src.database
-# But let's be safe and check if we need to add '.'
-# Actually, the previous logic was: os.path.dirname(os.path.dirname(...)) -> Root
-# 'from src.database' works if Root is in path.
+# O resto dos imports...
 
 from src import database
 from src.database import init_db
@@ -28,38 +25,38 @@ from src.models_db import Inspection, ActionPlan, ActionPlanItem, Job, Visit, In
 from sqlalchemy import text
 
 def reset_data():
-    # Access db_session from the module to see the updated value after init_db()
+    # Acessa db_session do módulo para ver valor atualizado após init_db()
     if not database.db_session:
-        print("❌ Error: Database session not initialized.")
+        print("❌ Erro: Sessão do banco não inicializada.")
         return
         
     session = database.db_session()
     try:
-        print("⚠️  WARNING: This will DELETE all Inspections, Action Plans, and Jobs.")
-        print("    Users, Companies, and Establishments will be PRESERVED.")
+        print("⚠️  AVISO: Isso irá APAGAR todas as Inspeções, Planos de Ação e Tarefas.")
+        print("    Usuários, Empresas e Estabelecimentos serão PRESERVADOS.")
         
-        # 1. Delete Action Plan Items (Cascade usually handles this, but being explicit)
+        # 1. Deletar Itens do Plano de Ação
         deleted_items = session.query(ActionPlanItem).delete()
-        print(f"✅ Deleted {deleted_items} Action Plan Items")
+        print(f"✅ Deletados {deleted_items} Itens de Plano de Ação")
         
-        # 2. Delete Action Plans
+        # 2. Deletar Planos de Ação
         deleted_plans = session.query(ActionPlan).delete()
-        print(f"✅ Deleted {deleted_plans} Action Plans")
+        print(f"✅ Deletados {deleted_plans} Planos de Ação")
         
-        # 3. Delete Inspections
+        # 3. Deletar Inspeções
         deleted_inspections = session.query(Inspection).delete()
-        print(f"✅ Deleted {deleted_inspections} Inspections")
+        print(f"✅ Deletadas {deleted_inspections} Inspeções")
         
-        # 4. Delete Jobs (Background tasks)
+        # 4. Deletar Jobs (Tarefas de Fundo)
         deleted_jobs = session.query(Job).delete()
-        print(f"✅ Deleted {deleted_jobs} Jobs")
+        print(f"✅ Deletados {deleted_jobs} Jobs")
         
-        # 5. Delete Visits (If requested, optional)
+        # 5. Deletar Visitas (Se solicitado, opcional)
         # deleted_visits = session.query(Visit).delete()
-        # print(f"✅ Deleted {deleted_visits} Visits")
+        # print(f"✅ Deletadas {deleted_visits} Visitas")
 
         session.commit()
-        print("\n🎉 Database Cleanup Complete! ready for fresh tests.")
+        print("\n🎉 Limpeza do Banco Completa! Pronto para novos testes.")
         
     except Exception as e:
         session.rollback()
