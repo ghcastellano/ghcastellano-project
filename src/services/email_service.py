@@ -59,9 +59,9 @@ class EmailService:
         Acesse em: {os.getenv('BASE_URL', 'http://localhost:5000')}/auth/login
         """
         
-        return self._send_email(to_email, subject, html_body, text_body)
+        return self.send_email(to_email, subject, html_body, text_body)
 
-    def _send_email(self, to_email, subject, html_body, text_body):
+    def send_email(self, to_email, subject, html_body, text_body):
         if self.provider == 'ses' and self.ses_client:
             try:
                 response = self.ses_client.send_email(

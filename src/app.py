@@ -464,9 +464,8 @@ def upload_file():
                             job.cost_tokens_output = usage.get('completion_tokens', 0)
                             # Simple Cost Est (GPT-4o-mini: $0.15/1M in, $0.60/1M out)
                             # This is just an estimate, exact logic can be in model
-                            input_cost = (job.cost_tokens_input / 1_000_000) * 0.15
-                            output_cost = (job.cost_tokens_output / 1_000_000) * 0.60
-                            job.cost_usd = input_cost + output_cost
+                            job.cost_input_usd = (job.cost_tokens_input / 1_000_000) * 0.15
+                            job.cost_output_usd = (job.cost_tokens_output / 1_000_000) * 0.60
 
                         if result and 'output_link' in result:
                             # Save link in payload or another field if available
