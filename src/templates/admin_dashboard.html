@@ -878,147 +878,86 @@
             transform: translateY(0);
         }
     }
+
+    < !-- Sidebar --><aside class="admin-sidebar"><h3 style="margin-bottom: 2rem; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;"><i class="ph-fill ph-shield-check" style="color: var(--accent-color);"></i>Moderação </h3><div class="sidebar-header">Principal</div><ul class="sidebar-menu"><li class="sidebar-item active" id="menu-overview" onclick="showSection('overview', this)"><div class="sidebar-dot"></div>Visão Geral </li><li class="sidebar-item" id="menu-companies" onclick="showSection('companies', this)"><div class="sidebar-dot"></div>Empresas (Tenants) </li><li class="sidebar-item" id="menu-managers" onclick="showSection('managers', this)"><div class="sidebar-dot"></div>Acessos & Gestores </li></ul><div class="sidebar-header">Técnico</div><ul class="sidebar-menu"><li class="sidebar-item" id="menu-monitoring" onclick="showSection('monitoring', this)"><div class="sidebar-dot"></div>Monitoramento Jobs </li><li class="sidebar-item" id="menu-system" onclick="showSection('system', this)"><div class="sidebar-dot"></div>Logs & Sistema </li></ul>< !-- Info Box --><div style="margin-top: auto; padding: 1rem; background: rgba(239, 246, 255, 0.6); border-radius: 12px; border: 1px solid rgba(219, 234, 254, 0.6); font-size: 0.8rem; color: #1e40af;"><i class="ph-bold ph-info"></i>Painel de Super Admin. Use com cautela. Ações aqui afetam toda a plataforma. </div></aside>< !-- Main Content --><div class="admin-main"><div class="content-wrapper">< !-- 1. Overview Section --><div id="overview" class="section-view active">< !-- Modern Header --><div style="margin-bottom: 2.5rem;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;"><div><span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">Painel Administrativo</span><h1 style="font-size: 2.5rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin: 0;">Olá,
+    {
+        {
+        current_user.name.split()[0]
+    }
+    }
+
+    <span style="animation: wave 2s infinite; display: inline-block; transform-origin: 70% 70%;">👋</span></h1></div><div style="text-align: right;"><div style="background: white; padding: 0.5rem 1rem; border-radius: 50px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); border: 1px solid rgba(0,0,0,0.02);"><i class="ph-fill ph-calendar-blank" style="color: var(--accent-color);"></i><span style="text-transform: capitalize;"><script>document.write(new Date().toLocaleDateString('pt-BR', {
+            weekday: 'short', day: 'numeric', month: 'long'
+
+        }))</script></span></div></div></div>< !-- <p class="text-muted">Visão geral do sistema.</p>--></div><style>@keyframes wave {
+        0% {
+            transform: rotate(0.0deg)
+        }
+
+        10% {
+            transform: rotate(14.0deg)
+        }
+
+        20% {
+            transform: rotate(-8.0deg)
+        }
+
+        30% {
+            transform: rotate(14.0deg)
+        }
+
+        40% {
+            transform: rotate(-4.0deg)
+        }
+
+        50% {
+            transform: rotate(10.0deg)
+        }
+
+        60% {
+            transform: rotate(0.0deg)
+        }
+
+        100% {
+            transform: rotate(0.0deg)
+        }
+    }
 </style>
-{% endblock %}
-<!-- Sidebar -->
-<aside class="admin-sidebar">
-    <h3
-        style="margin-bottom: 2rem; font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
-        <i class="ph-fill ph-shield-check" style="color: var(--accent-color);"></i>
-        Moderação
-    </h3>
-
-    <div class="sidebar-header">Principal</div>
-    <ul class="sidebar-menu">
-        <li class="sidebar-item active" id="menu-overview" onclick="showSection('overview', this)">
-            <div class="sidebar-dot"></div> Visão Geral
-        </li>
-        <li class="sidebar-item" id="menu-companies" onclick="showSection('companies', this)">
-            <div class="sidebar-dot"></div> Empresas (Tenants)
-        </li>
-        <li class="sidebar-item" id="menu-managers" onclick="showSection('managers', this)">
-            <div class="sidebar-dot"></div> Acessos & Gestores
-        </li>
-    </ul>
-
-    <div class="sidebar-header">Técnico</div>
-    <ul class="sidebar-menu">
-        <li class="sidebar-item" id="menu-monitoring" onclick="showSection('monitoring', this)">
-            <div class="sidebar-dot"></div> Monitoramento Jobs
-        </li>
-        <li class="sidebar-item" id="menu-system" onclick="showSection('system', this)">
-            <div class="sidebar-dot"></div> Logs & Sistema
-        </li>
-    </ul>
-
-    <!-- Info Box -->
-    <div
-        style="margin-top: auto; padding: 1rem; background: rgba(239, 246, 255, 0.6); border-radius: 12px; border: 1px solid rgba(219, 234, 254, 0.6); font-size: 0.8rem; color: #1e40af;">
-        <i class="ph-bold ph-info"></i> Painel de Super Admin. Use com cautela. Ações aqui afetam toda a plataforma.
+<div class="stats-grid">
+    <div class="stat-card" onclick="document.getElementById('menu-companies').click()">
+        <span class="stat-label">Empresas</span>
+        <span class="stat-value" id="stat-companies-count">{{ companies|length if companies else 0
+            }}</span>
+        <div class="stat-trend trend-up"><i class="ph-bold ph-caret-right"></i> Gerenciar</div>
     </div>
-</aside>
-
-<!-- Main Content -->
-<div class="admin-main">
-    <div class="content-wrapper">
-        <!-- 1. Overview Section -->
-        <div id="overview" class="section-view active">
-            <!-- Modern Header -->
-            <div style="margin-bottom: 2.5rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <div>
-                        <span
-                            style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--accent-color); letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">Painel
-                            Administrativo</span>
-                        <h1
-                            style="font-size: 2.5rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; margin: 0;">
-                            Olá, {{ current_user.name.split()[0] }} <span
-                                style="animation: wave 2s infinite; display: inline-block; transform-origin: 70% 70%;">👋</span>
-                        </h1>
-                    </div>
-                    <div style="text-align: right;">
-                        <div
-                            style="background: white; padding: 0.5rem 1rem; border-radius: 50px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); border: 1px solid rgba(0,0,0,0.02);">
-                            <i class="ph-fill ph-calendar-blank" style="color: var(--accent-color);"></i>
-                            <span style="text-transform: capitalize;">
-                                <script>document.write(new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'long' }))</script>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <!-- <p class="text-muted">Visão geral do sistema.</p> -->
-            </div>
-
-            <style>
-                @keyframes wave {
-                    0% {
-                        transform: rotate(0.0deg)
-                    }
-
-                    10% {
-                        transform: rotate(14.0deg)
-                    }
-
-                    20% {
-                        transform: rotate(-8.0deg)
-                    }
-
-                    30% {
-                        transform: rotate(14.0deg)
-                    }
-
-                    40% {
-                        transform: rotate(-4.0deg)
-                    }
-
-                    50% {
-                        transform: rotate(10.0deg)
-                    }
-
-                    60% {
-                        transform: rotate(0.0deg)
-                    }
-
-                    100% {
-                        transform: rotate(0.0deg)
-                    }
-                }
-            </style>
-            <div class="stats-grid">
-                <div class="stat-card" onclick="document.getElementById('menu-companies').click()">
-                    <span class="stat-label">Empresas</span>
-                    <span class="stat-value" id="stat-companies-count">{{ companies|length if companies else 0
-                        }}</span>
-                    <div class="stat-trend trend-up"><i class="ph-bold ph-caret-right"></i> Gerenciar</div>
-                </div>
-                <div class="stat-card" onclick="document.getElementById('menu-managers').click()">
-                    <span class="stat-label">Gestores</span>
-                    <span class="stat-value">{{ managers|length if managers else 0 }}</span>
-                    <div class="stat-trend trend-up"><i class="ph-bold ph-caret-right"></i> Gerenciar</div>
-                </div>
-                Ver Monitoramento
-            </div>
-        </div>
-
-        <!-- Sync Card (Zero Cost Trigger) -->
-        <div class="stat-card" style="border-color: #f59e0b; cursor: pointer;" onclick="triggerManualSync()">
-            <span class="stat-label" style="color: #d97706;">Google Drive</span>
-            <span class="stat-value" style="color: #d97706; font-size: 1.5rem;" id="sync-status-text">Sync</span>
-            <div class="stat-trend" style="color: #d97706;">
-                <i class="ph-bold ph-arrows-clockwise" id="sync-icon"></i> <span id="sync-label">Sincronizar
-                    Agora</span>
-            </div>
-        </div>
+    <div class="stat-card" onclick="document.getElementById('menu-managers').click()">
+        <span class="stat-label">Gestores</span>
+        <span class="stat-value">{{ managers|length if managers else 0 }}</span>
+        <div class="stat-trend trend-up"><i class="ph-bold ph-caret-right"></i> Gerenciar</div>
     </div>
+    Ver Monitoramento
+</div>
+</div>
 
-    <div class="card" style="margin-top: 2rem;">
-        <div class="card-header">
-            <h3 class="card-title">Atividade Recente</h3>
-        </div>
-        <div class="card-body" style="color: var(--text-secondary);">
-            <p>O sistema está operando normalmente. (Cloud Run Rev 119)</p>
-        </div>
+<!-- Sync Card (Zero Cost Trigger) -->
+<div class="stat-card" style="border-color: #f59e0b; cursor: pointer;" onclick="triggerManualSync()">
+    <span class="stat-label" style="color: #d97706;">Google Drive</span>
+    <span class="stat-value" style="color: #d97706; font-size: 1.5rem;" id="sync-status-text">Sync</span>
+    <div class="stat-trend" style="color: #d97706;">
+        <i class="ph-bold ph-arrows-clockwise" id="sync-icon"></i> <span id="sync-label">Sincronizar
+            Agora</span>
     </div>
+</div>
+</div>
+
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3 class="card-title">Atividade Recente</h3>
+    </div>
+    <div class="card-body" style="color: var(--text-secondary);">
+        <p>O sistema está operando normalmente. (Cloud Run Rev 119)</p>
+    </div>
+</div>
 </div>
 
 <!-- 2. Companies Section -->
