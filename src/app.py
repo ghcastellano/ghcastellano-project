@@ -608,19 +608,20 @@ def get_status():
                     processed_raw = get_consultant_inspections(company_id=user_company_id, allowed_establishment_ids=my_est_ids)
                 else:
                     # Gestor vê tudo ou filtrado
-                    user_company_id = current_user.company_id
+                    # [TEMP] Allow Manager to see ALL companies (Super View) to debug orphaned reports
+                    user_company_id = None 
                     
                     pending = get_pending_jobs(
-                        company_id=user_company_id, 
-                        allow_all=(user_company_id is None),
+                        company_id=None, 
+                        allow_all=True,
                         establishment_ids=[est_uuid] if est_uuid else None
                     ) 
                     # Fix: Enable "Aguardando Aprovação" for Managers using Company Scope
                     pending_approval = get_consultant_pending_inspections(
-                         company_id=user_company_id,
+                         company_id=None,
                          establishment_id=est_uuid
                     ) 
-                    processed_raw = get_processed_inspections_raw(company_id=current_user.company_id, establishment_id=est_uuid)
+                    processed_raw = get_processed_inspections_raw(company_id=None, establishment_id=est_uuid)
                 
                 # Se o banco retornou dados (ou consultor vazio mas ok), usa eles
                 if processed_raw is not None:  
