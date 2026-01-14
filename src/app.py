@@ -615,7 +615,11 @@ def get_status():
                         allow_all=(user_company_id is None),
                         establishment_ids=[est_uuid] if est_uuid else None
                     ) 
-                    pending_approval = [] 
+                    # Fix: Enable "Aguardando Aprovação" for Managers using Company Scope
+                    pending_approval = get_consultant_pending_inspections(
+                         company_id=user_company_id,
+                         establishment_id=est_uuid
+                    ) 
                     processed_raw = get_processed_inspections_raw(company_id=current_user.company_id, establishment_id=est_uuid)
                 
                 # Se o banco retornou dados (ou consultor vazio mas ok), usa eles
