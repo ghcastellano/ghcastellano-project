@@ -595,8 +595,12 @@ def get_status():
                     # Fix: Usuário sem establishment_id, usa lista de relacionamentos
                     filter_est_id = my_est_ids[0] if my_est_ids else None
                     
-                    # Busca Aguardando Aprovação (Visão Legada)
-                    pending_approval = get_consultant_pending_inspections(establishment_id=filter_est_id)
+                    # Busca Aguardando Aprovação (Visão Global da Empresa)
+                    pending_approval = get_consultant_pending_inspections(
+                        establishment_id=filter_est_id,
+                        company_id=user_company_id,
+                        establishment_ids=my_est_ids
+                    )
                     
                     # Combine technical jobs with business pending items
                     pending = pending_jobs 

@@ -175,8 +175,8 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
             pass
         return []
 
-def get_consultant_pending_inspections(establishment_id=None):
-    """Busca lista de inspeções em APROVAÇÃO para o CONSULTOR."""
+def get_consultant_pending_inspections(establishment_id=None, company_id=None, establishment_ids=None):
+    """Busca inspeções com status WAITING_APPROVAL ou PENDING_MANAGER_REVIEW."""
     try:
         session = database.db_session()
         statuses = [InspectionStatus.WAITING_APPROVAL, InspectionStatus.PENDING_MANAGER_REVIEW]
@@ -185,8 +185,26 @@ def get_consultant_pending_inspections(establishment_id=None):
             Inspection.status.in_(statuses)
         )
         
+        from sqlalchemy import or_
+        from src.models_db import Establishment
+
+        conditions = []
+        
+        # 1. Single ID (Legacy)
         if establishment_id:
-            query = query.filter(Inspection.establishment_id == establishment_id)
+            conditions.append(Inspection.establishment_id == establishment_id)
+            
+        # 2. List of IDs (Scope)
+        if establishment_ids:
+            conditions.append(Inspection.establishment_id.in_(establishment_ids))
+            
+        # 3. Company Fallback (New Stores / Company Wide)
+        if company_id:
+             query = query.outerjoin(Inspection.establishment)
+             conditions.append(Establishment.company_id == company_id)
+        
+        if conditions:
+            query = query.filter(or_(*conditions))
         
         inspections = query.order_by(Inspection.created_at.desc()).limit(10).all()
         
