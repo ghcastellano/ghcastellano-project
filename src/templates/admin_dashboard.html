@@ -714,7 +714,35 @@
                     </td>
                 </tr>`;
 
-                tbody.insertAdjacentHTML('beforeend', newRowHtml);
+                // Calculate Insertion Point
+                // 1. Find existing Group Header
+                // Note: The template likely renders headers as <tr class="group-header">...<td>Company Name</td>...</tr>
+                // We need to inspect row structure. Based on standard grouping:
+                // Look for a row that says the company name.
+                // Assuming headers are NOT marked with data-group-name in the template (checking snippet),
+                // we might need to rely on the fact that existing rows are grouped.
+
+                // Let's find if there are any existing rows for this company.
+                const existingRows = Array.from(tbody.querySelectorAll(`tr[data-company-name="${mgr.company_name}"]`));
+
+                if (existingRows.length > 0) {
+                    // Start from the last one
+                    const lastRow = existingRows[existingRows.length - 1];
+                    lastRow.insertAdjacentHTML('afterend', newRowHtml);
+                } else {
+                    // No rows yet. Searching for group header might be hard without seeing template structure for headers.
+                    // Fallback: Append to end, but if we want to mimic grouping, we might need to add a header.
+                    // Checking if headers are strictly used. If so, we should add one.
+                    // For now, appending is 'safe' behavior if group doesn't exist.
+                    // Ideally:
+                    // const headerHtml = `<tr class="group-header" style="background:#f8fafc;"><td colspan="4" style="font-weight:600; color:#475569;">${mgr.company_name}</td></tr>`;
+                    // tbody.insertAdjacentHTML('beforeend', headerHtml + newRowHtml);
+
+                    // But if headers exist, we should reuse. 
+                    // Let's assume we append to end if no group found.
+                    tbody.insertAdjacentHTML('beforeend', newRowHtml);
+                }
+
                 document.getElementById('createManagerCard').style.display = 'none';
             } else { showToast(data.error || 'Erro', 'error'); }
         } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }

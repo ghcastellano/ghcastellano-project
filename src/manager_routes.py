@@ -707,7 +707,10 @@ def api_status():
                 
                 # Link
                 link_id = insp.drive_file_id
-                review_link = url_for('manager.edit_plan', file_id=link_id)
+                if link_id:
+                    review_link = url_for('manager.edit_plan', file_id=link_id)
+                else:
+                    review_link = "#" # Safety fallback
                 
                 processed_list.append({
                     'establishment': est_name,

@@ -358,7 +358,7 @@
                 <!-- Create Est Card -->
                 <div class="card" id="createEstCard" style="display:none; margin-bottom:2rem;">
                     <div class="card-body">
-                        <form id="formCreateEst" onsubmit="handleCreateEstablishment(event)">
+                        <form id="formCreateEst" class="no-ajax" onsubmit="handleCreateEstablishment(event)">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                                 <div><label class="form-label">Nome</label><input name="name" class="form-control"
@@ -484,7 +484,7 @@
             <!-- Create Consultant Card -->
             <div class="card" id="createConsultantCard" style="display:none; margin-bottom:2rem;">
                 <div class="card-body">
-                    <form id="formCreateConsultant" onsubmit="handleCreateConsultant(event)">
+                    <form id="formCreateConsultant" class="no-ajax" onsubmit="handleCreateConsultant(event)">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                             <div><label class="form-label">Nome</label><input name="name" class="form-control" required>
