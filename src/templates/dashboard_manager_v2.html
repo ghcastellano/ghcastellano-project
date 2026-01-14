@@ -25,7 +25,8 @@
     }
 
     .admin-content-cell {
-        padding: 0;
+        padding: 2rem;
+        /* Added padding to fix overflow */
         overflow-x: hidden;
         width: 100% !important;
     }
@@ -105,35 +106,7 @@
         justify-content: flex-end;
     }
 
-    .btn-edit-icon {
-        background: transparent;
-        color: var(--text-secondary);
-        border: none;
-        padding: 0.5rem;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-edit-icon:hover {
-        background: #f1f5f9;
-        color: var(--primary-color);
-    }
-
-    .btn-delete-icon {
-        background: #fee2e2;
-        color: #ef4444;
-        border: none;
-        padding: 0.5rem;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-delete-icon:hover {
-        background: #fecaca;
-        color: #dc2626;
-    }
+    /* Local action icons replaced by global btn-icon classes in style.css */
 </style>
 <script>
     // ... previous scripts ...
@@ -386,6 +359,7 @@
                 <div class="card" id="createEstCard" style="display:none; margin-bottom:2rem;">
                     <div class="card-body">
                         <form id="formCreateEst" onsubmit="handleCreateEstablishment(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                                 <div><label class="form-label">Nome</label><input name="name" class="form-control"
                                         required placeholder="Ex: Matriz"></div>
@@ -420,6 +394,7 @@
                     </div>
                     <div class="card-body">
                         <form id="editEstForm" onsubmit="handleUpdateEst(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" id="edit_est_id">
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                                 <div><label class="form-label">Nome</label><input id="edit_est_name" name="name"
@@ -471,7 +446,7 @@
                                         }}</td>
                                     <td class="text-right">
                                         <div class="btn-icon-group">
-                                            <button class="btn-edit-icon" data-id="{{ est.id }}"
+                                            <button class="btn-icon btn-icon-edit" data-id="{{ est.id }}"
                                                 data-name="{{ est.name }}" data-code="{{ est.code or '' }}"
                                                 data-resp-name="{{ est.responsible_name or '' }}"
                                                 data-resp-email="{{ est.responsible_email or '' }}"
@@ -480,8 +455,8 @@
                                                 title="Editar">
                                                 <i class="ph-bold ph-pencil-simple"></i>
                                             </button>
-                                            <button class="btn-delete-icon"
-                                                onclick="if(confirm('Tem certeza?')) deleteEstablishment('{{ est.id }}')"
+                                            <button class="btn-icon btn-icon-delete"
+                                                onclick="deleteEstablishment('{{ est.id }}', '{{ est.name }}')"
                                                 title="Remover">
                                                 <i class="ph-bold ph-trash"></i>
                                             </button>
@@ -498,7 +473,8 @@
 
         <!-- 3. Consultants Section -->
         <div id="consultants-view" class="section-view">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem; margin-top: 1rem;">
                 <h1 style="font-size: 1.8rem; margin:0;">Gerenciar Consultores</h1>
                 <button class="btn btn-primary" onclick="toggleCreateConsultant()">
                     <i class="ph-bold ph-user-plus"></i> Novo Consultor
@@ -509,6 +485,7 @@
             <div class="card" id="createConsultantCard" style="display:none; margin-bottom:2rem;">
                 <div class="card-body">
                     <form id="formCreateConsultant" onsubmit="handleCreateConsultant(event)">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                             <div><label class="form-label">Nome</label><input name="name" class="form-control" required>
                             </div>
@@ -545,6 +522,7 @@
                 </div>
                 <div class="card-body">
                     <form id="editConsultantForm" onsubmit="handleUpdateConsultant(event)">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" id="edit_consultant_id">
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                             <div><label class="form-label">Nome</label><input id="edit_consultant_name" name="name"
@@ -598,15 +576,15 @@
                                 <td style="color: var(--text-secondary);">{{ consultant.email }}</td>
                                 <td class="text-right">
                                     <div class="btn-icon-group">
-                                        <button class="btn-edit-icon" data-id="{{ consultant.id }}"
+                                        <button class="btn-icon btn-icon-edit" data-id="{{ consultant.id }}"
                                             data-name="{{ consultant.name }}" data-email="{{ consultant.email }}"
                                             data-stores='[{% for est in consultant.establishments %}"{{ est.id }}"{{ "," if not loop.last }}{% endfor %}]'
                                             onclick="openEditConsultant(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.stores)"
                                             title="Editar">
                                             <i class="ph-bold ph-pencil-simple"></i>
                                         </button>
-                                        <button class="btn-delete-icon"
-                                            onclick="if(confirm('Tem certeza?')) deleteConsultant('{{ consultant.id }}')"
+                                        <button class="btn-icon btn-icon-delete"
+                                            onclick="deleteConsultant('{{ consultant.id }}', '{{ consultant.name }}')"
                                             title="Remover">
                                             <i class="ph-bold ph-trash"></i>
                                         </button>
@@ -645,7 +623,8 @@
 
         // Attach Event Listeners
         const formConsultant = document.getElementById('formCreateConsultant');
-        if (formConsultant) formConsultant.addEventListener('submit', handleCreateConsultant);
+        // formConsultant already has onsubmit in HTML
+        // if (formConsultant) formConsultant.addEventListener('submit', handleCreateConsultant);
 
         const formEst = document.getElementById('formCreateEst');
         if (formEst) formEst.addEventListener('submit', handleCreateEstablishment);
@@ -920,14 +899,33 @@
 
         try {
             const formData = new FormData(form);
+            const token = document.querySelector('input[name="csrf_token"]').value;
             const res = await fetch("{{ url_for('manager.create_consultant') }}", {
-                method: 'POST', body: formData, headers: { 'Accept': 'application/json' }
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': token
+                }
             });
             const data = await res.json();
 
             if (res.ok) {
                 showToast(data.message, 'success');
                 form.reset();
+                showToast(data.message, 'success');
+                form.reset();
+                // Explicitly hide instead of toggle
+                const card = document.getElementById('createConsultantCard');
+                if (card) {
+                    card.style.display = 'none';
+                    // Reset button text/icon if needed, though toggle handles text usually. 
+                    // Let's call toggle IF it checks display, but cleaner to just hide.
+                    // If toggle logic depends on checking display, calling it again might show it if we just hid it? 
+                    // Let's use the explicit logic the user asked for: "somente abrir se ele clicar novamente"
+                    const btn = document.getElementById('btnToggleConsultant');
+                    if (btn) btn.innerHTML = '<i class="ph-bold ph-plus"></i> Novo Consultor';
+                }
                 // Add row to table
                 const tbody = document.getElementById('table-consultants-body');
                 if (tbody) {
@@ -945,13 +943,14 @@
                             <td style="color: var(--text-secondary);">${c.email}</td>
                             <td class="text-right">
                                 <div class="btn-icon-group">
-                                    <button class="btn-action" data-id="${c.id}" data-name="${c.name}" data-email="${c.email}"
-                                        onclick="openEditConsultant(this.dataset.id, this.dataset.name, this.dataset.email)" title="Editar">
-                                        <i class="ph ph-pencil-simple"></i>
+                                    <button class="btn-icon btn-icon-edit" data-id="${c.id}" data-name="${c.name}" data-email="${c.email}"
+                                        data-stores='${JSON.stringify(c.establishment_ids || [])}'
+                                        onclick="openEditConsultant(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.stores)" title="Editar">
+                                        <i class="ph-bold ph-pencil-simple"></i>
                                     </button>
-                                    <button class="btn-action btn-action-delete"
-                                        onclick="if(confirm('Tem certeza?')) deleteConsultant('${c.id}')" title="Remover">
-                                        <i class="ph ph-trash"></i>
+                                    <button class="btn-icon btn-icon-delete"
+                                        onclick="deleteConsultant('${c.id}', '${c.name}')" title="Remover">
+                                        <i class="ph-bold ph-trash"></i>
                                     </button>
                                 </div>
                             </td>
@@ -964,9 +963,9 @@
             }
         } catch (err) {
             console.error(err);
-            showToast('Erro de conexão', 'error');
+            showToast('Erro de conexão: ' + err.message, 'error');
         } finally {
-            if (btn) { btn.disabled = false; btn.innerHTML = 'Criar'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; }
         }
     }
 
@@ -978,14 +977,29 @@
 
         try {
             const formData = new FormData(form);
+            const token = document.querySelector('input[name="csrf_token"]').value;
             const res = await fetch("{{ url_for('manager.create_establishment') }}", {
-                method: 'POST', body: formData, headers: { 'Accept': 'application/json' }
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': token
+                }
             });
             const data = await res.json();
 
             if (res.ok) {
                 showToast(data.message, 'success');
                 form.reset();
+                showToast(data.message, 'success');
+                form.reset();
+                // Explicitly hide
+                const card = document.getElementById('createEstCard');
+                if (card) {
+                    card.style.display = 'none';
+                    const btn = document.getElementById('btnToggleEst');
+                    if (btn) btn.innerHTML = '<i class="ph-bold ph-plus"></i> Nova Loja';
+                }
 
                 // Add row to table management
                 const tbody = document.getElementById('table-establishments-body');
@@ -1004,17 +1018,17 @@
                             <td style="font-family: monospace; color: var(--text-secondary);">${est.code || '-'}</td>
                             <td class="text-right">
                                 <div class="btn-icon-group">
-                                    <button class="btn-action" data-id="${est.id}" data-name="${est.name}" data-code="${est.code || ''}"
+                                    <button class="btn-icon btn-icon-edit" data-id="${est.id}" data-name="${est.name}" data-code="${est.code || ''}"
                                         data-resp-name="${est.responsible_name || ''}"
                                         data-resp-email="${est.responsible_email || ''}"
                                         data-resp-phone="${est.responsible_phone || ''}"
                                         onclick="openEditEst(this.dataset.id, this.dataset.name, this.dataset.code, this.dataset.respName, this.dataset.respEmail, this.dataset.respPhone)"
                                         title="Editar">
-                                        <i class="ph ph-pencil-simple"></i>
+                                        <i class="ph-bold ph-pencil-simple"></i>
                                     </button>
-                                    <button class="btn-action btn-action-delete"
-                                        onclick="if(confirm('Tem certeza?')) deleteEstablishment('${est.id}')" title="Remover">
-                                        <i class="ph ph-trash"></i>
+                                    <button class="btn-icon btn-icon-delete"
+                                        onclick="deleteEstablishment('${est.id}', '${est.name}')" title="Remover">
+                                        <i class="ph-bold ph-trash"></i>
                                     </button>
                                 </div>
                             </td>
@@ -1030,9 +1044,10 @@
                     });
 
                     // 2. Update Checkbox List in Create Consultant Modal
-                    // Find container by looking for the one inside the modal
-                    const modalCheckList = document.querySelector('#createConsultantModal .modal-body div[style*="overflow-y"]');
-                    if (modalCheckList) {
+                    const modalCheckList = document.querySelector('#createConsultantCard .form-check'); // Improve selector if needed, currently assumes structure
+                    // More robust search for the container div inside formCreateConsultant
+                    const checkContainer = document.querySelector('#formCreateConsultant div[style*="overflow-y"]');
+                    if (checkContainer) {
                         const div = document.createElement('div');
                         div.className = 'form-check';
                         div.innerHTML = `
@@ -1042,7 +1057,7 @@
                                 ${est.name}
                             </label>
                         `;
-                        modalCheckList.appendChild(div);
+                        checkContainer.appendChild(div);
                     }
                 }
             } else {
@@ -1050,7 +1065,7 @@
             }
         } catch (err) {
             console.error(err);
-            showToast('Erro de conexão', 'error');
+            showToast('Erro de conexão: ' + err.message, 'error');
         } finally {
             if (btn) { btn.disabled = false; btn.innerHTML = 'Adicionar'; }
         }
@@ -1062,14 +1077,20 @@
         const id = document.getElementById('edit_consultant_id').value;
         const form = e.target;
         const btn = document.getElementById('btnUpdateConsultant');
-        const nameInput = document.getElementById('edit_consultant_name');
-        const emailInput = document.getElementById('edit_consultant_email');
 
         if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
 
         try {
             const formData = new FormData(form);
-            const res = await fetch(`/manager/consultant/${id}/update`, { method: 'POST', body: formData });
+            const token = document.querySelector('input[name="csrf_token"]').value;
+            const res = await fetch(`/manager/consultant/${id}/update`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': token
+                }
+            });
 
             if (res.ok) {
                 const data = await res.json(); // Get JSON response
@@ -1080,20 +1101,20 @@
                 const row = document.getElementById(`row-consultant-${id}`);
                 if (row && data.consultant) {
                     const c = data.consultant;
-                    row.querySelector('div[style*="font-weight: 600"]').textContent = c.name;
-                    row.querySelector('.user-avatar-sm').textContent = c.name[0].toUpperCase();
-                    row.cells[1].textContent = c.email;
+                    const nameDiv = row.querySelector('div[style*="font-weight: 600"]');
+                    if (nameDiv) nameDiv.textContent = c.name;
 
-                    const editBtn = row.querySelector('button[title="Editar"]');
+                    const avatarDiv = row.querySelector('.user-avatar-sm');
+                    if (avatarDiv) avatarDiv.textContent = c.name[0].toUpperCase();
+
+                    if (row.cells[1]) row.cells[1].textContent = c.email;
+
+                    const editBtn = row.querySelector('.btn-edit-icon');
                     if (editBtn) {
                         editBtn.dataset.name = c.name;
                         editBtn.dataset.email = c.email;
-                        // Update stores dataset so the button opens with new data
                         editBtn.dataset.stores = JSON.stringify(c.establishment_ids || []);
-                        // No need to update onclick string if it uses this.dataset references, 
-                        // but if we do, we must include stores. 
-                        // It is safer to rely on the original onclick="openEditConsultant(this.dataset.id...)"
-                        // which reads the updated dataset values.
+                        // Trigger attribute update if using MutationObserver or direct read
                     }
                 }
             }
@@ -1102,8 +1123,8 @@
                 const errData = await res.json().catch(() => ({}));
                 showToast(errData.error || 'Erro ao atualizar', 'error');
             }
-        } catch (err) { console.error(err); showToast('Erro', 'error'); }
-        finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; } }
+        } catch (err) { console.error(err); showToast('Erro: ' + err.message, 'error'); }
+        finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Atualizar'; } }
     }
 
     async function handleUpdateEst(e) {
@@ -1116,7 +1137,15 @@
 
         try {
             const formData = new FormData(form);
-            const res = await fetch(`/manager/establishment/${id}/update`, { method: 'POST', body: formData });
+            const token = document.querySelector('input[name="csrf_token"]').value;
+            const res = await fetch(`/manager/establishment/${id}/update`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': token
+                }
+            });
 
             if (res.ok) {
                 const data = await res.json();
@@ -1134,7 +1163,7 @@
                     if (row.cells[1]) row.cells[1].textContent = est.code || '-';
 
                     // Update Edit Button Data
-                    const editBtn = row.querySelector('button[title="Editar"]');
+                    const editBtn = row.querySelector('.btn-edit-icon');
                     if (editBtn) {
                         editBtn.dataset.name = est.name;
                         editBtn.dataset.code = est.code || '';
@@ -1148,47 +1177,13 @@
                 const errData = await res.json().catch(() => ({}));
                 showToast(errData.error || 'Erro ao atualizar', 'error');
             }
-        } catch (err) { console.error(err); showToast('Erro', 'error'); }
+        } catch (err) { console.error(err); showToast('Erro: ' + err.message, 'error'); }
         finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; } }
     }
 
-    async function deleteConsultant(id) {
-        if (!confirm('Tem certeza que deseja remover este consultor?')) return;
-        try {
-            const token = document.querySelector('input[name="csrf_token"]').value;
-            const res = await fetch(`/manager/consultant/${id}/delete`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': token }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                showToast('Consultor removido', 'success');
-                const row = document.getElementById(`row-consultant-${id}`);
-                if (row) row.remove();
-            }
-            else showToast(data.error || 'Erro ao remover', 'error');
-        } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
-    }
-    window.deleteConsultant = deleteConsultant;
 
-    async function deleteEstablishment(id) {
-        if (!confirm('Tem certeza que deseja remover este estabelecimento?')) return;
-        try {
-            const token = document.querySelector('input[name="csrf_token"]').value;
-            const res = await fetch(`/manager/establishment/${id}/delete`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': token }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                showToast('Estabelecimento removido', 'success');
-                const row = document.getElementById(`row-est-${id}`);
-                if (row) row.remove();
-            }
-            else showToast(data.error || 'Erro ao remover', 'error');
-        } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
-    }
-    window.deleteEstablishment = deleteEstablishment;
+
+
 
     // Helper for Status Badges
     function getStatusBadge(status) {
@@ -1420,38 +1415,93 @@
     });
 
     // --- UPDATED DELETE FUNCTIONS (With Toast + Delay) ---
+    function getCsrfToken() {
+        const input = document.querySelector('input[name="csrf_token"]');
+        return input ? input.value : null;
+    }
+
     async function deleteConsultant(id, name) {
         if (!confirm(`Remover consultor ${name}?`)) return;
+
+        const token = getCsrfToken();
+        if (!token) {
+            alert('Erro: Token de segurança não encontrado. Atualize a página.');
+            return;
+        }
+
         try {
             const res = await fetch(`/manager/consultant/${id}/delete`, {
                 method: 'POST',
-                headers: { 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': token
+                }
             });
+
+            const contentType = res.headers.get("content-type");
+            let data;
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                data = await res.json();
+            } else {
+                throw new Error("Erro no servidor (não retornou JSON).");
+            }
+
             if (res.ok) {
                 showToast('Consultor removido!', 'success');
-                setTimeout(() => window.location.reload(), 500);
+                const row = document.getElementById(`row-consultant-${id}`);
+                if (row) {
+                    row.style.background = '#fee2e2';
+                    setTimeout(() => row.remove(), 500);
+                }
             } else {
-                const data = await res.json();
                 showToast(data.error || 'Erro ao remover', 'error');
             }
-        } catch (e) { showToast('Erro de conexão', 'error'); }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro de conexão ou servidor.', 'error');
+        }
     }
 
     async function deleteEstablishment(id, name) {
         if (!confirm(`Remover loja ${name}?`)) return;
+
+        const token = getCsrfToken();
+        if (!token) {
+            alert('Erro: Token de segurança não encontrado. Atualize a página.');
+            return;
+        }
+
         try {
             const res = await fetch(`/manager/establishment/${id}/delete`, {
                 method: 'POST',
-                headers: { 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': token
+                }
             });
+
+            const contentType = res.headers.get("content-type");
+            let data;
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                data = await res.json();
+            } else {
+                throw new Error("Erro no servidor (não retornou JSON).");
+            }
+
             if (res.ok) {
                 showToast('Loja removida!', 'success');
-                setTimeout(() => window.location.reload(), 500);
+                const row = document.getElementById(`row-est-${id}`);
+                if (row) {
+                    row.style.background = '#fee2e2';
+                    setTimeout(() => row.remove(), 500);
+                }
             } else {
-                const data = await res.json();
                 showToast(data.error || 'Erro ao remover', 'error');
             }
-        } catch (e) { showToast('Erro de conexão', 'error'); }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro de conexão ou servidor.', 'error');
+        }
     }
 </script>
 {% endblock %}

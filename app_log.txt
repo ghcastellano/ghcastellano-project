@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/Users/gustavohenriquecastellano/.gemini/antigravity/scratch/mvp-inspecao-sanitaria/src/app.py", line 13, in <module>
+    from src.config import config
+ModuleNotFoundError: No module named 'src'

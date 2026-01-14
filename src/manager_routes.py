@@ -5,6 +5,7 @@ from src.models_db import User, UserRole, Establishment, Inspection, ActionPlan,
 from flask import current_app, jsonify
 from datetime import datetime
 from sqlalchemy.orm import joinedload, defer
+from sqlalchemy.exc import IntegrityError
 from src.services.email_service import EmailService # Mock verify first
 from werkzeug.security import generate_password_hash
 from flask import session
@@ -146,12 +147,18 @@ def create_consultant():
                  'consultant': {
                      'id': str(user.id),
                      'name': user.name,
-                     'email': user.email
+                     'email': user.email,
+                     'establishment_ids': [str(e.id) for e in user.establishments]
                  }
              }), 201
         
         flash(msg, 'success')
         
+    except IntegrityError:
+        db.rollback()
+        if request.accept_mimetypes.accept_json:
+             return jsonify({'error': 'Email já cadastrado.'}), 409
+        flash('Email já cadastrado.', 'error')
     except Exception as e:
         db.rollback()
         if request.accept_mimetypes.accept_json:

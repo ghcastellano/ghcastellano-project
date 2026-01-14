@@ -62,15 +62,6 @@
                                     style="animation: wave 2s infinite; display: inline-block; transform-origin: 70% 70%;">👋</span>
                             </h1>
                         </div>
-                        <div style="text-align: right;">
-                            <div
-                                style="background: white; padding: 0.5rem 1rem; border-radius: 50px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); border: 1px solid rgba(0,0,0,0.02);">
-                                <i class="ph-fill ph-calendar-blank" style="color: var(--accent-color);"></i>
-                                <span style="text-transform: capitalize;">
-                                    <script>document.write(new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'long' }))</script>
-                                </span>
-                            </div>
-                        </div>
                     </div>
                     <!-- <p class="text-muted">Visão geral do sistema.</p> -->
                 </div>
@@ -122,322 +113,320 @@
                         <span class="stat-value">{{ managers|length if managers else 0 }}</span>
                         <div class="stat-trend trend-up"><i class="ph-bold ph-caret-right"></i> Gerenciar</div>
                     </div>
-                    Ver Monitoramento
-                </div>
-            </div>
-
-            <!-- Sync Card (Zero Cost Trigger) -->
-            <div class="stat-card" style="border-color: #f59e0b; cursor: pointer; margin-top: 1.5rem;"
-                onclick="triggerManualSync()">
-                <span class="stat-label" style="color: #d97706;">Google Drive</span>
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <span class="stat-value" style="color: #d97706; font-size: 1.5rem;"
-                        id="sync-status-text">Sync</span>
-                    <div class="stat-trend" style="color: #d97706; margin-top: 0;">
-                        <i class="ph-bold ph-arrows-clockwise" id="sync-icon"></i> <span id="sync-label">Sincronizar
-                            Agora</span>
+                    <div class="stat-card" onclick="document.getElementById('menu-monitoring').click()">
+                        <span class="stat-label">Monitoramento</span>
+                        <span class="stat-value"><i class="ph-bold ph-activity"></i></span>
+                        <div class="stat-trend trend-neutral">Ver Status</div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="card" style="margin-top: 2rem;">
-            <div class="card-header">
-                <h3 class="card-title">Atividade Recente</h3>
-            </div>
-            <div class="card-body" style="color: var(--text-secondary);">
-                <p>O sistema está operando normalmente. (Cloud Run Rev 119)</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. Companies Section -->
-    <div id="companies" class="section-view">
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
-            <h1 style="font-size: 1.8rem; margin: 0;">Empresas</h1>
-            <button class="btn btn-primary" onclick="toggleCreateCompany()">
-                <i class="ph-bold ph-plus"></i> Nova Empresa
-            </button>
-        </div>
-
-        <!-- Create Form (Hidden) -->
-        <div class="card" id="createCompanyCard" style="margin-bottom: 2rem; display: none;">
-            <div class="card-body">
-                <form id="createCompanyForm" onsubmit="handleCreateCompany(event)">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                    <!-- Simplified Form Content, handled by JS normally -->
-                    <div
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
-                        <div class="form-group" style="margin: 0;">
-                            <label class="form-label">Nome</label>
-                            <input type="text" name="name" class="form-control" placeholder="Ex: Mercado X" required>
-                        </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label class="form-label">CNPJ</label>
-                            <input type="text" name="cnpj" class="form-control" placeholder="00.000.000/0000-00">
-                        </div>
-                        <button type="submit" class="btn btn-accent" id="btnCreateCompany">Criar</button>
+                <div class="card" style="margin-top: 2rem;">
+                    <div class="card-header">
+                        <h3 class="card-title">Atividade Recente</h3>
                     </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Edit Form (Hidden) -->
-        <div class="card" id="editCompanyCard" style="margin-bottom: 2rem; display: none; border: 1px solid #3b82f6;">
-            <div class="card-header" style="background:none; padding-bottom:0;">
-                <h4 style="margin:0; color:#1e40af;">Editar Empresa</h4>
-            </div>
-            <div class="card-body">
-                <form id="editCompanyForm" onsubmit="handleUpdateCompany(event)">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                    <input type="hidden" name="company_id" id="edit_company_id">
-                    <div
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
-                        <div class="form-group" style="margin: 0;">
-                            <label class="form-label">Nome</label>
-                            <input type="text" name="name" id="edit_company_name" class="form-control" required>
-                        </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label class="form-label">CNPJ</label>
-                            <input type="text" name="cnpj" id="edit_company_cnpj" class="form-control">
-                        </div>
-                        <div style="display:flex; gap:0.5rem;">
-                            <button type="button" class="btn btn-secondary"
-                                onclick="document.getElementById('editCompanyCard').style.display='none'">Cancelar</button>
-                            <button type="submit" class="btn btn-primary" id="btnUpdateCompany">Salvar</button>
-                        </div>
+                    <div class="card-body" style="color: var(--text-secondary);">
+                        <p>O sistema está operando normalmente. (Cloud Run Rev 119)</p>
                     </div>
-                </form>
-            </div>
-        </div>
+                </div>
+            </div> <!-- End of Overview -->
 
-        <div class="card">
-            <div class="table-container">
-                <table class="modern-table" id="companiesTable">
-                    <thead>
-                        <tr>
-                            <th>Empresa</th>
-                            <th>CNPJ</th>
-                            <th>Status</th>
-                            <th class="text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for company in companies %}
-                        <tr id="row-company-{{ company.id }}">
-                            <td style="font-weight: 600;" class="col-name">{{ company.name }}</td>
-                            <td class="text-sm text-muted col-cnpj">{{ company.cnpj or '--' }}</td>
-                            <td><span class="badge badge-success">Ativo</span></td>
-                            <td class="text-right">
-                                <button class="btn-edit-icon" data-id="{{ company.id }}" data-name="{{ company.name }}"
-                                    data-cnpj="{{ company.cnpj or '' }}"
-                                    onclick="openEditCompany(this.dataset.id, this.dataset.name, this.dataset.cnpj)">
-                                    <i class="ph-bold ph-pencil-simple"></i>
-                                </button>
-                                <button class="btn-delete-icon"
-                                    onclick="deleteCompany('{{ company.id }}', '{{ company.name }}')">
-                                    <i class="ph-bold ph-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+            <!-- 2. Companies Section -->
+            <div id="companies" class="section-view">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+                    <h1 style="font-size: 1.8rem; margin: 0;">Empresas</h1>
+                    <button class="btn btn-primary" onclick="toggleCreateCompany()">
+                        <i class="ph-bold ph-plus"></i> Nova Empresa
+                    </button>
+                </div>
 
-    <!-- 3. Managers Section -->
-    <div id="managers" class="section-view">
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
-            <h1 style="font-size: 1.8rem; margin: 0;">Gestores</h1>
-            <button class="btn btn-primary" onclick="toggleCreateManager()">
-                <i class="ph-bold ph-plus"></i> Novo Gestor
-            </button>
-        </div>
-
-        <!-- Create Form (Hidden) -->
-        <div class="card" id="createManagerCard" style="margin-bottom: 2rem; display: none;">
-            <!-- Standard Create Form -->
-            <div class="card-body">
-                <form id="createManagerForm" onsubmit="handleCreateManager(event)">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                    <!-- Content simplified -->
-                    <div
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
-                        <div class="form-group" style="margin: 0;">
-                            <label class="form-label">Nome</label>
-                            <input type="text" name="name" class="form-control" required>
-                        </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" required>
-                        </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label class="form-label">Empresa</label>
-                            <select name="company_id" class="form-control" required>
-                                {% for c in companies %}
-                                <option value="{{ c.id }}">{{ c.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-accent" id="btnCreateManager">Salvar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Edit Form (Hidden) -->
-        <div class="card" id="editManagerCard" style="margin-bottom: 2rem; display: none; border: 1px solid #3b82f6;">
-            <div class="card-header" style="background:none; padding-bottom:0;">
-                <h4 style="margin:0; color:#1e40af;">Editar Gestor</h4>
-            </div>
-            <div class="card-body">
-                <form id="editManagerForm" onsubmit="handleUpdateManager(event)">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                    <input type="hidden" name="user_id" id="edit_manager_id">
-                    <div
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
-                        <div class="form-group">
-                            <label class="form-label">Nome</label>
-                            <input type="text" name="name" id="edit_manager_name" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" id="edit_manager_email" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Empresa</label>
-                            <select name="company_id" id="edit_manager_company" class="form-control" required>
-                                {% for c in companies %}
-                                <option value="{{ c.id }}">{{ c.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Nova Senha (Opcional)</label>
-                            <input type="password" name="password" class="form-control"
-                                placeholder="Deixar em branco to keep">
-                        </div>
-                    </div>
-                    <div style="margin-top: 1rem; text-align: right;">
-                        <button type="button" class="btn btn-secondary"
-                            onclick="document.getElementById('editManagerCard').style.display='none'">Cancelar</button>
-                        <button type="submit" class="btn btn-primary" id="btnUpdateManager">Atualizar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="table-container">
-                <table class="modern-table" id="managersTable">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Email</th>
-                            <th>Empresa Vinculada</th>
-                            <th class="text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% set ns = namespace(last_company=None) %}
-                        {% for manager in managers %}
-                        {% set comp_name = manager.company.name if manager.company else "Sem Empresa/Admin" %}
-                        {% if ns.last_company != comp_name %}
-                        <tr class="group-header" data-group-name="{{ comp_name }}">
-                            <td colspan="4"><i class="ph-bold ph-buildings"></i> {{ comp_name }}</td>
-                        </tr>
-                        {% set ns.last_company = comp_name %}
-                        {% endif %}
-
-                        <tr id="row-manager-{{ manager.id }}" data-company-name="{{ comp_name }}">
-                            <td style="font-weight: 500; padding-left: 2rem;" class="col-name">{{ manager.name }}</td>
-                            <td class="text-sm text-muted col-email">{{ manager.email }}</td>
-                            <td>
-                                {% if manager.company %}
-                                <span class="badge badge-blue col-comp">{{ manager.company.name }}</span>
-                                {% else %}
-                                <span class="badge badge-warning col-comp">Super Admin</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-right">
-                                <div class="btn-icon-group">
-                                    <button class="btn-icon btn-icon-edit" data-id="{{ manager.id }}"
-                                        data-name="{{ manager.name }}" data-email="{{ manager.email }}"
-                                        data-company="{{ manager.company_id or '' }}"
-                                        onclick="openEditManager(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.company)"
-                                        title="Editar">
-                                        <i class="ph-bold ph-pencil-simple"></i>
-                                    </button>
-                                    <button class="btn-icon btn-icon-delete"
-                                        onclick="deleteManager('{{ manager.id }}', '{{ manager.name }}')"
-                                        title="Excluir">
-                                        <i class="ph-bold ph-trash"></i>
-                                    </button>
+                <!-- Create Form (Hidden) -->
+                <div class="card" id="createCompanyCard" style="margin-bottom: 2rem; display: none;">
+                    <div class="card-body">
+                        <form id="createCompanyForm" onsubmit="handleCreateCompany(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                            <!-- Simplified Form Content, handled by JS normally -->
+                            <div
+                                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">Nome</label>
+                                    <input type="text" name="name" class="form-control" placeholder="Ex: Mercado X"
+                                        required>
                                 </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">CNPJ</label>
+                                    <input type="text" name="cnpj" class="form-control"
+                                        placeholder="00.000.000/0000-00">
+                                </div>
+                                <button type="submit" class="btn btn-accent" id="btnCreateCompany">Criar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
-    <!-- 4. Monitoring Section -->
-    <div id="monitoring" class="section-view">
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap;">
-            <h1 style="font-size: 1.8rem; margin: 0;">Monitoramento de Jobs</h1>
-        </div>
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Fila de Processamento Global</h3>
-                <button onclick="updateMonitoring()" class="btn btn-secondary" style="padding: 0.25rem 0.5rem;"><i
-                        class="ph-bold ph-arrows-clockwise"></i></button>
-            </div>
-            <!-- Table (Same as before) -->
-            <div class="table-container">
-                <table class="modern-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Arquivo</th>
-                            <th>Estabelecimento</th>
-                            <th>Status</th>
-                            <th>Etapa</th>
-                            <th>Tokens/Custo</th>
-                            <th>Duração</th>
-                        </tr>
-                    </thead>
-                    <tbody id="monitoring-tbody">
-                        <tr>
-                            <td colspan="7" class="text-center text-muted">Carregando dados globais...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+                <!-- Edit Form (Hidden) -->
+                <div class="card" id="editCompanyCard"
+                    style="margin-bottom: 2rem; display: none; border: 1px solid #3b82f6;">
+                    <div class="card-header" style="background:none; padding-bottom:0;">
+                        <h4 style="margin:0; color:#1e40af;">Editar Empresa</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="editCompanyForm" onsubmit="handleUpdateCompany(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                            <input type="hidden" name="company_id" id="edit_company_id">
+                            <div
+                                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">Nome</label>
+                                    <input type="text" name="name" id="edit_company_name" class="form-control" required>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">CNPJ</label>
+                                    <input type="text" name="cnpj" id="edit_company_cnpj" class="form-control">
+                                </div>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <button type="button" class="btn btn-secondary"
+                                        onclick="document.getElementById('editCompanyCard').style.display='none'">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary" id="btnUpdateCompany">Salvar</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
-    <!-- 5. System Logs -->
-    <div id="system" class="section-view">
-        <!-- Same as before -->
-        <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">System Logs</h1>
-        <div class="card">
-            <div class="card-body">
-                <p>Log Stream disponível no Google Cloud Console.</p>
-                <a href="https://console.cloud.google.com/run" target="_blank" class="btn btn-secondary">Abrir
-                    Cloud
-                    Console</a>
+                <div class="card">
+                    <div class="table-container">
+                        <table class="modern-table" id="companiesTable">
+                            <thead>
+                                <tr>
+                                    <th>Empresa</th>
+                                    <th>CNPJ</th>
+                                    <th>Status</th>
+                                    <th class="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for company in companies %}
+                                <tr id="row-company-{{ company.id }}">
+                                    <td style="font-weight: 600;" class="col-name">{{ company.name }}</td>
+                                    <td class="text-sm text-muted col-cnpj">{{ company.cnpj or '--' }}</td>
+                                    <td><span class="badge badge-success">Ativo</span></td>
+                                    <td class="text-right">
+                                        <div class="btn-icon-group">
+                                            <button class="btn-icon btn-icon-edit" data-id="{{ company.id }}"
+                                                data-name="{{ company.name }}" data-cnpj="{{ company.cnpj or '' }}"
+                                                onclick="openEditCompany(this.dataset.id, this.dataset.name, this.dataset.cnpj)"
+                                                title="Editar">
+                                                <i class="ph-bold ph-pencil-simple"></i>
+                                            </button>
+                                            <button class="btn-icon btn-icon-delete"
+                                                onclick="deleteCompany('{{ company.id }}', '{{ company.name }}')"
+                                                title="Excluir">
+                                                <i class="ph-bold ph-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Managers Section -->
+            <div id="managers" class="section-view">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+                    <h1 style="font-size: 1.8rem; margin: 0;">Gestores</h1>
+                    <button class="btn btn-primary" onclick="toggleCreateManager()">
+                        <i class="ph-bold ph-plus"></i> Novo Gestor
+                    </button>
+                </div>
+
+                <!-- Create Form (Hidden) -->
+                <div class="card" id="createManagerCard" style="margin-bottom: 2rem; display: none;">
+                    <!-- Standard Create Form -->
+                    <div class="card-body">
+                        <form id="createManagerForm" onsubmit="handleCreateManager(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                            <!-- Content simplified -->
+                            <div
+                                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">Nome</label>
+                                    <input type="text" name="name" class="form-control" required>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" name="email" class="form-control" required>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">Empresa</label>
+                                    <select name="company_id" class="form-control" required>
+                                        {% for c in companies %}
+                                        <option value="{{ c.id }}">{{ c.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-accent" id="btnCreateManager">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Edit Form (Hidden) -->
+                <div class="card" id="editManagerCard"
+                    style="margin-bottom: 2rem; display: none; border: 1px solid #3b82f6;">
+                    <div class="card-header" style="background:none; padding-bottom:0;">
+                        <h4 style="margin:0; color:#1e40af;">Editar Gestor</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="editManagerForm" onsubmit="handleUpdateManager(event)">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                            <input type="hidden" name="user_id" id="edit_manager_id">
+                            <div
+                                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+                                <div class="form-group">
+                                    <label class="form-label">Nome</label>
+                                    <input type="text" name="name" id="edit_manager_name" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" name="email" id="edit_manager_email" class="form-control"
+                                        required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Empresa</label>
+                                    <select name="company_id" id="edit_manager_company" class="form-control" required>
+                                        {% for c in companies %}
+                                        <option value="{{ c.id }}">{{ c.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Nova Senha (Opcional)</label>
+                                    <input type="password" name="password" class="form-control"
+                                        placeholder="Deixar em branco to keep">
+                                </div>
+                            </div>
+                            <div style="margin-top: 1rem; text-align: right;">
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="document.getElementById('editManagerCard').style.display='none'">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" id="btnUpdateManager">Atualizar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table class="modern-table" id="managersTable">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Email</th>
+                                    <th>Empresa Vinculada</th>
+                                    <th class="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set ns = namespace(last_company=None) %}
+                                {% for manager in managers %}
+                                {% set comp_name = manager.company.name if manager.company else "Sem Empresa/Admin" %}
+                                {% if ns.last_company != comp_name %}
+                                <tr class="group-header" data-group-name="{{ comp_name }}">
+                                    <td colspan="4"><i class="ph-bold ph-buildings"></i> {{ comp_name }}</td>
+                                </tr>
+                                {% set ns.last_company = comp_name %}
+                                {% endif %}
+
+                                <tr id="row-manager-{{ manager.id }}" data-company-name="{{ comp_name }}">
+                                    <td style="font-weight: 500; padding-left: 2rem;" class="col-name">{{ manager.name
+                                        }}</td>
+                                    <td class="text-sm text-muted col-email">{{ manager.email }}</td>
+                                    <td>
+                                        {% if manager.company %}
+                                        <span class="badge badge-blue col-comp">{{ manager.company.name }}</span>
+                                        {% else %}
+                                        <span class="badge badge-warning col-comp">Super Admin</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-right">
+                                        <div class="btn-icon-group">
+                                            <button class="btn-icon btn-icon-edit" data-id="{{ manager.id }}"
+                                                data-name="{{ manager.name }}" data-email="{{ manager.email }}"
+                                                data-company="{{ manager.company_id or '' }}"
+                                                onclick="openEditManager(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.company)"
+                                                title="Editar">
+                                                <i class="ph-bold ph-pencil-simple"></i>
+                                            </button>
+                                            <button class="btn-icon btn-icon-delete"
+                                                onclick="deleteManager('{{ manager.id }}', '{{ manager.name }}')"
+                                                title="Excluir">
+                                                <i class="ph-bold ph-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Monitoring Section -->
+            <div id="monitoring" class="section-view">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap;">
+                    <h1 style="font-size: 1.8rem; margin: 0;">Monitoramento de Jobs</h1>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Fila de Processamento Global</h3>
+                        <button onclick="updateMonitoring()" class="btn btn-secondary"
+                            style="padding: 0.25rem 0.5rem;"><i class="ph-bold ph-arrows-clockwise"></i></button>
+                    </div>
+                    <!-- Table (Same as before) -->
+                    <div class="table-container">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Arquivo</th>
+                                    <th>Estabelecimento</th>
+                                    <th>Status</th>
+                                    <th>Etapa</th>
+                                    <th>Tokens/Custo</th>
+                                    <th>Duração</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monitoring-tbody">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">Carregando dados globais...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. System Logs -->
+            <div id="system" class="section-view">
+                <!-- Same as before -->
+                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">System Logs</h1>
+                <div class="card">
+                    <div class="card-body">
+                        <p>Log Stream disponível no Google Cloud Console.</p>
+                        <a href="https://console.cloud.google.com/run" target="_blank" class="btn btn-secondary">Abrir
+                            Cloud
+                            Console</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
-</div>
 </div>
 
 <!-- Functions -->
@@ -518,14 +507,38 @@
     }
 
     // --- AJAX DELETE ACTIONS ---
+    // --- AJAX DELETE ACTIONS ---
+    function getCsrfToken() {
+        const input = document.querySelector('input[name="csrf_token"]');
+        return input ? input.value : null;
+    }
+
     async function deleteCompany(id, name) {
         if (!confirm(`ATENÇÃO: Apagar ${name} removerá TODOS os dados da empresa. Continuar?`)) return;
+
+        const token = getCsrfToken();
+        if (!token) {
+            alert('Erro de segurança: Token CSRF não encontrado. Recarregue a página.');
+            return;
+        }
+
         try {
             const res = await fetch(`/admin/company/${id}/delete`, {
                 method: 'POST',
-                headers: { 'Accept': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': token
+                }
             });
-            const data = await res.json();
+
+            // Handle non-JSON responses (e.g. fatal server errors)
+            const contentType = res.headers.get("content-type");
+            let data;
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                data = await res.json();
+            } else {
+                throw new Error("Resposta inválida do servidor (HTML/500). Verifique logs.");
+            }
 
             if (res.ok) {
                 showToast('Empresa removida com sucesso', 'success');
@@ -537,17 +550,37 @@
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');
             }
-        } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
+        } catch (err) {
+            console.error("Delete Error:", err);
+            showToast('Erro de conexão ou servidor. Verifique o console.', 'error');
+        }
     }
 
     async function deleteManager(id, name) {
         if (!confirm(`Remover acesso de ${name}?`)) return;
+
+        const token = getCsrfToken();
+        if (!token) {
+            alert('Erro de segurança: Token CSRF não encontrado. Recarregue a página.');
+            return;
+        }
+
         try {
             const res = await fetch(`/admin/manager/${id}/delete`, {
                 method: 'POST',
-                headers: { 'Accept': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': token
+                }
             });
-            const data = await res.json();
+
+            const contentType = res.headers.get("content-type");
+            let data;
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                data = await res.json();
+            } else {
+                throw new Error("Resposta inválida do servidor (HTML/500). Verifique logs.");
+            }
 
             if (res.ok) {
                 showToast('Gestor removido com sucesso', 'success');
@@ -559,7 +592,10 @@
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');
             }
-        } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
+        } catch (err) {
+            console.error("Delete Error:", err);
+            showToast('Erro de conexão ou servidor. Verifique o console.', 'error');
+        }
     }
 
     // --- UPDATED HANDLERS ---
@@ -577,20 +613,24 @@
                 const tbody = document.querySelector('#companiesTable tbody');
                 const company = data.company;
                 const newRow = `
-                 <tr id="row-company-${company.id}" style="animation: fadeIn 0.5s;">
+                <tr id="row-company-${company.id}" style="animation: fadeIn 0.5s;">
                     <td style="font-weight: 600;" class="col-name">${company.name}</td>
                     <td class="text-sm text-muted col-cnpj">${company.cnpj || '--'}</td>
                     <td><span class="badge badge-success">Ativo</span></td>
                     <td class="text-right">
-                        <button class="btn-edit-icon" data-id="${company.id}" data-name="${company.name}"
-                            data-cnpj="${company.cnpj || ''}"
-                            onclick="openEditCompany(this.dataset.id, this.dataset.name, this.dataset.cnpj)">
-                            <i class="ph-bold ph-pencil-simple"></i>
-                        </button>
-                        <button class="btn-delete-icon"
-                            onclick="deleteCompany('${company.id}', '${company.name}')">
-                            <i class="ph-bold ph-trash"></i>
-                        </button>
+                        <div class="btn-icon-group">
+                            <button class="btn-icon btn-icon-edit" data-id="${company.id}" data-name="${company.name}"
+                                data-cnpj="${company.cnpj || ''}"
+                                onclick="openEditCompany(this.dataset.id, this.dataset.name, this.dataset.cnpj)"
+                                title="Editar">
+                                <i class="ph-bold ph-pencil-simple"></i>
+                            </button>
+                            <button class="btn-icon btn-icon-delete"
+                                onclick="deleteCompany('${company.id}', '${company.name}')"
+                                title="Excluir">
+                                <i class="ph-bold ph-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>`;
                 tbody.insertAdjacentHTML('beforeend', newRow);
@@ -622,7 +662,7 @@
                     row.querySelector('.col-name').innerText = formData.get('name');
                     row.querySelector('.col-cnpj').innerText = formData.get('cnpj') || '--';
                     // Update dataset for edit button
-                    const editBtn = row.querySelector('.btn-edit-icon');
+                    const editBtn = row.querySelector('.btn-icon-edit');
                     editBtn.dataset.name = formData.get('name');
                     editBtn.dataset.cnpj = formData.get('cnpj');
                     // Flash effect
@@ -651,7 +691,7 @@
                 // HTML for the new row
                 const newRowHtml = `
                 <tr id="row-manager-${mgr.id}" data-company-name="${mgr.company_name}" style="animation: fadeIn 0.5s;">
-                    <td style="font-weight: 500; padding-left: 2rem;" class="col-name">${mgr.name}</td>
+                    <td style="font-weight: 500;" class="col-name">${mgr.name}</td>
                     <td class="text-sm text-muted col-email">${mgr.email}</td>
                     <td>
                         <span class="badge badge-blue col-comp">${mgr.company_name}</span>
@@ -674,13 +714,7 @@
                     </td>
                 </tr>`;
 
-                // Try to simple append because complex grouping logic is brittle in vanilla JS
-                // Ideally we find the group, but just appending works "ok" visually, though breaks sort order.
-                // Better approach: Reload table content or just append.
-                // User requirement: "Tela inicial... mas deveria atualizar via ajax tabela".
-                // I will just append it for now to satisfy "update via AJAX" without complex insertion logic.
                 tbody.insertAdjacentHTML('beforeend', newRowHtml);
-
                 document.getElementById('createManagerCard').style.display = 'none';
             } else { showToast(data.error || 'Erro', 'error'); }
         } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
@@ -800,78 +834,29 @@
         </div>`;
     }
 
-    // setInterval removido para Arquitetura Zero Cost. Use 'Sincronizar Agora' manual.
-    // --- SYNC SYSTEM ---
-    async function triggerManualSync(auto = false) {
-        const icon = document.getElementById('sync-icon');
-        const label = document.getElementById('sync-label');
-        const text = document.getElementById('sync-status-text');
 
-        if (!auto) {
-            if (icon) icon.classList.add('spin-anim');
-            if (label) label.innerText = 'Sincronizando...';
-        }
+</script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // Mask for CNPJ
+        $('input[name="cnpj"]').mask('00.000.000/0000-00', { reverse: true });
 
-        try {
-            const res = await fetch('/admin/api/sync_now', {
-                method: 'POST',
-                headers: { 'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value }
-            });
-            const data = await res.json();
-
-            if (res.ok) {
-                if (data.processed > 0) {
-                    showToast(`Sincronização: ${data.processed} novos arquivos!`, 'success');
-                    if (text) text.innerText = `+${data.processed}`;
-                    // Refresh logs if expecting new data
-                    updateMonitoring();
-                } else {
-                    if (!auto) showToast('Tudo atualizado (Nenhum arquivo novo).', 'success');
-                    if (text) text.innerText = 'OK';
+        // Mask for Phone (Generic 10 or 11 digits)
+        var behavior = function (val) {
+            return val.replace(/\D/g, '').length === 11 ? '(00) 00000-0000' : '(00) 0000-00009';
+        },
+            options = {
+                onKeyPress: function (val, e, field, options) {
+                    field.mask(behavior.apply({}, arguments), options);
                 }
-            } else {
-                console.warn('Sync error:', data);
-                if (!auto) showToast('Erro na sincronização', 'error');
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            if (icon) icon.classList.remove('spin-anim');
-            if (label) label.innerText = 'Sincronizar Agora';
-        }
-    }
+            };
+        $('input[name="phone"]').mask(behavior, options);
 
-    // Auto-Sync on Dashboard Load (Zero Cost Architecture)
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('🚀 Dashboard Loaded: Triggering Auto-Sync...');
-        triggerManualSync(true); // Silent mode
-
-        // --- PREMIUM UI: INPUT MASKS & VALIDATION ---
-        const cnpjInputs = document.querySelectorAll('input[name="cnpj"]');
-        cnpjInputs.forEach(input => {
-            input.placeholder = "00.000.000/0000-00";
-            input.addEventListener('input', function (e) {
-                let v = e.target.value.replace(/\D/g, "");
-
-                // Mascara CNPJ
-                if (v.length > 14) v = v.substring(0, 14);
-                v = v.replace(/^(\d{2})(\d)/, "$1.$2");
-                v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
-                v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
-                v = v.replace(/(\d{4})(\d)/, "$1-$2");
-
-                e.target.value = v;
-
-                // Visual Feedback
-                if (v.length === 18) {
-                    input.style.borderColor = '#10B981';
-                    input.style.backgroundColor = '#ecfdf5';
-                } else {
-                    input.style.borderColor = '';
-                    input.style.backgroundColor = '';
-                }
-            });
-        });
+        // Re-apply mask when modal is opened or dynamic content added?
+        // jQuery Mask plugin usually attaches to selector, so dynamic elements might need re-init
+        // But here inputs are static in the modal.
     });
 </script>
 <style>
@@ -880,7 +865,7 @@
     }
 
     @keyframes spin {
-        100% {
+        100 % {
             transform: rotate(360deg);
         }
     }
@@ -905,7 +890,5 @@
             transform: translateY(0);
         }
     }
-
-        {
-        % endblock %
-    }
+</style>
+{% endblock %}

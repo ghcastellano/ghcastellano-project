@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from src.database import get_db
 from datetime import datetime
-from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus, Inspection, InspectionStatus
+from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus, Inspection, InspectionStatus, ActionPlan, ActionPlanItem, Visit
 from sqlalchemy.orm import joinedload
 from functools import wraps
 import uuid
@@ -35,6 +35,10 @@ def index():
         managers.sort(key=lambda m: m.company.name if m.company else "ZZZ_SemEmpresa")
         
         return render_template('admin_dashboard.html', companies=companies, managers=managers)
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Erro Crítico em Admin Index: {traceback.format_exc()}")
+        return f"Erro Interno no Servidor (500). Detalhes: {e}", 500
     finally:
         db.close()
 
@@ -87,11 +91,43 @@ def delete_company(company_id):
     try:
         company = db.query(Company).get(company_id)
         if company:
+            # 1. Delete Jobs
+            db.query(Job).filter(Job.company_id == company_id).delete()
+            
+            # 2. Delete Users (Managers/Consultants) and their relations
+            users = db.query(User).filter(User.company_id == company_id).all()
+            for user in users:
+                # Nullify approved plans (keep history but remove link or just nullify)
+                db.query(ActionPlan).filter(ActionPlan.approved_by_id == user.id).update({ActionPlan.approved_by_id: None})
+                # Delete visits
+                db.query(Visit).filter(Visit.consultant_id == user.id).delete()
+                # Delete user
+                db.delete(user)
+            
+            # 3. Delete Establishments and their relations (Inspections -> ActionPlans)
+            establishments = db.query(Establishment).filter(Establishment.company_id == company_id).all()
+            for est in establishments:
+                # Get Inspections
+                inspections = db.query(Inspection).filter(Inspection.establishment_id == est.id).all()
+                for insp in inspections:
+                    # Delete ActionPlan Items
+                    if insp.action_plan:
+                         db.query(ActionPlanItem).filter(ActionPlanItem.action_plan_id == insp.action_plan.id).delete()
+                         db.delete(insp.action_plan)
+                    db.delete(insp)
+                
+                # Delete Visits linked to Est (if any remained)
+                db.query(Visit).filter(Visit.establishment_id == est.id).delete()
+                
+                db.delete(est)
+
+            # 4. Finally Delete Company
             db.delete(company)
             db.commit()
+            
             if request.accept_mimetypes.accept_json:
-                 return jsonify({'success': True, 'message': 'Empresa removida.'}), 200
-            flash('Empresa removida.', 'success')
+                 return jsonify({'success': True, 'message': 'Empresa e todos os dados vinculados removidos.'}), 200
+            flash('Empresa e todos os dados vinculados removidos.', 'success')
         else:
             if request.accept_mimetypes.accept_json:
                  return jsonify({'error': 'Empresa não encontrada.'}), 404
@@ -226,7 +262,14 @@ def delete_manager(user_id):
     db = next(get_db())
     try:
         user = db.query(User).get(user_id)
-        if user and user.role == UserRole.MANAGER:
+        if user and user.role == UserRole.MANAGER: # Allow deleting CONSULTANT too if passed? The route says manager.
+            # Handle dependencies
+            # 1. Nullify ActionPlans approved by this user
+            db.query(ActionPlan).filter(ActionPlan.approved_by_id == user.id).update({ActionPlan.approved_by_id: None})
+            
+            # 2. Delete Visits linked to this user (if any, usually consultants have visits)
+            db.query(Visit).filter(Visit.consultant_id == user.id).delete()
+            
             db.delete(user)
             db.commit()
             if request.accept_mimetypes.accept_json:
@@ -235,6 +278,7 @@ def delete_manager(user_id):
         else:
             if request.accept_mimetypes.accept_json:
                  return jsonify({'error': 'Gestor não encontrado.'}), 404
+            flash('Gestor não encontrado.', 'error')
     except Exception as e:
         db.rollback()
         if request.accept_mimetypes.accept_json:
