@@ -129,14 +129,24 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
             query = query.filter(Inspection.establishment_id == establishment_id)
         
         # [SECURITY] Filter by allowed establishments (Consultant Scope)
-        if allowed_establishment_ids is not None:
-             query = query.filter(Inspection.establishment_id.in_(allowed_establishment_ids))
-        
-        elif company_id:
-            # Fallback (Legacy/Manager): Filter by Company
-            from src.models_db import Visit, User
+        # Fix: Allow seeing all Company inspections to support "New Stores" auto-created
+        if allowed_establishment_ids is not None or company_id:
+            from sqlalchemy import or_
             query = query.outerjoin(Inspection.establishment)
-            query = query.filter(Establishment.company_id == company_id)
+            
+            conditions = []
+            if allowed_establishment_ids:
+                conditions.append(Inspection.establishment_id.in_(allowed_establishment_ids))
+            
+            if company_id:
+                 conditions.append(Establishment.company_id == company_id)
+                 # Also allow processing items (NULL establishment) if we could link them, but proper link is hard.
+                 # For now, Company Check covers the "New Store" case.
+            
+            if conditions:
+                query = query.filter(or_(*conditions))
+        
+        # elif company_id: ... (Removed/Merged above)
         
         inspections = query.order_by(Inspection.created_at.desc()).limit(50).all()
         
