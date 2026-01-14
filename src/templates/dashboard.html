@@ -157,6 +157,26 @@
 
     {% block scripts %}
     <script>
+        // Função para feedback visual imediato no Upload
+        function showLoading(e) {
+            // Não previne default para permitir envio tradicional (POST)
+            // Mas altera UI para 'Processando'
+            const btn = document.getElementById('submitBtn');
+            const fileInput = document.getElementById('fileInput');
+            const loadingDiv = document.getElementById('uploadLoading');
+            const previewDiv = document.getElementById('filePreview');
+
+            if (btn) btn.style.display = 'none';
+            if (fileInput) fileInput.disabled = true;
+            if (previewDiv) previewDiv.style.opacity = '0.5';
+
+            if (loadingDiv) {
+                loadingDiv.style.display = 'block';
+                // Scroll para ver o loading se necessário
+                loadingDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
         // GLOBAL ERROR HANDLER
         window.onerror = function (msg, url, lineNo, columnNo, error) {
             const container = document.getElementById('list-processed-container');
