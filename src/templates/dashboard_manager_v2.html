@@ -1186,14 +1186,8 @@
 
 
     // Helper for Status Badges
-    function getStatusBadge(status) {
-        const s = status || 'UNKNOWN';
-        if (s === 'PROCESSING') return '<span class="badge badge-warning">Processando</span>';
-        if (s === 'PENDING_MANAGER_REVIEW') return '<span class="badge badge-info">Aguardando Validação</span>';
-        if (s === 'APPROVED') return '<span class="badge badge-success">Aprovado</span>';
-        if (s === 'COMPLETED') return '<span class="badge badge-success">Concluído</span>';
-        return '<span class="badge badge-secondary">' + s + '</span>';
-    }
+    // Old getStatusBadge removed (duplicate). Using the robust one below.
+    // ensure clear mapping in the main function.
 
     // Polling Logic
     async function updateLists() {
