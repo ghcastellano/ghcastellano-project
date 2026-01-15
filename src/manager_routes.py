@@ -725,7 +725,7 @@ def api_status():
             from src.models_db import Job, JobStatus
             jobs_query = db.query(Job).filter(
                 Job.company_id == current_user.company_id,
-                Job.status.in_([JobStatus.PENDING, JobStatus.RUNNING])
+                Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
             )
             # Filter by Est if selected (if job input has it) 
             # Note: Input payload might have establishment_id as string
