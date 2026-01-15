@@ -272,23 +272,56 @@ def root():
 @login_required
 @role_required(UserRole.CONSULTANT)
 def dashboard_consultant():
-    from src.db_queries import get_consultant_inspections
-    from src.db_queries import get_consultant_inspections
+    from src.db_queries import get_consultant_inspections, get_pending_jobs
     from datetime import datetime
     
     # [SECURITY] Scope to Consultant's Establishments
     my_est_ids = [est.id for est in current_user.establishments] if current_user.establishments else []
     
+    # 1. Fetch Processed/Approved Inspections
     inspections = get_consultant_inspections(
         company_id=current_user.company_id, 
         allowed_establishment_ids=my_est_ids
     )
     
+    # 2. Fetch Active Jobs (Processing/Pending) to show "Em Análise" items that might be orphans
+    # This ensures "New Store" uploads are visible immediately even if establishment matching is ambiguous
+    pending_jobs = get_pending_jobs(
+        company_id=current_user.company_id,
+        establishment_ids=my_est_ids
+    )
+    
+    # Merge Jobs into Inspections List (Adapter)
+    job_card_ids = set()
+    for job in pending_jobs:
+        # Avoid showing "Completed" jobs if the inspection is already in the main list
+        # But if it's an orphan (not in main list), we MUST show the job as a fallback
+        file_id = job.get('drive_file_id') # Note: get_pending_jobs dict structure doesn't have drive_file_id in top level, it's inside payload?
+        # get_pending_jobs returns formatted dicts. Let's check its output structure in db_queries.py
+        # It returns: {'id': job.id, 'name': filename, 'status': ...}
+        # It does NOT return file_id directly in the top dict. 
+        # We need to enhance get_pending_jobs or just show all non-completed jobs?
+        
+        # Strategy: Show all jobs that are NOT completed. 
+        # For Completed jobs, we assume they are in main list. 
+        # If they are orphan and missing from main list, we might want to show them?
+        # For now, let's show PENDING/PROCESSING/FAILED jobs. 
+        if job['status'] in ['PENDING', 'PROCESSING', 'FALHA', 'FAILED']:
+            inspections.insert(0, {
+                'id': '#', # No link yet
+                'name': job['name'],
+                'establishment': job['company_name'], # Or "Processando..."
+                'date': job['created_at'],
+                'status': job['status_label'], # Use friendly label
+                'pdf_link': '#',
+                'review_link': '#'
+            })
+    
     # [UX] Calculate Quick Stats for Dashboard
     stats = {
         'total': len(inspections),
-        'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_VERIFICATION', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW']),
-        'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED']),
+        'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_VERIFICATION', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW', 'Processando', 'Pendente']),
+        'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED', 'Concluído']),
         'last_sync': datetime.utcnow().strftime('%H:%M')
     }
     

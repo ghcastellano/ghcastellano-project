@@ -460,60 +460,76 @@ def edit_plan(file_id):
         db.refresh(inspection)
 
         # Prepare report_data for template (Stats & NCs structure)
-        # 1. Use existing stats_json if available (Source of Truth)
+        # 1. Use existing stats_json if available (Source of Truth for Structure/Scores)
         report_data = inspection.action_plan.stats_json if inspection.action_plan.stats_json else {}
         
-        # 2. Fallback or Enrichment
+        # 2. Fallback or Enrichment from ai_raw_response
         if not report_data:
-             # Try to construct from ai_raw_response or manually
              report_data = inspection.ai_raw_response or {}
 
-        # 2a. [CRITICAL] Robust Fallback for 'areas_inspecionadas'
-        # If the JSON source (stats_json or ai_raw) doesn't have the structured areas,
-        # we rebuild it from the actual database items (ActionPlanItems).
-        if 'areas_inspecionadas' not in report_data or not report_data['areas_inspecionadas']:
-            print(f"⚠️ Report data missing 'areas_inspecionadas'. Rebuilding from DB items...")
+        # 3. [CRITICAL FIX] Always rebuild 'itens' from Database to reflect Edits
+        # While preserving Area Scores from JSON
+        if inspection.action_plan.items:
+            # 3a. Create Lookup for Scores from Original JSON (to recover lost scores)
+            # We map "Problem Description" -> Score
+            score_map = {}
+            if 'areas_inspecionadas' in report_data:
+                for area in report_data['areas_inspecionadas']:
+                    for item in area.get('itens', []):
+                         # Normalize key: substring or full match
+                         key = (item.get('observacao') or item.get('problema') or "").strip()[:50]
+                         score_map[key] = item.get('pontuacao', 0)
+
+            # 3b. Group DB Items by Sector
             rebuilt_areas = {}
-            # inspection.action_items property returns enriched/adapted items
-            db_items = inspection.action_items 
+            # Initialize with existing areas to keep scores/names
+            if 'areas_inspecionadas' in report_data:
+                for area in report_data['areas_inspecionadas']:
+                    rebuilt_areas[area['nome_area']] = area
+                    area['itens'] = [] # Clear JSON items, we will fill with DB items
+
+            db_items = inspection.action_items # Returns enriched items
             
             for item in db_items:
                 area_name = item.nome_area or "Geral"
+                
+                # If area not in JSON (e.g. added later), create it
                 if area_name not in rebuilt_areas:
                     rebuilt_areas[area_name] = {
                         'nome_area': area_name,
-                        'items_nc': 0, # Will be counted below
+                        'items_nc': 0,
                         'pontuacao_obtida': 0,
                         'pontuacao_maxima': 0,
                         'aproveitamento': 0,
                         'itens': []
                     }
                 
-                # Adapt item for template
-                # Template expects: item_verificado, status, observacao, fundamento_legal, 
-                #                   acao_corretiva_sugerida, prazo_sugerido, pontuacao (opt)
+                # Recover Score
+                # Try validation using problem_description
+                key = (item.item_verificado or "").strip()[:50]
+                recovered_score = score_map.get(key, 0)
+                
                 template_item = {
                     'id': str(item.id),
                     'item_verificado': item.item_verificado,
-                    'status': 'Não Conforme', # DB items in ActionPlan are usually NCs
+                    'status': 'Não Conforme', 
                     'observacao': item.problem_description,
                     'fundamento_legal': item.fundamento_legal,
                     'acao_corretiva_sugerida': item.acao_corretiva,
                     'prazo_sugerido': item.prazo_sugerido,
-                    'pontuacao': 0 # Not stored on item level in DB model yet
+                    'pontuacao': recovered_score # Injected from JSON map
                 }
                 rebuilt_areas[area_name]['itens'].append(template_item)
             
+            # 3c. Update report_data with rebuilt areas
             report_data['areas_inspecionadas'] = list(rebuilt_areas.values())
-        
-        # 3. [CRITICAL] Calculate items_nc for Template Logic (Hiding compliant areas)
-        # We need to ensure 'areas_inspecionadas' exists and has 'items_nc'
+
+        # 3d. Recalculate basic stats just in case
         if 'areas_inspecionadas' in report_data:
             for area in report_data['areas_inspecionadas']:
                 items = area.get('itens', [])
-                # Count non-conformities (Status != 'Conforme')
-                # Note: The template also filters items. We must match that logic.
-                area['items_nc'] = sum(1 for item in items if item.get('status') != 'Conforme')
+                # Re-count NCs based on what we actually have
+                area['items_nc'] = len(items) 
         
         # 4. Bind basic info if missing
         if 'nome_estabelecimento' not in report_data:
@@ -571,19 +587,51 @@ def save_plan(file_id):
                 # Update
                 item = db.query(ActionPlanItem).get(uuid.UUID(item_data['id']))
                 if item and item.action_plan_id == plan.id:
-                    item.problem_description = item_data.get('problem')
-                    item.corrective_action = item_data.get('action')
-                    item.legal_basis = item_data.get('legal_basis')
-                    try:
-                        item.severity = SeverityLevel(item_data.get('severity', 'MEDIUM'))
-                    except ValueError:
-                         item.severity = SeverityLevel.MEDIUM
+                    if 'problem' in item_data: item.problem_description = item_data.get('problem')
+                    if 'action' in item_data: item.corrective_action = item_data.get('action')
+                    if 'legal_basis' in item_data: item.legal_basis = item_data.get('legal_basis')
                     
-                    if item_data.get('deadline'):
+                    if 'severity' in item_data:
                         try:
-                            item.deadline_date = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
-                        except:
-                            pass
+                            item.severity = SeverityLevel(item_data.get('severity', 'MEDIUM'))
+                        except ValueError:
+                             item.severity = SeverityLevel.MEDIUM
+                    
+                    if 'deadline' in item_data:
+                        if item_data.get('deadline'):
+                            try:
+                                item.deadline_date = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
+                            except:
+                                pass
+
+@manager_bp.route('/manager/plan/<file_id>/approve', methods=['POST'])
+@login_required
+def approve_plan(file_id):
+    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN]:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    db = next(get_db())
+    try:
+        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+        if not inspection or not inspection.action_plan:
+             return jsonify({'error': 'Plan not found'}), 404
+             
+        inspection.status = InspectionStatus.APPROVED
+        inspection.action_plan.approved_by_id = current_user.id
+        inspection.action_plan.approved_at = datetime.utcnow()
+        
+        db.commit()
+        
+        # Trigger Notification (Email/WhatsApp) - Placeholder
+        # notify_consultant(inspection)
+        
+        return jsonify({'success': True, 'message': 'Plano aprovado com sucesso!'}), 200
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
             else:
                 # Create
                 deadline = None
