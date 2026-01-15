@@ -467,6 +467,32 @@ def edit_plan(file_id):
         if not report_data:
              report_data = inspection.ai_raw_response or {}
 
+        # [Normalization] Ensure keys match Template expectations (Legacy Support)
+        if 'aproveitamento_geral' not in report_data:
+            report_data['aproveitamento_geral'] = report_data.get('percentage', 0)
+        
+        if 'resumo_geral' not in report_data:
+            report_data['resumo_geral'] = report_data.get('summary') or report_data.get('summary_text') or "Resumo não disponível."
+            
+        if 'nome_estabelecimento' not in report_data:
+             report_data['nome_estabelecimento'] = report_data.get('company_name') or inspection.establishment.name if inspection.establishment else "Estabelecimento"
+
+        if 'data_inspecao' not in report_data:
+             report_data['data_inspecao'] = report_data.get('inspection_date') or inspection.created_at.strftime('%d/%m/%Y')
+
+        # Map 'areas' to 'areas_inspecionadas' if needed
+        if 'areas_inspecionadas' not in report_data and 'areas' in report_data:
+             report_data['areas_inspecionadas'] = report_data['areas']
+        
+        # Normalize Area Keys
+        if 'areas_inspecionadas' in report_data:
+            for area in report_data['areas_inspecionadas']:
+                if 'pontuacao_obtida' not in area: area['pontuacao_obtida'] = area.get('score', 0)
+                if 'pontuacao_maxima' not in area: area['pontuacao_maxima'] = area.get('max_score', 0)
+                if 'aproveitamento' not in area: area['aproveitamento'] = area.get('percentage', 0)
+                if 'nome_area' not in area: area['nome_area'] = area.get('name', 'Área Desconhecida')
+
+
         # 3. [CRITICAL FIX] Always rebuild 'itens' from Database to reflect Edits
         # While preserving Area Scores from JSON
         if inspection.action_plan.items:

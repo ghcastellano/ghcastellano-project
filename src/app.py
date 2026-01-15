@@ -291,31 +291,53 @@ def dashboard_consultant():
         establishment_ids=my_est_ids
     )
     
-    # Merge Jobs into Inspections List (Adapter)
-    job_card_ids = set()
+    # 2. Fetch Active Jobs (Processing/Pending)
+    pending_jobs = get_pending_jobs(
+        company_id=current_user.company_id,
+        establishment_ids=my_est_ids
+    )
+    
+    # [UX] Enhance Links & Deduplicate
+    existing_file_ids = set()
+    
+    # Process Existing Inspections (Loaded from DB)
+    for insp in inspections:
+        existing_file_ids.add(insp.get('id'))
+        # If status is Waiting Approval, prevent Consultant from thinking it's broken
+        if insp.get('status') in ['Aguardando Aprovação', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW']:
+             insp['review_link'] = "javascript:alert('Este relatório está em análise pelo Gestor. Você será notificado quando for aprovado.')"
+
+    # Merge Jobs (Active or Orphaned)
     for job in pending_jobs:
-        # Avoid showing "Completed" jobs if the inspection is already in the main list
-        # But if it's an orphan (not in main list), we MUST show the job as a fallback
-        file_id = job.get('drive_file_id') # Note: get_pending_jobs dict structure doesn't have drive_file_id in top level, it's inside payload?
-        # get_pending_jobs returns formatted dicts. Let's check its output structure in db_queries.py
-        # It returns: {'id': job.id, 'name': filename, 'status': ...}
-        # It does NOT return file_id directly in the top dict. 
-        # We need to enhance get_pending_jobs or just show all non-completed jobs?
+        file_id = job.get('drive_file_id')
         
-        # Strategy: Show all jobs that are NOT completed. 
-        # For Completed jobs, we assume they are in main list. 
-        # If they are orphan and missing from main list, we might want to show them?
-        # For now, let's show PENDING/PROCESSING/FAILED jobs. 
-        if job['status'] in ['PENDING', 'PROCESSING', 'FALHA', 'FAILED']:
-            inspections.insert(0, {
-                'id': '#', # No link yet
-                'name': job['name'],
-                'establishment': job['company_name'], # Or "Processando..."
-                'date': job['created_at'],
-                'status': job['status_label'], # Use friendly label
-                'pdf_link': '#',
-                'review_link': '#'
-            })
+        # Skip if already shown as a processed inspection
+        if file_id and file_id in existing_file_ids:
+            continue
+            
+        # Filter: Show PENDING, PROCESSING, FAILED, and ORPHAN COMPLETED
+        # (Orphan Completed = Completed but not in existing_file_ids, which we just checked)
+        is_completed = (job.get('status_raw') == 'COMPLETED')
+        
+        # Define Link/Action
+        msg = "Arquivo ainda em processamento. Por favor aguarde."
+        if is_completed:
+             msg = "Processamento concluído. O relatório deve aparecer na lista em breve (verifique se a loja está vinculada)."
+        elif job.get('status_raw') == 'FAILED':
+             msg = "Houve uma falha no processamento deste arquivo. Tente enviar novamente."
+
+        # Add to main list
+        inspections.insert(0, {
+            'id': file_id or '#', 
+            'name': job['name'],
+            'establishment': job.get('establishment') or "Em processamento...",
+            'date': job['created_at'],
+            'status': job.get('status', 'Pendente'), 
+            'pdf_link': '#',
+            'review_link': f"javascript:alert('{msg}')"
+        })
+    
+    # [UX] Calculate Quick Stats for Dashboard
     
     # [UX] Calculate Quick Stats for Dashboard
     stats = {

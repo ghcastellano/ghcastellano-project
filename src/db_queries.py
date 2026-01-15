@@ -378,11 +378,13 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
 
             result.append({
                 'id': str(job.id),
+                'drive_file_id': payload.get('file_id'),
                 'name': filename,
-                'status': job.status.value,
-                'status_label': status_label,
-                'status_color': status_color,
-                'created_at': job.created_at.strftime('%H:%M') if job.created_at else '',
+                'establishment': payload.get('company_name') or payload.get('establishment_name') or 'N/A', # Add establishment/company context
+                'status': status_label,
+                'status_raw': job.status.value,
+                'color': status_color,
+                'created_at': job.created_at.strftime('%d/%m/%Y %H:%M'),
                 'company_name': job.company.name if job.company else 'N/A',
                 'cost_input': job.cost_input_brl if job.cost_input_brl > 0 else (job.cost_tokens_input / 1000000.0 * 0.150 * 6.00 if job.cost_tokens_input else 0),
                 'cost_output': job.cost_output_brl if job.cost_output_brl > 0 else (job.cost_tokens_output / 1000000.0 * 0.600 * 6.00 if job.cost_tokens_output else 0),
