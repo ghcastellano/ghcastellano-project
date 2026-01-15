@@ -782,18 +782,55 @@ def get_processed_item_details(file_id):
 
 
 @app.route('/download_pdf/<json_id>')
+@login_required
 def download_pdf_route(json_id):
     """
-    Tenta encontrar o PDF correspondente ao JSON ID.
-    Estratégia: 
-    1. Ler JSON para saber nome do arquivo original (ou deduzir).
-    2. Procurar PDF com mesmo nome base na pasta de saída.
+    Tenta encontrar o PDF correspondente ao JSON ID output.
+    Suporta Drive IDs e GCS paths (gcs:filename).
     """
-    if not drive_service: return "Erro", 500
+    # 1. GCS / Storage Service Support
+    if json_id.startswith('gcs:'):
+        try:
+            filename = json_id.replace('gcs:', '')
+            from src.services.storage_service import storage_service
+            # Tenta baixar da pasta 'evidence' (entrada) ou deduzir saida?
+            # Geralmente o PDF de entrada é o que o usuario quer baixar se for o original.
+            # Se for o 'revised', é outra rota.
+            # Aqui assumimos download do original/processado.
+            file_content = storage_service.download_file('evidence', filename) # Returns bytes or None/Raise
+            
+            return send_file(
+                io.BytesIO(file_content),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=filename
+            )
+        except Exception as e:
+            logger.error(f"Erro download GCS {json_id}: {e}")
+            return f"Erro ao baixar arquivo do Storage: {e}", 404
+
+    # 2. Drive Support (Existing Logic)
+    if not drive_service: return "Erro: Drive indisponível", 500
     
     try:
         # Pega metadados do JSON para saber o nome
-        json_file = drive_service.service.files().get(fileId=json_id, fields='name', supportsAllDrives=True).execute()
+        # O ID passado pode ser o do PDF direto se ajustamos antes, mas assumindo JSON ID.
+        try:
+             json_file = drive_service.service.files().get(fileId=json_id, fields='name, mimeType', supportsAllDrives=True).execute()
+        except:
+             # Talvez seja o ID do PDF ja?
+             json_file = {'name': 'unknown.json', 'mimeType': 'application/json'}
+
+        if 'application/pdf' in json_file.get('mimeType', ''):
+             # É o PDF direto
+             file_content = drive_service.download_file(json_id)
+             return send_file(
+                io.BytesIO(file_content),
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=json_file.get('name')
+            )
+
         json_name = json_file.get('name')
         pdf_name = json_name.replace('.json', '.pdf')
         
@@ -820,6 +857,7 @@ def download_pdf_route(json_id):
                 if pdf_files:
                     pdf_id = pdf_files[0]['id']
                 else:
+                    logger.warning(f"PDF Fuzzy not found for {json_id}")
                     return "PDF não encontrado (Fuzzy)", 404
             else:
                 return "PDF não encontrado", 404
@@ -835,14 +873,15 @@ def download_pdf_route(json_id):
             download_name=pdf_name
         )
     except Exception as e:
+        logger.error(f"Erro download Drive: {e}")
         return f"Erro download: {e}", 500
 
 @app.route('/review/<file_id>') # file_id aqui é o ID do JSON no Drive (ou drive_file_id na table inspections)
 @login_required
 def review_page(file_id):
     if not drive_service:
-        flash("Drive indisponível", "error")
-        return redirect(url_for('dashboard'))
+        # Check if we can proceed with DB only?
+        pass # Continue to try
 
     try:
         # 1. Tenta carregar do Banco de Dados (Fonte da Verdade Validada)
@@ -886,7 +925,13 @@ def review_page(file_id):
         else:
             # Fallback for unproccessed/legacy items
             # Load from Drive (Legacy)
-            data = drive_service.read_json(file_id)
+            if drive_service and not file_id.startswith('gcs:'):
+                try:
+                    data = drive_service.read_json(file_id)
+                except: data = {}
+            else:
+                data = {}
+
             if not data: data = {}
             # Ensure detalhe_pontuacao exists for template compatibility
             if 'detalhe_pontuacao' not in data:
@@ -899,7 +944,7 @@ def review_page(file_id):
                     # Count items where status is NOT 'Conforme'
                     area['items_nc'] = sum(1 for item in items_in_area if item.get('status') != 'Conforme')
 
-            flash("Este relatório ainda não foi processado completamente para a nova visualização.", "warning")
+            # flash("Este relatório ainda não foi processado completamente para a nova visualização.", "warning")
 
         return render_template('review.html', 
                              inspection=inspection, 
@@ -921,11 +966,58 @@ def approve_plan(file_id):
     """Aprova plano e envia WhatsApp (Async)."""
     return _handle_service_call(file_id, is_approval=True)
 
-@app.route('/api/share_plan/<file_id>', methods=['POST'])
+@app.route('/api/share_plan/<file_id>', methods=['GET', 'POST'])
 @login_required
 def share_plan(file_id):
-    """Compartilha plano via WhatsApp (Async)."""
+    """Compartilha plano via WhatsApp (Async ou Redirecionamento)."""
+    if request.method == 'GET':
+        # [NEW] Redirection Mode for Window.open
+        try:
+             # Fetch inspection details to build message
+             from src.models_db import Inspection
+             db = database.db_session
+             insp = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+             
+             name = "Relatório"
+             if insp and insp.establishment: name = f"Relatório - {insp.establishment.name}"
+             
+             # Generate Public Link (To PDF or Review login? usually PDF if no login)
+             link = f"{request.host_url}download_revised_pdf/{file_id}" # Or public unique link
+             
+             msg = f"Olá, confira o Plano de Ação de Inspeção Sanitária:\n*Local:* {name}\n*Acesse:* {link}"
+             from urllib.parse import quote
+             wa_link = f"https://wa.me/?text={quote(msg)}"
+             
+             return redirect(wa_link)
+        except Exception as e:
+             logger.error(f"Share GET Error: {e}")
+             return f"Erro ao gerar link de compartilhamento: {e}", 500
+
     return _handle_service_call(file_id, is_approval=False)
+
+@app.route('/api/email_plan/<file_id>', methods=['POST'])
+@login_required
+def email_plan(file_id):
+    """Envia email com o plano de ação (Simples)."""
+    try:
+        from src.models_db import Inspection
+        db = database.db_session
+        insp = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+        
+        target_email = current_user.email
+        if not target_email:
+             return jsonify({'error': 'Seu usuário não possui email cadastrado.'}), 400
+
+        if app.email_service:
+             link = f"{request.host_url}download_pdf/{file_id}"
+             body = f"Olá,<br><br>Segue o link para o relatório de inspeção: <a href='{link}'>Baixar PDF</a>"
+             app.email_service.send_email(target_email, f"Relatório de Inspeção", body, body)
+             return jsonify({'success': True, 'message': f'Email enviado para {target_email}'})
+        
+        return jsonify({'error': 'Serviço de email indisponível.'}), 500
+    except Exception as e:
+        logger.error(f"Email share error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 def _handle_service_call(file_id, is_approval):
     try:

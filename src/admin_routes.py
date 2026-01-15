@@ -481,9 +481,12 @@ def api_monitor_stats():
                 try:
                     # Alternativa ORM pura se Job model tivesse mapeamento direto, mas input_payload é JSON
                     # Vamos tentar buscar o job mais recente criado perto da inspection
+                    # Alternativa: Buscar por ID ou pelo Nome do Arquivo (Fallback robusto)
+                    filename_clean = str(insp.drive_file_id).replace("gcs:", "") if insp.drive_file_id else ""
+                    
                     job = db.query(Job).filter(
-                        text("input_payload->>'file_id' = :fid")
-                    ).params(fid=insp.drive_file_id).order_by(Job.created_at.desc()).first()
+                        text("(input_payload->>'file_id' = :fid) OR (input_payload->>'filename' = :fname)")
+                    ).params(fid=str(insp.drive_file_id), fname=filename_clean).order_by(Job.created_at.desc()).first()
                     
                     if job:
                         tokens_in = job.cost_tokens_input or 0

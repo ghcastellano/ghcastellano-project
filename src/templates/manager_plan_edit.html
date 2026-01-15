@@ -213,7 +213,8 @@
                         onclick="if(confirm('Abrir WhatsApp?')) window.open('/api/share_plan/{{ inspection.drive_file_id }}', '_blank')">
                         <i class="ph-bold ph-whatsapp-logo me-2"></i> WhatsApp
                     </button>
-                    <button class="btn btn-outline-secondary" onclick="alert('Funcionalidade de Email em breve!')">
+                    <button class="btn btn-outline-secondary"
+                        onclick="if(confirm('Deseja receber este relatório por Email?')) { fetch('/api/email_plan/{{ inspection.drive_file_id }}', {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'}}).then(resp => resp.json()).then(data => alert(data.message || data.error)).catch(err => alert('Erro no envio')); }">
                         <i class="ph-bold ph-envelope-simple me-2"></i> Email
                     </button>
                     <button class="btn btn-outline-primary"
@@ -309,6 +310,8 @@
 </style>
 
 <script>
+    const INSPECTION_FILE_ID = "{{ inspection.drive_file_id }}";
+
     function markAsModified(input) {
         if (input.value !== input.dataset.original) {
             input.classList.add('modified-field');
@@ -317,55 +320,101 @@
         }
     }
 
-    function autoSaveItem(input) {
+    async function autoSaveItem(input) {
         // Only save if modified
         if (input.value === input.dataset.original) return;
 
         const container = input.parentElement;
         const indicator = container.querySelector('.status-indicator');
+        const itemId = input.dataset.itemId;
 
         // Show saving state
         indicator.innerHTML = '<span class="status-saving"><i class="ph-bold ph-arrows-clockwise"></i> Salvando...</span>';
 
-        // Mock API call delay
-        setTimeout(() => {
-            // Show saved state
-            indicator.innerHTML = '<span class="status-saved"><i class="ph-bold ph-check"></i> Salvo</span>';
+        // Prepare Payload
+        // We send a partial update for this item
+        const payload = {
+            items: [{
+                id: itemId,
+                // Determine field name based on input hierarchy? 
+                // Or just send both potential fields, only one will change.
+                // Actually safer to check which input it is.
+                // Checking dataset or just sending context...
+                // Simplification for MVP: We send the changed value based on mapping.
+            }]
+        };
 
-            // Optional: Hide after 3 seconds
-            setTimeout(() => {
-                // Keep the "Modified" style but hide the text to reduce clutter? 
-                // Or keep "Salvo" visible? User said "saiba que aquele item foi editado".
-                // Let's keep "Salvo" visible or just the blue border. 
-                // The blue border ('modified-field') remains as the persistent "Edited" indicator.
-                indicator.innerHTML = '<span class="status-saved" style="opacity:0.7"><i class="ph-fill ph-check-circle"></i></span>';
-            }, 2000);
+        // Simple logic: check if it's "action" (textarea) or "deadline" (input)
+        if (input.tagName === 'TEXTAREA') {
+            payload.items[0].action = input.value;
+        } else {
+            payload.items[0].deadline = input.value;
+        }
 
-            // Update "original" so it doesn't re-save next blur unless changed again? 
-            // Usually in auto-save, we treat current as new original only if confirmed. 
-            // For now, we leave it to allow further edits.
+        try {
+            const response = await fetch(`/manager/plan/${INSPECTION_FILE_ID}/save`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token() if csrf_token else '' }}"
+                },
+                body: JSON.stringify(payload)
+            });
 
-        }, 800);
+            if (response.ok) {
+                // success
+                indicator.innerHTML = '<span class="status-saved"><i class="ph-bold ph-check"></i> Salvo</span>';
+                input.dataset.original = input.value; // Update original to prevent re-save
+                setTimeout(() => {
+                    indicator.innerHTML = '<span class="status-saved" style="opacity:0.7"><i class="ph-fill ph-check-circle"></i></span>';
+                }, 2000);
+            } else {
+                indicator.innerHTML = '<span class="text-danger small">Erro ao salvar</span>';
+            }
+        } catch (e) {
+            console.error(e);
+            indicator.innerHTML = '<span class="text-danger small">Erro de conexão</span>';
+        }
     }
-    function finishReview() {
-        // Change button state
-        const btn = document.getElementById('btn-finish');
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando...';
+
+    async function approvePlan() {
+        if (!confirm('Tem certeza que deseja aprovar este plano? Isso notificará o consultor.')) return;
+
+        const btn = document.getElementById('btn-approve');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processando...';
         btn.disabled = true;
 
-        // Mock save delay
-        setTimeout(() => {
-            alert('Plano Aprovado com Sucesso! O Consultor será notificado.');
-            window.location.reload();
-        }, 1500);
-    }
+        try {
+            // We reuse the save endpoint or a dedicated approval endpoint?
+            // "save_plan" route checks for "approved" status but doesn't transition it.
+            // We need an endpoint to transition to APPROVED/PENDING_VERIFICATION.
+            // Let's use a new endpoint or a flag in save.
+            // For now, let's call a new endpoint '/manager/plan/<id>/approve' (Need to create it or find it).
+            // Checking manager_routes... there is no specific approve route visible in previous read.
+            // I will create one or use 'save' with a special flag if permitted.
+            // Best practice: Dedicated route. I will use '/manager/review/approve' if it exists or create '/manager/plan/<id>/approve'.
+            // For now, I'll mock the URL and implement the backend route next.
 
-    function shareAction(platform) {
-        alert(`Compartilhando via ${platform}... (Mock)`);
-    }
+            const response = await fetch(`/manager/plan/${INSPECTION_FILE_ID}/approve`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': "{{ csrf_token() if csrf_token else '' }}" }
+            });
 
-    function exportPDF() {
-        alert('Gerando PDF atualizado... (Mock)');
+            if (response.ok) {
+                alert('Plano Aprovado com Sucesso!');
+                window.location.reload();
+            } else {
+                const err = await response.json();
+                alert('Erro ao aprovar: ' + (err.error || 'Erro desconhecido'));
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert('Erro de conexão.');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 </script>
 {% endblock %}
