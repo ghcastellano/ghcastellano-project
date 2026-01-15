@@ -597,12 +597,22 @@ def save_plan(file_id):
                         except ValueError:
                              item.severity = SeverityLevel.MEDIUM
                     
-                    if 'deadline' in item_data:
-                        if item_data.get('deadline'):
-                            try:
                                 item.deadline_date = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
                             except:
                                 pass
+            else:
+                 # Logic to create new items if needed (MVP: Skip or Implement)
+                 pass
+
+        db.commit()
+        return jsonify({'success': True}), 200
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error saving plan: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
 
 @manager_bp.route('/manager/plan/<file_id>/approve', methods=['POST'])
 @login_required
