@@ -99,7 +99,15 @@ class ProcessorService:
         Appends a log entry to the Inspection's processing_logs.
         Creates Inspection if it doesn't exist yet (for initial steps).
         """
-        session = database.db_session()
+        # [FIX] Use a dedicated session for logging to avoid closing the main shared session
+        # This prevents 'Instance not bound to Session' errors in the main flow
+        from src.database import engine
+        from sqlalchemy.orm import sessionmaker
+        
+        # Create a new session factory just for this operation if needed, or use raw engine
+        SessionLog = sessionmaker(bind=engine)
+        session = SessionLog()
+        
         try:
             # Avoid circular imports if possible, but localized import is safe here
             from src.models_db import Inspection, InspectionStatus
@@ -133,7 +141,7 @@ class ProcessorService:
             logger.error(f"Failed to write trace log: {e}")
             session.rollback()
         finally:
-            session.close()
+            session.close() # Safe to close this private session
 
     def process_single_file(self, file_meta, company_id=None, establishment_id=None, job=None):
         file_id = file_meta['id']
