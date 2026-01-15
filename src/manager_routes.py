@@ -602,48 +602,7 @@ def save_plan(file_id):
                             item.deadline_date = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
                         except:
                             pass
-            else:
-                 # Logic to create new items if needed (MVP: Skip or Implement)
-                 pass
 
-        db.commit()
-        return jsonify({'success': True}), 200
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error saving plan: {e}")
-        return jsonify({'error': str(e)}), 500
-    finally:
-        db.close()
-
-@manager_bp.route('/manager/plan/<file_id>/approve', methods=['POST'])
-@login_required
-def approve_plan(file_id):
-    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN]:
-        return jsonify({'error': 'Unauthorized'}), 403
-        
-    db = next(get_db())
-    try:
-        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
-        if not inspection or not inspection.action_plan:
-             return jsonify({'error': 'Plan not found'}), 404
-             
-        inspection.status = InspectionStatus.APPROVED
-        inspection.action_plan.approved_by_id = current_user.id
-        inspection.action_plan.approved_at = datetime.utcnow()
-        
-        db.commit()
-        
-        # Trigger Notification (Email/WhatsApp) - Placeholder
-        # notify_consultant(inspection)
-        
-        return jsonify({'success': True, 'message': 'Plano aprovado com sucesso!'}), 200
-        
-    except Exception as e:
-        db.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        db.close()
             else:
                 # Create
                 deadline = None
@@ -708,6 +667,33 @@ def approve_plan(file_id):
         return jsonify({'error': str(e)}), 500
     finally:
         db.close()
+
+@manager_bp.route('/manager/plan/<file_id>/approve', methods=['POST'])
+@login_required
+def approve_plan(file_id):
+    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN]:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    db = next(get_db())
+    try:
+        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+        if not inspection or not inspection.action_plan:
+             return jsonify({'error': 'Plan not found'}), 404
+             
+        inspection.status = InspectionStatus.APPROVED
+        if inspection.action_plan:
+            inspection.action_plan.approved_by_id = current_user.id
+            inspection.action_plan.approved_at = datetime.utcnow()
+        
+        db.commit()
+        return jsonify({'success': True, 'message': 'Plano aprovado com sucesso!'}), 200
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
 
 @manager_bp.route('/api/status')
 @login_required
