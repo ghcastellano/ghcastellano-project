@@ -597,9 +597,11 @@ def save_plan(file_id):
                         except ValueError:
                              item.severity = SeverityLevel.MEDIUM
                     
-                                item.deadline_date = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
-                            except:
-                                pass
+                    if 'deadline' in item_data and item_data.get('deadline'):
+                        try:
+                            item.deadline_date = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
+                        except:
+                            pass
             else:
                  # Logic to create new items if needed (MVP: Skip or Implement)
                  pass
