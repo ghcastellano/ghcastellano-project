@@ -461,18 +461,21 @@ def edit_plan(file_id):
 
         # Prepare report_data for template (Stats & NCs structure)
         # 1. Use existing stats_json if available (Source of Truth for Structure/Scores)
-        report_data = inspection.action_plan.stats_json if inspection.action_plan.stats_json else {}
+            # [FIX] Merge Logic: Start with AI Raw (Base) + Overlay ActionPlan stats (Edits)
+        ai_raw = inspection.ai_raw_response or {}
+        report_data = ai_raw.copy()
         
-        # 2. Fallback or Enrichment from ai_raw_response
-        if not report_data:
-             report_data = inspection.ai_raw_response or {}
+        if inspection.action_plan and inspection.action_plan.stats_json:
+            # Update with saved stats (preserves edits)
+            report_data.update(inspection.action_plan.stats_json)
 
         # [Normalization] Ensure keys match Template expectations (Legacy Support)
         if 'aproveitamento_geral' not in report_data:
             report_data['aproveitamento_geral'] = report_data.get('percentage', 0)
         
-        if 'resumo_geral' not in report_data:
-            report_data['resumo_geral'] = report_data.get('summary') or report_data.get('summary_text') or "Resumo não disponível."
+        # [FIX] Resumo Fallback: If stats_json missing summary, pull from AI Raw
+        if not report_data.get('resumo_geral') and not report_data.get('summary'):
+            report_data['resumo_geral'] = ai_raw.get('summary') or ai_raw.get('summary_text') or "Resumo não disponível."
             
         if 'nome_estabelecimento' not in report_data:
              report_data['nome_estabelecimento'] = report_data.get('company_name') or inspection.establishment.name if inspection.establishment else "Estabelecimento"
@@ -484,13 +487,40 @@ def edit_plan(file_id):
         if 'areas_inspecionadas' not in report_data and 'areas' in report_data:
              report_data['areas_inspecionadas'] = report_data['areas']
         
-        # Normalize Area Keys
+        # [FIX] Area Score Backfill: If saved stats has 0s, try to recover from AI Raw
+        # Build map of raw areas for quick lookup
+        raw_areas_map = {}
+        if 'areas_inspecionadas' in ai_raw:
+            for a in ai_raw['areas_inspecionadas']:
+                # Normalize key by name
+                k = a.get('nome_area') or a.get('name')
+                if k: raw_areas_map[k] = a
+        elif 'areas' in ai_raw:
+            for a in ai_raw['areas']:
+                k = a.get('name')
+                if k: raw_areas_map[k] = a
+                
         if 'areas_inspecionadas' in report_data:
             for area in report_data['areas_inspecionadas']:
+                # Normalize Area Keys first
+                if 'nome_area' not in area: area['nome_area'] = area.get('name', 'Área Desconhecida')
+                
+                # Backfill scores if missing/zero
+                current_score = area.get('pontuacao_obtida') or area.get('score') or 0
+                current_max = area.get('pontuacao_maxima') or area.get('max_score') or 0
+                
+                # Look for match in raw
+                raw_match = raw_areas_map.get(area['nome_area'])
+                if raw_match and (current_score == 0 and current_max == 0):
+                    # Recover scores
+                    area['pontuacao_obtida'] = raw_match.get('pontuacao_obtida') or raw_match.get('score', 0)
+                    area['pontuacao_maxima'] = raw_match.get('pontuacao_maxima') or raw_match.get('max_score', 0)
+                    area['aproveitamento'] = raw_match.get('aproveitamento') or raw_match.get('percentage', 0)
+
+                # Ensure final keys exist
                 if 'pontuacao_obtida' not in area: area['pontuacao_obtida'] = area.get('score', 0)
                 if 'pontuacao_maxima' not in area: area['pontuacao_maxima'] = area.get('max_score', 0)
                 if 'aproveitamento' not in area: area['aproveitamento'] = area.get('percentage', 0)
-                if 'nome_area' not in area: area['nome_area'] = area.get('name', 'Área Desconhecida')
 
 
         # 3. [CRITICAL FIX] Always rebuild 'itens' from Database to reflect Edits
@@ -649,11 +679,13 @@ def save_plan(file_id):
                 )
                 db.add(new_item)
         
-        # 2. Delete missing
-        for existing_id in current_item_ids:
-            if existing_id not in incoming_ids:
-                 item_to_del = db.query(ActionPlanItem).get(uuid.UUID(existing_id))
-                 db.delete(item_to_del)
+        # 2. Delete missing - DISABLED for Partial Updates
+        # The frontend sends single-item updates (AutoSave). 
+        # Enabling this would delete all other items.
+        # for existing_id in current_item_ids:
+        #    if existing_id not in incoming_ids:
+        #         item_to_del = db.query(ActionPlanItem).get(uuid.UUID(existing_id))
+        #         db.delete(item_to_del)
                  
         # Capture Responsible Info if provided
         resp_name = data.get('responsible_name')

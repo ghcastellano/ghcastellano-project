@@ -1103,36 +1103,52 @@ def download_revised_pdf(file_id):
         data = {}
         if inspection and inspection.action_plan:
             plan = inspection.action_plan
-            stats = plan.stats_json or {}
+            # [FIX] Merge Logic for Summary/Scores (Same as Manager Route)
+            ai_raw = inspection.ai_raw_response or {}
+            
+            # Helper for fallbacks
+            def get_val(from_stats, from_raw, default=0):
+                return from_stats if from_stats else (from_raw or default)
+
+            summary = plan.summary_text or ai_raw.get('summary') or ai_raw.get('summary_text') or "Resumo não disponível."
+            score = get_val(stats.get('score'), ai_raw.get('score'))
+            max_score = get_val(stats.get('max_score'), ai_raw.get('max_score'))
+            percentage = get_val(stats.get('percentage'), ai_raw.get('percentage'))
             
             # Format data to match base_layout.html expectations
-            # Also include the new rich stats
             data = {
                 'nome_estabelecimento': inspection.establishment.name if inspection.establishment else "Estabelecimento",
                 'data_inspecao': inspection.created_at.strftime('%d/%m/%Y'),
-                'resumo_geral': plan.summary_text,
+                'resumo_geral': summary,
                 'pontos_fortes': plan.strengths_text,
-                'pontuacao_geral': stats.get('score', 0),
-                'pontuacao_maxima': stats.get('max_score', 0),
-                'aproveitamento_geral': stats.get('percentage', 0),
-                'detalhe_pontuacao': stats.get('by_sector', {}),
-                'areas_inspecionadas': [] # We'll fill this below
+                'pontuacao_geral': score,
+                'pontuacao_maxima': max_score,
+                'aproveitamento_geral': percentage,
+                'detalhe_pontuacao': stats.get('by_sector') or ai_raw.get('by_sector', {}),
+                'areas_inspecionadas': [] 
             }
             
             # Group items by area for the template
             areas_map = {}
             for item in plan.items:
-                area_name = item.area or "Geral"
+                # [FIX] Correct Field Mapping
+                area_name = item.sector or "Geral"
                 if area_name not in areas_map:
                     areas_map[area_name] = []
                 
+                deadline_str = ''
+                if item.deadline_date:
+                    deadline_str = item.deadline_date.strftime('%d/%m/%Y')
+                elif item.ai_suggested_deadline:
+                    deadline_str = item.ai_suggested_deadline
+
                 areas_map[area_name].append({
-                    'item_verificado': item.problem_description,
+                    'item_verificado': item.item_verificado, # [FIX] Use Item Name, not problem
                     'status': item.status.value if hasattr(item.status, 'value') else str(item.status),
                     'observacao': item.problem_description,
                     'fundamento_legal': item.fundamento_legal,
                     'acao_corretiva_sugerida': item.corrective_action,
-                    'prazo_sugerido': item.ai_suggested_deadline or str(item.deadline_date or '')
+                    'prazo_sugerido': deadline_str
                 })
             
             for area_name, items in areas_map.items():
