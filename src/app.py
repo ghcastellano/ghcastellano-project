@@ -350,23 +350,32 @@ def dashboard_consultant():
     # [UX] Build Hierarchy for Upload Selectors
     user_hierarchy = {}
     
-    # Sort for consistent display
-    sorted_ests = sorted(current_user.establishments, key=lambda x: x.name)
+    # [FIX] Re-attach user to session to avoid DetachedInstanceError
+    # or query establishments directly
+    from src.database import get_db
+    from src.models_db import User
     
-    for est in sorted_ests:
-        comp_name = est.company.name if est.company else "Outras"
-        comp_id = str(est.company.id) if est.company else "other"
+    db_session = next(get_db())
+    fresh_user = db_session.query(User).get(current_user.id)
+    
+    # Sort for consistent display
+    if fresh_user and fresh_user.establishments:
+        sorted_ests = sorted(fresh_user.establishments, key=lambda x: x.name)
         
-        if comp_id not in user_hierarchy:
-            user_hierarchy[comp_id] = {
-                'name': comp_name,
-                'establishments': []
-            }
-        
-        user_hierarchy[comp_id]['establishments'].append({
-            'id': str(est.id),
-            'name': est.name
-        })
+        for est in sorted_ests:
+            comp_name = est.company.name if est.company else "Outras"
+            comp_id = str(est.company.id) if est.company else "other"
+            
+            if comp_id not in user_hierarchy:
+                user_hierarchy[comp_id] = {
+                    'name': comp_name,
+                    'establishments': []
+                }
+            
+            user_hierarchy[comp_id]['establishments'].append({
+                'id': str(est.id),
+                'name': est.name
+            })
     
     return render_template('dashboard_consultant.html', 
                          user_role='CONSULTANT',

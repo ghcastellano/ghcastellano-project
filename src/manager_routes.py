@@ -382,9 +382,10 @@ def delete_establishment(est_id):
 @manager_bp.route('/manager/plan/<file_id>', methods=['GET'])
 @login_required
 def edit_plan(file_id):
-    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN]:
-        flash('Acesso negado', 'error')
-        return redirect(url_for('root'))
+    # [CHANGED] Allow Consultants to View/Edit Plan
+    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN, UserRole.CONSULTANT]:
+        flash('Acesso não autorizado.', 'error')
+        return redirect(url_for('dashboard.dashboard_manager'))
     
     db = next(get_db())
     try:
@@ -607,7 +608,8 @@ def edit_plan(file_id):
 @manager_bp.route('/manager/plan/<file_id>/save', methods=['POST'])
 @login_required
 def save_plan(file_id):
-    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN]:
+    # [CHANGED] Allow Consultants to Edit Plan (Requested by User)
+    if current_user.role not in [UserRole.MANAGER, UserRole.ADMIN, UserRole.CONSULTANT]:
         return jsonify({'error': 'Unauthorized'}), 403
         
     data = request.json
