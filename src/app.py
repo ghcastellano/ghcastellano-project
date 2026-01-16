@@ -1053,14 +1053,17 @@ def email_plan(file_id):
         db = database.db_session
         insp = db.query(Inspection).filter_by(drive_file_id=file_id).first()
         
-        target_email = current_user.email
+        data = request.get_json() or {}
+        target_email = data.get('target_email') or current_user.email
+        target_name = data.get('target_name') or "Responsável"
+        
         if not target_email:
-             return jsonify({'error': 'Seu usuário não possui email cadastrado.'}), 400
+             return jsonify({'error': 'Nenhum email fornecido.'}), 400
 
         if app.email_service:
-             link = f"{request.host_url}download_pdf/{file_id}"
-             body = f"Olá,<br><br>Segue o link para o relatório de inspeção: <a href='{link}'>Baixar PDF</a>"
-             app.email_service.send_email(target_email, f"Relatório de Inspeção", body, body)
+             link = f"{request.host_url}download_revised_pdf/{file_id}" # Use Revised PDF link
+             body = f"Olá {target_name},<br><br>Segue o link para o relatório de inspeção: <a href='{link}'>Baixar PDF</a>"
+             app.email_service.send_email(target_email, f"Relatório de Inspeção - {insp.establishment.name if insp and insp.establishment else ''}", body, body)
              return jsonify({'success': True, 'message': f'Email enviado para {target_email}'})
         
         return jsonify({'error': 'Serviço de email indisponível.'}), 500

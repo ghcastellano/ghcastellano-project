@@ -209,14 +209,11 @@
         <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div class="d-flex gap-2">
-                    <button class="btn btn-outline-success"
-                        onclick="if(confirm('Abrir WhatsApp?')) window.open('/api/share_plan/{{ inspection.drive_file_id }}', '_blank')">
-                        <i class="ph-bold ph-whatsapp-logo me-2"></i> WhatsApp
+                    <!-- [UX] Updated Share Widget -->
+                    <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#shareModal">
+                        <i class="ph-bold ph-share-network me-2"></i> Compartilhar
                     </button>
-                    <button class="btn btn-outline-secondary"
-                        onclick="if(confirm('Deseja receber este relatório por Email?')) { fetch('/api/email_plan/{{ inspection.drive_file_id }}', {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token() }}'}}).then(resp => resp.json()).then(data => alert(data.message || data.error)).catch(err => alert('Erro no envio')); }">
-                        <i class="ph-bold ph-envelope-simple me-2"></i> Email
-                    </button>
+
                     <button class="btn btn-outline-primary"
                         onclick="window.open('/download_revised_pdf/{{ inspection.drive_file_id }}', '_blank')">
                         <i class="ph-bold ph-file-pdf me-2"></i> Baixar Relatório
@@ -237,6 +234,101 @@
         </div>
     </div>
 </div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Compartilhar Plano de Ação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3" id="shareTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="whatsapp-tab" data-bs-toggle="tab"
+                            data-bs-target="#whatsapp" type="button" role="tab" aria-selected="true">
+                            <i class="ph-bold ph-whatsapp-logo me-2"></i>WhatsApp
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="email-tab" data-bs-toggle="tab" data-bs-target="#email"
+                            type="button" role="tab" aria-selected="false">
+                            <i class="ph-bold ph-envelope-simple me-2"></i>Email
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="shareTabContent">
+                    <!-- WhatsApp Tab -->
+                    <div class="tab-pane fade show active" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
+                        <div class="list-group mb-3">
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="radio" name="waRecipient" value="custom"
+                                    checked onchange="toggleCustom('wa', true)">
+                                Outro número
+                            </label>
+                            {% for r in recipients %}
+                            {% if r.phone %}
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="radio" name="waRecipient"
+                                    value="{{ r.phone }}" data-name="{{ r.name }}" onchange="toggleCustom('wa', false)">
+                                <div class="d-inline-block align-middle ms-2">
+                                    <strong>{{ r.name }}</strong> <span class="badge bg-light text-dark ms-1">{{ r.role
+                                        }}</span><br>
+                                    <small class="text-muted">{{ r.phone }}</small>
+                                </div>
+                            </label>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div id="waCustomInput">
+                            <label class="form-label text-xs fw-bold text-uppercase">Número do WhatsApp (DDD +
+                                Número)</label>
+                            <input type="text" id="customPhone" class="form-control" placeholder="Ex: 11999999999">
+                        </div>
+                        <button class="btn btn-success w-100 mt-3" onclick="sendWhatsApp()">
+                            Enviar WhatsApp <i class="ph-bold ph-paper-plane-right ms-2"></i>
+                        </button>
+                    </div>
+
+                    <!-- Email Tab -->
+                    <div class="tab-pane fade" id="email" role="tabpanel" aria-labelledby="email-tab">
+                        <div class="list-group mb-3">
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="radio" name="emailRecipient" value="custom"
+                                    checked onchange="toggleCustom('email', true)">
+                                Outro email
+                            </label>
+                            {% for r in recipients %}
+                            {% if r.email %}
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="radio" name="emailRecipient"
+                                    value="{{ r.email }}" data-name="{{ r.name }}"
+                                    onchange="toggleCustom('email', false)">
+                                <div class="d-inline-block align-middle ms-2">
+                                    <strong>{{ r.name }}</strong> <span class="badge bg-light text-dark ms-1">{{ r.role
+                                        }}</span><br>
+                                    <small class="text-muted">{{ r.email }}</small>
+                                </div>
+                            </label>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div id="emailCustomInput">
+                            <label class="form-label text-xs fw-bold text-uppercase">Email do Destinatário</label>
+                            <input type="email" id="customEmail" class="form-control" placeholder="nome@exemplo.com">
+                        </div>
+                        <button class="btn btn-primary w-100 mt-3" onclick="sendEmail()">
+                            Enviar Email <i class="ph-bold ph-paper-plane-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <style>
     /* Minimal safe overrides */
@@ -414,6 +506,88 @@
             alert('Erro de conexão.');
             btn.innerHTML = originalText;
             btn.disabled = false;
+        }
+    }
+    // --- Sharing Widget Logic ---
+    function toggleCustom(type, isCustom) {
+        const inputDiv = document.getElementById(type === 'wa' ? 'waCustomInput' : 'emailCustomInput');
+        inputDiv.style.display = isCustom ? 'block' : 'none';
+    }
+
+    function sendWhatsApp() {
+        const selected = document.querySelector('input[name="waRecipient"]:checked');
+        if (!selected) return alert('Selecione um destinatário.');
+
+        let phone = selected.value;
+        let name = "Responsável";
+
+        if (phone === 'custom') {
+            phone = document.getElementById('customPhone').value;
+            name = "Responsável";
+        } else {
+            name = selected.dataset.name || "Responsável";
+        }
+
+        // Clean Phone
+        phone = phone.replace(/\D/g, '');
+        if (phone.length === 0) return alert('Telefone inválido.');
+        if (phone.length <= 11) phone = '55' + phone;
+
+        const downloadUrl = "{{ url_for('download_revised_pdf', file_id=inspection.drive_file_id, _external=True) }}";
+        const msg = `Olá ${name}, segue o link do seu Plano de Ação: ${downloadUrl}`;
+
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+
+        // Optional: Close modal
+        // const modal = bootstrap.Modal.getInstance(document.getElementById('shareModal'));
+        // modal.hide();
+    }
+
+    async function sendEmail() {
+        const selected = document.querySelector('input[name="emailRecipient"]:checked');
+        if (!selected) return alert('Selecione um destinatário.');
+
+        let email = selected.value;
+        let name = "Responsável";
+
+        if (email === 'custom') {
+            email = document.getElementById('customEmail').value;
+            name = "Responsável";
+            if (!email) return alert('Digite um email.');
+        } else {
+            name = selected.dataset.name || "Responsável";
+        }
+
+        const originalText = event.target.innerHTML;
+        event.target.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+        event.target.disabled = true;
+
+        try {
+            const response = await fetch(`/api/email_plan/${INSPECTION_FILE_ID}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token() if csrf_token else '' }}"
+                },
+                body: JSON.stringify({
+                    target_email: email,
+                    target_name: name
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert('Email enviado com sucesso!');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('shareModal'));
+                modal.hide();
+            } else {
+                alert('Erro: ' + (data.error || 'Falha no envio'));
+            }
+        } catch (e) {
+            alert('Erro de conexão.');
+        } finally {
+            event.target.innerHTML = originalText;
+            event.target.disabled = false;
         }
     }
 </script>

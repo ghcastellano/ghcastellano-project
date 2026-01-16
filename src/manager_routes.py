@@ -474,9 +474,11 @@ def edit_plan(file_id):
         if 'aproveitamento_geral' not in report_data:
             report_data['aproveitamento_geral'] = report_data.get('percentage', 0)
         
-        # [FIX] Resumo Fallback: If stats_json missing summary, pull from AI Raw
-        if not report_data.get('resumo_geral') and not report_data.get('summary'):
-            report_data['resumo_geral'] = ai_raw.get('summary') or ai_raw.get('summary_text') or "Resumo não disponível."
+        # [FIX] Resumo Priority: DB Edit > AI Raw
+        if inspection.action_plan and inspection.action_plan.summary_text:
+             report_data['resumo_geral'] = inspection.action_plan.summary_text
+        elif not report_data.get('resumo_geral') and not report_data.get('summary'):
+             report_data['resumo_geral'] = ai_raw.get('summary') or ai_raw.get('summary_text') or "Resumo não disponível."
             
         if 'nome_estabelecimento' not in report_data:
              report_data['nome_estabelecimento'] = report_data.get('company_name') or inspection.establishment.name if inspection.establishment else "Estabelecimento"
@@ -594,10 +596,47 @@ def edit_plan(file_id):
         if 'aproveitamento_geral' not in report_data:
              report_data['aproveitamento_geral'] = 0
 
+        # 5. [NEW] Fetch Recipients for Sharing Widget
+        recipients = []
+        est = inspection.establishment
+        
+        if est:
+             # A. Establishment Responsible (Main Contact)
+             if est.responsible_name or est.responsible_email or est.responsible_phone:
+                 recipients.append({
+                     'name': est.responsible_name or "Responsável da Loja",
+                     'email': est.responsible_email,
+                     'phone': est.responsible_phone,
+                     'role': 'Responsável'
+                 })
+                 
+             # B. Company Managers
+             if est.company and est.company.users:
+                 for u in est.company.users:
+                     if u.role == UserRole.MANAGER:
+                         recipients.append({
+                             'name': u.name or "Gestor",
+                             'email': u.email,
+                             'phone': u.whatsapp,
+                             'role': 'Gestor'
+                         })
+                         
+             # C. Linked Consultants
+             if est.users:
+                 for u in est.users:
+                     if u.role == UserRole.CONSULTANT:
+                         recipients.append({
+                             'name': u.name or "Consultor",
+                             'email': u.email,
+                             'phone': u.whatsapp,
+                             'role': 'Consultor'
+                         })
+
         return render_template('manager_plan_edit.html', 
                              inspection=inspection, 
                              plan=inspection.action_plan,
-                             report_data=report_data)
+                             report_data=report_data,
+                             recipients=recipients)
         
     except Exception as e:
         flash(f'Erro ao carregar plano: {e}', 'error')

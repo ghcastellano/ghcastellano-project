@@ -163,7 +163,7 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
                 'date': ai_data.get('data_inspecao', ''),
                 'status': insp.status.value,
                 'pdf_link': f"/download_pdf/{insp.drive_file_id}" if insp.drive_file_id else "#",
-                'review_link': f"/review/{insp.drive_file_id}" if insp.drive_file_id else "#"
+                'review_link': f"/manager/plan/{insp.drive_file_id}" if insp.drive_file_id else "#"
             })
         
         # session.close()
