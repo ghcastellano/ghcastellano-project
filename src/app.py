@@ -346,11 +346,33 @@ def dashboard_consultant():
         'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED', 'Concluído']),
         'last_sync': datetime.utcnow().strftime('%H:%M')
     }
+
+    # [UX] Build Hierarchy for Upload Selectors
+    user_hierarchy = {}
+    
+    # Sort for consistent display
+    sorted_ests = sorted(current_user.establishments, key=lambda x: x.name)
+    
+    for est in sorted_ests:
+        comp_name = est.company.name if est.company else "Outras"
+        comp_id = str(est.company.id) if est.company else "other"
+        
+        if comp_id not in user_hierarchy:
+            user_hierarchy[comp_id] = {
+                'name': comp_name,
+                'establishments': []
+            }
+        
+        user_hierarchy[comp_id]['establishments'].append({
+            'id': str(est.id),
+            'name': est.name
+        })
     
     return render_template('dashboard_consultant.html', 
                          user_role='CONSULTANT',
                          inspections=inspections,
-                         stats=stats)
+                         stats=stats,
+                         user_hierarchy=user_hierarchy)
 
 # Rota legado (redireciona para root para tratar auth)
 @app.route('/dashboard')
@@ -395,6 +417,21 @@ def upload_file():
 
         sucesso = 0
         falha = 0
+        
+        # [UX] Explicit Establishment Selection
+        est_id_param = request.form.get('establishment_id')
+        est_alvo_selected = None
+        
+        if est_id_param:
+            # Validate Access
+            for est in current_user.establishments:
+                if str(est.id) == est_id_param:
+                    est_alvo_selected = est
+                    break
+            
+            if not est_alvo_selected:
+                flash("Erro de Permissão: Você não tem acesso a esta loja.", "error")
+                return redirect(url_for('dashboard_consultant'))
 
         # [FIX] Capture user details early to avoid DetachedInstanceError in exception handler
         user_email = current_user.email
@@ -413,26 +450,29 @@ def upload_file():
             file.save(caminho_temp)
             
             try:
-                # 1. Extrair texto para Smart Match de estabelecimento
-                from pypdf import PdfReader
-                conteudo_texto = ""
-                try:
-                    reader = PdfReader(caminho_temp)
-                    for page in reader.pages[:2]:
-                        conteudo_texto += page.extract_text() or ""
-                except Exception as e:
-                    logger.error(f"Erro na leitura do PDF {file.filename}: {e}")
+                est_alvo = est_alvo_selected
+                
+                # Smart Match Fallback (only if no selection)
+                if not est_alvo:
+                    # 1. Extrair texto para Smart Match de estabelecimento
+                    from pypdf import PdfReader
+                    conteudo_texto = ""
+                    try:
+                        reader = PdfReader(caminho_temp)
+                        for page in reader.pages[:2]:
+                            conteudo_texto += page.extract_text() or ""
+                    except Exception as e:
+                        logger.error(f"Erro na leitura do PDF {file.filename}: {e}")
 
-                conteudo_texto = conteudo_texto.upper()
-                
-                # 2. Match com estabelecimentos do consultor
-                est_alvo = None
-                meus_estabelecimentos = sorted(current_user.establishments, key=lambda x: len(x.name), reverse=True)
-                
-                for est in meus_estabelecimentos:
-                    if est.name.strip().upper() in conteudo_texto:
-                        est_alvo = est
-                        break
+                    conteudo_texto = conteudo_texto.upper()
+                    
+                    # 2. Match com estabelecimentos do consultor
+                    meus_estabelecimentos = sorted(current_user.establishments, key=lambda x: len(x.name), reverse=True)
+                    
+                    for est in meus_estabelecimentos:
+                        if est.name.strip().upper() in conteudo_texto:
+                            est_alvo = est
+                            break
                 
                 # 3. Pasta do Drive (Input padrão se não identificado)
                 pasta_id = est_alvo.drive_folder_id if est_alvo and est_alvo.drive_folder_id else FOLDER_IN

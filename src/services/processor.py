@@ -187,16 +187,16 @@ class ProcessorService:
             file_hash = self.calculate_hash(file_content)
             
             # 4. Generate & Upload PDF
-            self._log_trace(file_id, "PDF_GEN", "RUNNING", "Gerando PDF do Plano de Ação...")
+            self._log_trace(file_id, "PDF_GEN", "SKIPPED", "Geração de PDF Adiada (On-Demand)")
             output_link = None
-            try:
-                output_link = self.generate_pdf(data, filename)
-                self._log_trace(file_id, "PDF_GEN", "SUCCESS", f"PDF gerado com sucesso: {output_link}")
-                logger.info("Plano gerado e salvo", link=output_link)
-            except Exception as pdf_err:
-                 msg = f"Falha na Geração do PDF (Ignorado): {pdf_err}"
-                 logger.error(msg)
-                 self._log_trace(file_id, "PDF_GEN", "WARNING", msg)
+            # try:
+            #     output_link = self.generate_pdf(data, filename)
+            #     self._log_trace(file_id, "PDF_GEN", "SUCCESS", f"PDF gerado com sucesso: {output_link}")
+            #     logger.info("Plano gerado e salvo", link=output_link)
+            # except Exception as pdf_err:
+            #      msg = f"Falha na Geração do PDF (Ignorado): {pdf_err}"
+            #      logger.error(msg)
+            #      self._log_trace(file_id, "PDF_GEN", "WARNING", msg)
 
             # 5. Save to DB (Crucial Step: Mapping Nested Areas to Flat Items)
             self._log_trace(file_id, "DB_SAVE", "RUNNING", "Salvando dados no Banco de Dados...")
