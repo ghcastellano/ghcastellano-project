@@ -537,7 +537,8 @@ def upload_file():
                             input_payload={
                                 'file_id': id_drive, 
                                 'filename': file.filename, 
-                                'establishment_id': str(est_alvo.id) if est_alvo else None
+                                'establishment_id': str(est_alvo.id) if est_alvo else None,
+                                'establishment_name': est_alvo.name if est_alvo else "N/A"
                             } 
                         )
                         db.add(job)

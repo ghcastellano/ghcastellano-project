@@ -1205,7 +1205,7 @@
                         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 0.9rem;">
                             <div class="spinner" style="width: 16px; height: 16px; border: 2px solid var(--text-light); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
                             <span style="font-weight: 500; color: var(--text-primary);">${item.name}</span>
-                            <span class="badge badge-warning" style="margin-left: auto;">Processando</span>
+                            <span class="badge badge-warning" style="margin-left: auto; cursor: pointer;" onclick="openTracker('${item.id}'); event.stopPropagation();">Processando</span>
                         </div>
                     `).join('');
                     const stat = document.getElementById('stat-pending');
@@ -1230,7 +1230,7 @@
                                 <div style="font-weight: 600; color: var(--text-primary);">${item.name}</div>
                                 <div style="font-size: 0.8rem; color: var(--text-secondary);">Iniciado há alguns instantes...</div>
                             </div>
-                            <span class="badge badge-info">Processando...</span>
+                            <span class="badge badge-info" style="cursor: pointer;" onclick="openTracker('${item.id}'); event.stopPropagation();">Processando...</span>
                         </div>
                     `).join('');
                 } else {
@@ -1254,7 +1254,7 @@
                             </div>
                         </td>
                         <td>${item.date}</td>
-                        <td>${getStatusBadge(item.status)}</td>
+                        <td>${getStatusBadge(item.status, item.id)}</td>
                         <td>
                             <a href="${item.review_link}" class="btn btn-sm btn-white border shadow-sm">
                                 <i class="ph-bold ph-pencil-simple text-primary"></i> Validar
@@ -1304,7 +1304,7 @@
     }
 
 
-    function getStatusBadge(status) {
+    function getStatusBadge(status, id) {
         // Map backend enum to UI Badge
         const map = {
             'PROCESSING': { class: 'badge-primary', text: 'Processando' },
@@ -1319,6 +1319,10 @@
         };
 
         const badge = map[status] || { class: 'badge-secondary', text: status || 'Desconhecido' };
+        // Clickable badge logic
+        if (id) {
+            return `<span class="badge ${badge.class}" onclick="openTracker('${id}'); event.stopPropagation();" style="cursor: pointer;" title="Ver Status">${badge.text}</span>`;
+        }
         return `<span class="badge ${badge.class}">${badge.text}</span>`;
     }
 
@@ -1497,5 +1501,139 @@
             showToast('Erro de conexão ou servidor.', 'error');
         }
     }
+</script>
+<!-- TRACKER MODAL (Premium) -->
+<div id="trackerModal" class="modal-overlay"
+    style="display: none; z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="modal-content glass-panel" style="max-width: 600px; width: 90%; position: relative; padding: 2rem;">
+        <button onclick="document.getElementById('trackerModal').style.display='none'"
+            style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748B;">&times;</button>
+
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h3 style="margin:0; color: #1e293b; font-weight: 700;">Status do Processamento</h3>
+            <p id="trackerFile" style="color: #64748b; font-size: 0.9rem; margin-top: 0.5rem;">Carregando...</p>
+        </div>
+
+        <!-- Stepper -->
+        <div class="tracker-stepper"
+            style="display: flex; justify-content: space-between; position: relative; margin-bottom: 2rem;">
+            <!-- Line -->
+            <div
+                style="position: absolute; top: 15px; left: 0; right: 0; height: 3px; background: #e2e8f0; z-index: 0;">
+            </div>
+            <div id="trackerProgressLine"
+                style="position: absolute; top: 15px; left: 0; width: 0%; height: 3px; background: #10b981; z-index: 0; transition: width 0.5s;">
+            </div>
+
+            <!-- Steps (Generated via JS) -->
+            <div class="step-item" style="z-index: 1; text-align: center; background: white; padding: 0 5px;">
+                <div class="step-circle"
+                    style="width: 32px; height: 32px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-weight: bold;">
+                    1</div>
+                <div class="step-label" style="font-size: 0.8rem; margin-top: 5px; color: #10b981;">Upload</div>
+            </div>
+            <!-- More steps... -->
+        </div>
+
+        <div id="trackerLogs"
+            style="background: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem; color: #475569; max-height: 150px; overflow-y: auto;">
+            <div style="color: #94a3b8;">Aguardando detalhes...</div>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem;">
+            <button onclick="document.getElementById('trackerModal').style.display='none'" class="btn btn-primary"
+                style="padding: 0.5rem 2rem;">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function openTracker(inspId) {
+        const modal = document.getElementById('trackerModal');
+        const titleEl = document.getElementById('trackerFile');
+        const logsEl = document.getElementById('trackerLogs');
+        const stepperEl = document.querySelector('.tracker-stepper');
+
+        modal.style.display = 'flex';
+        titleEl.innerText = "Buscando informações...";
+        logsEl.innerHTML = '<div style="color: #94a3b8;">Carregando...</div>';
+
+        try {
+            const res = await fetch(`/api/tracker/${inspId}`);
+            const data = await res.json();
+
+            if (data.error) {
+                titleEl.innerText = "Erro ao carregar";
+                logsEl.innerHTML = `<div style="color: red;">${data.error}</div>`;
+                return;
+            }
+
+            titleEl.innerText = data.filename;
+
+            // Render Logs
+            if (data.logs && data.logs.length > 0) {
+                logsEl.innerHTML = data.logs.map(l => `<div>• ${l}</div>`).join('');
+            } else {
+                logsEl.innerHTML = '<div style="color: #94a3b8;">Nenhum log recente.</div>';
+            }
+
+            // Render Steps
+            // Order: upload, ai_process, db_save, plan_gen, analysis
+            const order = ['upload', 'ai_process', 'db_save', 'plan_gen', 'analysis'];
+            let html = '';
+            let activeCount = 0; // For progress line
+
+            // Background Line
+            html += '<div style="position: absolute; top: 15px; left: 10px; right: 10px; height: 3px; background: #e2e8f0; z-index: 0;"></div>';
+
+            // Calculate progress width
+            // If 5 steps, 100% / 4 gaps = 25% per gap.
+
+            order.forEach((key, idx) => {
+                const s = data.steps[key];
+                let color = '#e2e8f0'; // Gray
+                let icon = idx + 1;
+                let labelColor = '#94a3b8';
+
+                if (s.status === 'completed') {
+                    color = '#10b981'; // Green
+                    icon = '✓';
+                    labelColor = '#059669';
+                    activeCount = idx;
+                } else if (s.status === 'current') {
+                    color = '#3b82f6'; // Blue
+                    icon = '<i class="ph-bold ph-spinner ph-spin"></i>';
+                    labelColor = '#1e40af';
+                    activeCount = idx; // Partial?
+                } else if (s.status === 'error') {
+                    color = '#ef4444'; // Red
+                    icon = '!';
+                    labelColor = '#dc2626';
+                }
+
+                html += `
+            <div class="step-item" style="z-index: 1; text-align: center; flex:1; position: relative;">
+                <div class="step-circle" style="width: 32px; height: 32px; background: ${color}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    ${icon}
+                </div>
+                <div class="step-label" style="font-size: 0.75rem; margin-top: 8px; font-weight: 600; color: ${labelColor};">
+                    ${s.label}
+                </div>
+            </div>`;
+            });
+
+            // Progress Line
+            const progressPct = (activeCount / (order.length - 1)) * 100;
+            html += `<div style="position: absolute; top: 15px; left: 10px; width: ${progressPct}%; height: 3px; background: #10b981; z-index: 0; transition: width 0.5s;"></div>`;
+
+            stepperEl.innerHTML = html;
+
+        } catch (e) {
+            console.error(e);
+            titleEl.innerText = "Erro de conexão";
+        }
+    }
+    // Expose
+    window.openTracker = openTracker;
 </script>
 {% endblock %}

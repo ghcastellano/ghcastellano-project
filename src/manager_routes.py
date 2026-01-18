@@ -77,6 +77,155 @@ def dashboard_manager():
                                selected_est_id=establishment_id)
     finally:
         db.close()
+@manager_bp.route('/api/tracker/<uuid:inspection_id>')
+@login_required
+def tracker_details(inspection_id):
+    if current_user.role != UserRole.MANAGER:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    db = next(get_db())
+    try:
+        insp = db.query(Inspection).options(joinedload(Inspection.processing_logs)).get(inspection_id)
+        if not insp:
+            return jsonify({'error': 'Not found'}), 404
+            
+        # Security Check: Must belong to manager's company
+        # Navigate through establishment -> company
+        if not insp.establishment or insp.establishment.company_id != current_user.company_id:
+             return jsonify({'error': 'Unauthorized access to this inspection'}), 403
+
+        # Analyze Logs / Status
+        logs = insp.processing_logs or []
+        status = insp.status.value
+        
+        # Determine Progress Steps
+        steps = {
+            'upload': {'status': 'completed', 'label': 'Upload Recebido'},
+            'ai_process': {'status': 'pending', 'label': 'Processamento IA'},
+            'db_save': {'status': 'pending', 'label': 'Estruturação de Dados'},
+            'plan_gen': {'status': 'pending', 'label': 'Geração do Plano'},
+            'analysis': {'status': 'pending', 'label': 'Análise do Gestor'}
+        }
+        
+        # Logic to mark steps based on logs or final status
+        has_logs = len(logs) > 0
+        
+        # 1. Upload
+        # Always true if we are here via file_id
+        
+        # 2. AI Processing
+        # If logs show "Processing started" or any "AI" stage
+        if has_logs or status != 'PROCESSING':
+             steps['ai_process']['status'] = 'completed'
+             
+        # 3. DB Structure
+        # If we have ActionPlan attached or logs indicate 'DB_SAVE'
+        if insp.action_plan or (has_logs and any('saved' in l.get('message', '').lower() for l in logs)):
+             steps['ai_process']['status'] = 'completed' # Reinforce
+             steps['db_save']['status'] = 'completed'
+             
+        # 4. Plan Gen
+        # If ActionPlan exists and has items
+        if insp.action_plan:
+             steps['db_save']['status'] = 'completed'
+             steps['plan_gen']['status'] = 'completed'
+             
+        # 5. Analysis
+        if status in ['PENDING', 'APPROVED', 'REJECTED']:
+             steps['plan_gen']['status'] = 'completed'
+             steps['analysis']['status'] = 'current' if status == 'PENDING' else 'completed'
+             if status == 'APPROVED': steps['analysis']['label'] = 'Aprovado'
+             
+        # Error handling
+        if 'ERROR' in status or 'FAILED' in status:
+            # Find where it failed
+            failed_step = 'ai_process' # Default
+            if steps['db_save']['status'] == 'completed': failed_step = 'plan_gen'
+            # Mark as error
+            steps[failed_step]['status'] = 'error'
+            
+        return jsonify({
+            'id': str(insp.id),
+            'filename': insp.processed_filename or "Arquivo",
+            'status': status,
+            'steps': steps,
+            'logs': [l.get('message') for l in logs[-5:]] # Last 5 logs
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+@manager_bp.route('/api/tracker/<uuid:inspection_id>')
+@login_required
+def tracker_details(inspection_id):
+    if current_user.role != UserRole.MANAGER:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    db = next(get_db())
+    try:
+        insp = db.query(Inspection).options(joinedload(Inspection.processing_logs)).get(inspection_id)
+        if not insp:
+            return jsonify({'error': 'Not found'}), 404
+            
+        # Security Check: Must belong to manager's company
+        if not insp.establishment or insp.establishment.company_id != current_user.company_id:
+             return jsonify({'error': 'Unauthorized access to this inspection'}), 403
+
+        # Analyze Logs / Status
+        logs = insp.processing_logs or []
+        status = insp.status.value
+        
+        # Steps Definition
+        steps = {
+            'upload': {'status': 'completed', 'label': 'Upload Recebido'},
+            'ai_process': {'status': 'pending', 'label': 'Processamento IA'},
+            'db_save': {'status': 'pending', 'label': 'Estruturação de Dados'},
+            'plan_gen': {'status': 'pending', 'label': 'Geração do Plano'},
+            'analysis': {'status': 'pending', 'label': 'Análise do Gestor'}
+        }
+        
+        has_logs = len(logs) > 0
+        
+        # 1. Upload (Always true if record exists)
+        
+        # 2. AI Processing
+        if has_logs or status != 'PROCESSING':
+             steps['ai_process']['status'] = 'completed'
+             
+        # 3. DB Structure
+        if insp.action_plan or (has_logs and any('saved' in l.get('message', '').lower() for l in logs)):
+             steps['ai_process']['status'] = 'completed'
+             steps['db_save']['status'] = 'completed'
+             
+        # 4. Plan Gen
+        if insp.action_plan:
+             steps['db_save']['status'] = 'completed'
+             steps['plan_gen']['status'] = 'completed'
+             
+        # 5. Analysis
+        if status in ['PENDING', 'APPROVED', 'REJECTED']:
+             steps['plan_gen']['status'] = 'completed'
+             steps['analysis']['status'] = 'current' if status == 'PENDING' else 'completed'
+             if status == 'APPROVED': steps['analysis']['label'] = 'Aprovado'
+             
+        # Error handling
+        if 'ERROR' in status or 'FAILED' in status:
+            failed_step = 'ai_process'
+            if steps['db_save']['status'] == 'completed': failed_step = 'plan_gen'
+            steps[failed_step]['status'] = 'error'
+            
+        return jsonify({
+            'id': str(insp.id),
+            'filename': insp.processed_filename or "Arquivo",
+            'status': status,
+            'steps': steps,
+            'logs': [l.get('message') for l in logs[-5:]]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
 
 @manager_bp.route('/manager/consultant/new', methods=['POST'])
 @login_required

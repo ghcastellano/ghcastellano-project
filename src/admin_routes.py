@@ -525,3 +525,57 @@ def api_monitor_stats():
         db.close()
 
 
+@admin_bp.route('/api/tracker/<uuid:inspection_id>')
+@login_required
+@admin_required
+def tracker_details(inspection_id):
+    db = next(get_db())
+    try:
+        insp = db.query(Inspection).options(joinedload(Inspection.processing_logs)).get(inspection_id)
+        if not insp:
+            return jsonify({'error': 'Not found'}), 404
+            
+        # Analyze Logs / Status
+        logs = insp.processing_logs or []
+        status = insp.status.value
+        
+        steps = {
+            'upload': {'status': 'completed', 'label': 'Upload Recebido'},
+            'ai_process': {'status': 'pending', 'label': 'Processamento IA'},
+            'db_save': {'status': 'pending', 'label': 'Estruturação de Dados'},
+            'plan_gen': {'status': 'pending', 'label': 'Geração do Plano'},
+            'analysis': {'status': 'pending', 'label': 'Análise do Gestor'}
+        }
+        
+        has_logs = len(logs) > 0
+        
+        # Logic mirroring Manager view
+        if has_logs or status != 'PROCESSING':
+             steps['ai_process']['status'] = 'completed'
+        if insp.action_plan or (has_logs and any('saved' in l.get('message', '').lower() for l in logs)):
+             steps['ai_process']['status'] = 'completed'
+             steps['db_save']['status'] = 'completed'
+        if insp.action_plan:
+             steps['db_save']['status'] = 'completed'
+             steps['plan_gen']['status'] = 'completed'
+        if status in ['PENDING', 'APPROVED', 'REJECTED']:
+             steps['plan_gen']['status'] = 'completed'
+             steps['analysis']['status'] = 'current' if status == 'PENDING' else 'completed'
+             if status == 'APPROVED': steps['analysis']['label'] = 'Aprovado'
+             
+        if 'ERROR' in status or 'FAILED' in status:
+            failed_step = 'ai_process'
+            if steps['db_save']['status'] == 'completed': failed_step = 'plan_gen'
+            steps[failed_step]['status'] = 'error'
+            
+        return jsonify({
+            'id': str(insp.id),
+            'filename': insp.processed_filename or "Arquivo",
+            'status': status,
+            'steps': steps,
+            'logs': [l.get('message') for l in logs[-5:]]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
