@@ -9,8 +9,8 @@ sys.path.append(os.getcwd())
 def verify_routes():
     print("🔍 Verificando integridade das rotas...")
     try:
-        from src.app import create_app
-        app = create_app()
+        from src.app import app
+        # app = create_app()
     except Exception as e:
         print(f"❌ Falha crítica ao inicializar app para teste: {e}")
         return False
