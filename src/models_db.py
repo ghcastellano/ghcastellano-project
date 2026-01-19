@@ -155,7 +155,7 @@ class User(UserMixin, Base):
     # M2M Relationship
     establishments: Mapped[List["Establishment"]] = relationship(
         secondary=consultant_establishments, 
-        back_populates="establishments"
+        back_populates="users"
     )
     
     visits: Mapped[List["Visit"]] = relationship(back_populates="consultant")

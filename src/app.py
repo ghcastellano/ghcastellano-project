@@ -1372,9 +1372,10 @@ def renew_webhook():
     """
     try:
         from src.services.drive_service import drive_service
+        from src.models_db import AppConfig
+        from src import database
         import uuid
         
-        # URL do seu App
         callback_url = os.getenv("APP_PUBLIC_URL") 
         if not callback_url:
             return jsonify({'error': 'APP_PUBLIC_URL environment variable not set'}), 500
@@ -1383,12 +1384,30 @@ def renew_webhook():
         channel_id = str(uuid.uuid4())
         token = os.getenv("DRIVE_WEBHOOK_TOKEN", "global-webhook-token")
         
-        # Inicia Watch Global
-        # Nota: expiration default é ~1 semana.
-        resp = drive_service.watch_global_changes(full_url, channel_id, token)
+        # 1. Fetch Start Token
+        start_token = drive_service.get_start_page_token()
+        if not start_token:
+            return jsonify({'error': 'Failed to fetch start_page_token from Drive'}), 500
+            
+        # 2. Save Token to DB (so we don't miss events from now)
+        try:
+            db_session = next(database.get_db())
+            config_entry = db_session.query(AppConfig).get('drive_page_token')
+            if not config_entry:
+                db_session.add(AppConfig(key='drive_page_token', value=start_token))
+            else:
+                config_entry.value = start_token
+            db_session.commit()
+            db_session.close()
+        except Exception as e:
+            logger.error(f"DB Token Save Error: {e}")
+            return jsonify({'error': f'DB Error: {e}'}), 500
+        
+        # 3. Register Watch
+        resp = drive_service.watch_global_changes(full_url, channel_id, token, page_token=start_token)
         
         logger.info(f"Global Watch Registered: {resp}")
-        return jsonify({'success': True, 'channel': resp}), 200
+        return jsonify({'success': True, 'channel': resp, 'start_token': start_token}), 200
         
     except Exception as e:
         logger.error(f"Renew Error: {e}")
@@ -1396,6 +1415,14 @@ def renew_webhook():
 
 if __name__ == '__main__':
     try:
+        # Check migrations on startup (MVP hack)
+        try:
+            from scripts.migration_app_config import create_app_config_table
+            create_app_config_table()
+            logger.info("✅ AppConfig Migration Checked/Executed")
+        except Exception as e:
+            logger.error(f"⚠️ Migration Error: {e}")
+
         port = int(os.environ.get('PORT', 8080))
         print(f"🚀 STARTING APP ON PORT {port}...")
         print(f"📂 Current Dir: {os.getcwd()}")
