@@ -570,7 +570,7 @@ def tracker_details(inspection_id):
             
         return jsonify({
             'id': str(insp.id),
-            'filename': insp.processed_filename or "Arquivo",
+            'filename': "Relatório de Inspeção", # [FIX] Model does not have processed_filename
             'status': status,
             'steps': steps,
             'logs': [l.get('message') for l in logs[-5:]]

@@ -626,7 +626,8 @@ def edit_plan(file_id):
                     rebuilt_areas[area['nome_area']] = area
                     area['itens'] = [] # Clear JSON items, we will fill with DB items
 
-            db_items = inspection.action_items # Returns enriched items
+            db_items = sorted(inspection.action_items, key=lambda i: i.created_at or i.id) # [FIX] Stable Sort
+            # Note: action_items is a property returning list, so we sort it here.
             
             for item in db_items:
                 area_name = item.nome_area or "Geral"
@@ -689,27 +690,27 @@ def edit_plan(file_id):
                      'role': 'Responsável'
                  })
                  
-             # B. Company Managers
-             if est.company and est.company.users:
-                 for u in est.company.users:
-                     if u.role == UserRole.MANAGER:
-                         recipients.append({
-                             'name': u.name or "Gestor",
-                             'email': u.email,
-                             'phone': u.whatsapp,
-                             'role': 'Gestor'
-                         })
+             # B. Company Managers (Restricted per User Request)
+             # if est.company and est.company.users:
+             #     for u in est.company.users:
+             #         if u.role == UserRole.MANAGER:
+             #             recipients.append({
+             #                 'name': u.name or "Gestor",
+             #                 'email': u.email,
+             #                 'phone': u.whatsapp,
+             #                 'role': 'Gestor'
+             #             })
                          
-             # C. Linked Consultants
-             if est.users:
-                 for u in est.users:
-                     if u.role == UserRole.CONSULTANT:
-                         recipients.append({
-                             'name': u.name or "Consultor",
-                             'email': u.email,
-                             'phone': u.whatsapp,
-                             'role': 'Consultor'
-                         })
+             # C. Linked Consultants (Restricted per User Request)
+             # if est.users:
+             #     for u in est.users:
+             #         if u.role == UserRole.CONSULTANT:
+             #             recipients.append({
+             #                 'name': u.name or "Consultor",
+             #                 'email': u.email,
+             #                 'phone': u.whatsapp,
+             #                 'role': 'Consultor'
+             #             })
 
         return render_template('manager_plan_edit.html', 
                              inspection=inspection, 
@@ -775,9 +776,14 @@ def save_plan(file_id):
                     
                     if 'deadline' in item_data and item_data.get('deadline'):
                         try:
+                            # Try ISO first
                             item.deadline_date = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
                         except:
-                            pass
+                            try:
+                                # Try BR format (dd/mm/yyyy)
+                                item.deadline_date = datetime.strptime(item_data.get('deadline'), '%d/%m/%Y').date()
+                            except:
+                                pass
 
             else:
                 # Create
@@ -786,7 +792,10 @@ def save_plan(file_id):
                      try:
                         deadline = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
                      except:
-                        pass
+                        try:
+                             deadline = datetime.strptime(item_data.get('deadline'), '%d/%m/%Y').date()
+                        except:
+                             pass
 
                 new_item = ActionPlanItem(
                     action_plan_id=plan.id,

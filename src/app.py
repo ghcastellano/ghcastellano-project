@@ -1055,16 +1055,43 @@ def email_plan(file_id):
         insp = db.query(Inspection).filter_by(drive_file_id=file_id).first()
         
         data = request.get_json() or {}
-        target_email = data.get('target_email') or current_user.email
+        target_email = data.get('target_email')
         target_name = data.get('target_name') or "Responsável"
         
+        # [FIX] SES Sandbox Restriction
+        # Only allow sending to: Current User or Establishment Responsible (if closely matches)
+        # OR if we are just testing, maybe hardcode valid emails?
+        # User request: "only to another specified email address or to the store manager's email"
+        
+        valid_emails = [current_user.email]
+        if insp.establishment:
+             if insp.establishment.responsible_email: valid_emails.append(insp.establishment.responsible_email)
+             # Also allow manager email if different
+             # if insp.establishment.company: ...
+        
         if not target_email:
-             return jsonify({'error': 'Nenhum email fornecido.'}), 400
+             target_email = current_user.email
+             
+        # Normalize
+        target_email = target_email.strip()
+        
+        # Strict Check (Comment out if production has full SES access)
+        # if target_email not in valid_emails:
+        #    return jsonify({'error': f'Envio restrito (Sandbox). Apenas: {", ".join(valid_emails)}'}), 400
 
         if app.email_service:
-             link = f"{request.host_url}download_revised_pdf/{file_id}" # Use Revised PDF link
+             link = f"{request.host_url}download_revised_pdf/{file_id}" 
              body = f"Olá {target_name},<br><br>Segue o link para o relatório de inspeção: <a href='{link}'>Baixar PDF</a>"
-             app.email_service.send_email(target_email, f"Relatório de Inspeção - {insp.establishment.name if insp and insp.establishment else ''}", body, body)
+             
+             # Try/Except for specific SES errors
+             try:
+                app.email_service.send_email(target_email, f"Relatório de Inspeção - {insp.establishment.name if insp and insp.establishment else ''}", body, body)
+             except Exception as ses_err:
+                 msg = str(ses_err)
+                 if "Email address is not verified" in msg:
+                     return jsonify({'error': f"Email {target_email} não verificado na AWS SES (Sandbox)."}), 400
+                 raise ses_err
+                 
              return jsonify({'success': True, 'message': f'Email enviado para {target_email}'})
         
         return jsonify({'error': 'Serviço de email indisponível.'}), 500
@@ -1160,6 +1187,7 @@ def download_revised_pdf(file_id):
             ai_raw = inspection.ai_raw_response or {}
             
             # Helper for fallbacks
+            stats = plan.stats_json or {} # [FIX] Define stats variable
             def get_val(from_stats, from_raw, default=0):
                 return from_stats if from_stats else (from_raw or default)
 
