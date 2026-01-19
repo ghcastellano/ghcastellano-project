@@ -334,10 +334,10 @@ class DriveService:
             logger.error(f"Error listing changes: {e}")
             return [], None
 
-    def watch_global_changes(self, callback_url, channel_id, token, page_token, expiration=None):
+    def watch_global_changes(self, callback_url, channel_id, token, page_token=None, expiration=None):
         """
         Monitora TODAS as mudanças no Drive (Global Webhook).
-        Requires page_token to define start point.
+        Requires page_token to define start point (recommended).
         """
         if not self.service: return None
         
@@ -352,12 +352,15 @@ class DriveService:
 
         try:
             with self.lock:
-                return self.service.changes().watch(
-                    body=body,
-                    supportsAllDrives=True,
-                    includeItemsFromAllDrives=True,
-                    pageToken=page_token
-                ).execute()
+                kwargs = {
+                    "body": body,
+                    "supportsAllDrives": True,
+                    "includeItemsFromAllDrives": True
+                }
+                if page_token:
+                    kwargs["pageToken"] = page_token
+                    
+                return self.service.changes().watch(**kwargs).execute()
         except Exception as e:
             logger.error(f"Error watching global changes: {e}")
             raise e
