@@ -63,6 +63,7 @@ class Company(Base):
     cnpj: Mapped[Optional[str]] = mapped_column(String, unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    drive_folder_id: Mapped[Optional[str]] = mapped_column(String) # [NEW] Folder ID for Hierarchy
 
     # Relacionamentos
     # establishments (Removido: Company não possui relacionamento direto com Establishment na nova regra)
@@ -154,11 +155,18 @@ class User(UserMixin, Base):
     # M2M Relationship
     establishments: Mapped[List["Establishment"]] = relationship(
         secondary=consultant_establishments, 
-        back_populates="users"
+        back_populates="establishments"
     )
     
     visits: Mapped[List["Visit"]] = relationship(back_populates="consultant")
     approved_plans: Mapped[List["ActionPlan"]] = relationship(back_populates="approved_by")
+
+class AppConfig(Base):
+    __tablename__ = 'app_config'
+    
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[Optional[str]] = mapped_column(String)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class Inspection(Base):
     __tablename__ = "inspections"

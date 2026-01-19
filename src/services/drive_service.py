@@ -92,6 +92,33 @@ class DriveService:
             # raise e 
             self._service = None # Ensure it stays None so we might retry or fail gracefully
 
+    def create_folder(self, folder_name, parent_id=None):
+        """Cria uma pasta no Drive e retorna ID e Link."""
+        if not self.service: return None, None
+        
+        try:
+            logger.info(f"📁 Criando pasta '{folder_name}' (Parent: {parent_id})")
+            file_metadata = {
+                'name': folder_name,
+                'mimeType': 'application/vnd.google-apps.folder'
+            }
+            if parent_id:
+                file_metadata['parents'] = [parent_id]
+                
+            with self.lock:
+                file = self.service.files().create(
+                    body=file_metadata,
+                    fields='id, webViewLink',
+                    supportsAllDrives=True
+                ).execute()
+                
+            logger.info(f"✅ Pasta Criada: {file.get('id')}")
+            return file.get('id'), file.get('webViewLink')
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao criar pasta {folder_name}: {e}")
+            return None, None
+
     def list_files(self, folder_id, mime_type=None, extension=None):
         """Lista arquivos numa pasta, filtrando por tipo ou extensão."""
         if not self.service: # Checks property which triggers auth
@@ -268,19 +295,81 @@ class DriveService:
             body["expiration"] = expiration
 
         try:
-            # The watch method is typically on the files collection, not a specific fileId for folder changes.
-            # However, the instruction uses fileId=folder_id, which implies watching changes *to* the folder itself,
-            # or changes *within* the folder if the API supports it this way.
-            # For watching changes *within* a folder, one would typically use the Changes API.
-            # Assuming the instruction intends to watch the folder as a file resource.
             with self.lock:
+                # Legacy method strictly for folder watch if needed
                 return self.service.files().watch(
                     fileId=folder_id,
                     body=body,
-                    supportsAllDrives=True # Added for consistency with other methods
+                    supportsAllDrives=True
                 ).execute()
         except Exception as e:
             logger.error(f"Error watching changes for folder {folder_id}: {e}")
+            raise e
+
+    def get_start_page_token(self):
+        """Obtém o token inicial para monitorar mudanças globais."""
+        if not self.service: return None
+        try:
+            with self.lock:
+                response = self.service.changes().getStartPageToken(supportsAllDrives=True).execute()
+            return response.get('startPageToken')
+        except Exception as e:
+            logger.error(f"Error getting start page token: {e}")
+            return None
+
+    def list_changes(self, page_token):
+        """Lista mudanças ocorridas desde o page_token fornecido."""
+        if not self.service: return [], None
+        try:
+            with self.lock:
+                response = self.service.changes().list(
+                    pageToken=page_token,
+                    fields='nextPageToken, newStartPageToken, changes(fileId, file(name, parents, mimeType, webViewLink, createdTime), time, removed)',
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True,
+                    pageSize=100
+                ).execute()
+            return response.get('changes', []), response.get('newStartPageToken') or response.get('nextPageToken')
+        except Exception as e:
+            logger.error(f"Error listing changes: {e}")
+            return [], None
+
+    def watch_global_changes(self, callback_url, channel_id, token, expiration=None):
+        """
+        Monitora TODAS as mudanças no Drive (Global Webhook).
+        """
+        if not self.service: return None
+        
+        # Obter startPageToken é vital para não receber histórico antigo, 
+        # mas aqui registramos o canal. O token de paginação deve ser salvo no APP para uso na leitura.
+        # O Watch em si não precisa do pageToken, mas a leitura subsequente sim.
+        
+        body = {
+            "id": channel_id,
+            "type": "web_hook",
+            "address": callback_url,
+            "token": token
+        }
+        if expiration:
+            body["expiration"] = expiration
+
+        try:
+            with self.lock:
+                # changes().watch() não recebe fileId
+                return self.service.changes().watch(
+                    body=body,
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True,
+                    # pageToken=... # Optional: Watch from specific point? usually fetching start token is separate.
+                    # Warning: If we don't pass pageToken here, it might start from "now".
+                    # API Docs: "pageToken: The token for continuing a previous list request on the next page. This should be set to the value of 'nextPageToken' from the previous response." 
+                    # For Watch: "The token for continuing a previous list request...". 
+                    # We usually getStartPageToken first and pass it here to define the validity of the channel?
+                    # Actually, changes.watch is just meant to trigger calls. 
+                    # The app must maintain its own state (last known token).
+                ).execute()
+        except Exception as e:
+            logger.error(f"Error watching global changes: {e}")
             raise e
 
     def stop_watch(self, channel_id, resource_id):

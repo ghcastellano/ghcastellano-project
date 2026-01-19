@@ -58,6 +58,19 @@ def create_company():
     db = next(get_db())
     try:
         company = Company(name=name, cnpj=cnpj)
+        
+        # [NEW] Drive Folder - Level 1: Company
+        try:
+             # Use Root Folder from Env or None (Root)
+             from src.app import drive_service # Import instance
+             if drive_service.service:
+                 root_id = os.getenv('GDRIVE_ROOT_FOLDER_ID')
+                 f_id, f_link = drive_service.create_folder(folder_name=name, parent_id=root_id)
+                 if f_id:
+                     company.drive_folder_id = f_id
+        except Exception as drive_err:
+             current_app.logger.error(f"Failed to create Drive folder for Company: {drive_err}")
+             
         db.add(company)
         db.commit()
         

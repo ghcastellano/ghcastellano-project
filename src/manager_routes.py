@@ -361,6 +361,23 @@ def create_establishment():
             responsible_email=request.form.get('responsible_email'), # NEW FIELD
             responsible_phone=request.form.get('responsible_phone')
         )
+        
+        # [NEW] Drive Folder - Level 2: Establishment
+        try:
+             # Find Company Folder ID
+             company = db.query(Company).get(current_user.company_id)
+             if company and company.drive_folder_id:
+                 from src.app import drive_service
+                 if drive_service.service:
+                     f_id, f_link = drive_service.create_folder(folder_name=name, parent_id=company.drive_folder_id)
+                     if f_id:
+                         est.drive_folder_id = f_id
+             else:
+                 current_app.logger.warning(f"⚠️ Company {company.name} has no Drive Folder ID. Skipping Est folder.")
+                 
+        except Exception as drive_err:
+             current_app.logger.error(f"Failed to create Drive folder for Establishment: {drive_err}")
+
         db.add(est)
         db.commit()
         

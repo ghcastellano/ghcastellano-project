@@ -1329,61 +1329,67 @@ def drive_webhook():
     # 'sync' é o teste inicial, 'add'/'update'/'trash' são eventos
     logger.info(f"Webhook Received: {resource_state}")
 
-    if resource_state in ['add', 'update', 'chagne', 'change']:
-        # Dispara processamento via Cloud Tasks (Job System)
-        try:
-            from src.models_db import Job, JobStatus
-            from src import database
-            from src.services.cloud_tasks import cloud_tasks_service
-            
-            # Create Job
-            job = Job(
-                type="CHECK_DRIVE_CHANGES",
-                status=JobStatus.PENDING,
-                input_payload={"trigger": "webhook", "resource_state": resource_state}
-            )
-            database.db_session.add(job)
-            database.db_session.commit()
-            
-            # Enqueue Task
-            cloud_tasks_service.create_http_task(payload={"job_id": job.id})
-            
-            logger.info(f"Webhook: Job {job.id} enqueued to Cloud Tasks.")
-        except Exception as e:
-            logger.error(f"Webhook Trigger Error: {e}", exc_info=True)
+@app.route('/api/webhook/drive', methods=['POST'])
+@csrf.exempt
+def webhook_drive():
+    """
+    Webhook Global Changes Handler.
+    Recebe notificação do Google Drive de que ALGO mudou.
+    Dispara a verificação de mudanças (Changes API).
+    """
+    resource_state = request.headers.get('X-Goog-Resource-State')
+    channel_id = request.headers.get('X-Goog-Channel-Id')
+    
+    logger.info(f"🔔 WEBHOOK RECEIVED! State: {resource_state}, Channel: {channel_id}")
+    
+    if resource_state == 'sync':
+        return jsonify({'success': True, 'msg': 'Sync received'}), 200
+    
+    # Se for mudança ('change', 'add', etc), disparamos o processamento global
+    # Idealmente, envie para Task Queue. Para MVP, roda inline (cuidado com timeout).
+    
+    try:
+        from src.services.sync_service import process_global_changes
+        drive = current_app.drive_service
+        
+        # Chamada Sincrona (Cuidado com timeout de 60s)
+        result = process_global_changes(drive)
+        logger.info(f"Webhook Processing Result: {result}")
+        
+    except Exception as e:
+        logger.error(f"Webhook Global Error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
     
     return jsonify({'success': True}), 200
 
-# Endpoint para Renovação (Chamar via Cron/Scheduler)
 @app.route('/api/webhook/renew', methods=['POST'])
 @csrf.exempt 
-# @basic_auth_required (Idealmente proteger com token ou IP do Scheduler)
+# @basic_auth_required 
 def renew_webhook():
     """
-    Renova a assinatura do Webhook.
+    Renova (ou Inicia) o Monitoramento Global.
+    Deve ser chamado periodicamente (ex: a cada 6 dias, ou start manual).
     """
-    # Simplificação: Apenas tenta registrar novamente.
-    # O ideal é persistir channel_id e parar o anterior, mas para MVP
-    # registrar um novo funciona (o antigo expira).
     try:
         from src.services.drive_service import drive_service
         import uuid
         
-        folder_id = config.FOLDER_ID_01_ENTRADA_RELATORIOS
-        # Tenta descobrir a própria URL pública (difícil em serverless sem config)
-        # Vamos usar uma env var APP_URL or pass it via request
+        # URL do seu App
         callback_url = os.getenv("APP_PUBLIC_URL") 
         if not callback_url:
-            # Fallback se não configurado
-            return jsonify({'error': 'APP_PUBLIC_URL not set'}), 500
+            return jsonify({'error': 'APP_PUBLIC_URL environment variable not set'}), 500
             
         full_url = f"{callback_url}/api/webhook/drive"
         channel_id = str(uuid.uuid4())
-        token = os.getenv("DRIVE_WEBHOOK_TOKEN", "segredo-webhook-drive-dev")
+        token = os.getenv("DRIVE_WEBHOOK_TOKEN", "global-webhook-token")
         
-        resp = drive_service.watch_changes(folder_id, full_url, channel_id, token)
+        # Inicia Watch Global
+        # Nota: expiration default é ~1 semana.
+        resp = drive_service.watch_global_changes(full_url, channel_id, token)
         
+        logger.info(f"Global Watch Registered: {resp}")
         return jsonify({'success': True, 'channel': resp}), 200
+        
     except Exception as e:
         logger.error(f"Renew Error: {e}")
         return jsonify({'error': str(e)}), 500

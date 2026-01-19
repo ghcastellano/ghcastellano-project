@@ -19,31 +19,52 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
     errors = []
 
     try:
+    try:
         from src.config import config
-        FOLDER_IN = config.FOLDER_ID_01_ENTRADA_RELATORIOS
+        from src.models_db import Establishment, Company
         
-        # 1. List Files
-        files = drive_service.list_files(FOLDER_IN, extension='.pdf')
-        logger.info(f"🔄 [SYNC] Found {len(files)} files. Trigger: {'User' if user_trigger else 'Cron'}")
+        # 1. Prepare
+        processed_file_ids = {r[0] for r in db.query(Inspection.drive_file_id).all()}
+        files_to_process = [] # List of tuples: (file_meta, establishment_id)
+        
+        # 2. Hierarchy Scan: Iterate Establishments
+        # Prioritize establishments with explicit folders
+        establishments = db.query(Establishment).filter(Establishment.drive_folder_id != None).all()
+        logger.info(f"🔍 [SYNC] Scanning {len(establishments)} Establishment Folders...")
+        
+        for est in establishments:
+            if not est.drive_folder_id or est.drive_folder_id.strip() == "":
+                continue
+                
+            est_files = drive_service.list_files(est.drive_folder_id, extension='.pdf')
+            for f in est_files:
+                if f['id'] not in processed_file_ids:
+                    # Enqueue with Context
+                    files_to_process.append((f, est.id))
+                    if len(files_to_process) >= limit:
+                        break
+            if len(files_to_process) >= limit:
+                break
 
-        # 2. Filter New
-        processed_file_ids = [r[0] for r in db.query(Inspection.drive_file_id).all()]
-        
-        files_to_process = []
-        for f in files:
-            if f['id'] not in processed_file_ids:
-                files_to_process.append(f)
-                if len(files_to_process) >= limit: 
-                    break
-        
+        # 3. Legacy Scan (Inbox Fallback) - If quota permits
+        if len(files_to_process) < limit:
+            FOLDER_IN = config.FOLDER_ID_01_ENTRADA_RELATORIOS
+            if FOLDER_IN:
+                legacy_files = drive_service.list_files(FOLDER_IN, extension='.pdf')
+                for f in legacy_files:
+                     if f['id'] not in processed_file_ids and not any(queued[0]['id'] == f['id'] for queued in files_to_process):
+                         files_to_process.append((f, None)) # No Est ID linked
+                         if len(files_to_process) >= limit:
+                             break
+
         if not files_to_process:
             return {'status': 'ok', 'message': 'No new files.', 'processed': 0}
 
-        # 3. Process
+        # 4. Process
         from src.services.processor import processor_service
         
-        for file in files_to_process:
-            logger.info(f"⏳ [SYNC] Processing: {file['name']}")
+        for file, est_id in files_to_process:
+            logger.info(f"⏳ [SYNC] Processing: {file['name']} (Est ID: {est_id})")
             try:
                 # Job
                 job = Job(
@@ -52,40 +73,180 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                     input_payload={
                         'file_id': file['id'], 
                         'filename': file['name'], 
-                        'source': 'admin_sync' if user_trigger else 'cron_scheduler'
-                    }
+                        'source': 'admin_sync' if user_trigger else 'cron_scheduler',
+                        'establishment_id': str(est_id) if est_id else None
+                    },
+                    company_id=None # Could infer from Est
                 )
                 db.add(job)
+                db.commit() # Get Job ID
                 
-                # Inspection
+                # Inspection (Pre-Create with Linked Est)
                 new_insp = Inspection(
                     drive_file_id=file['id'], 
                     drive_web_link=file.get('webViewLink'), 
-                    status=InspectionStatus.PROCESSING
+                    status=InspectionStatus.PROCESSING,
+                    establishment_id=est_id # Direct Link!
                 )
                 db.add(new_insp)
                 db.commit()
 
                 # Process
-                processor_service.process_single_file({'id': file['id'], 'name': file['name']}, job=job)
+                processor_service.process_single_file(
+                    {'id': file['id'], 'name': file['name']}, 
+                    job=job,
+                    establishment_id=est_id # Pass explicitly to processor
+                )
                 
                 job.status = JobStatus.COMPLETED
                 job.finished_at = datetime.utcnow()
                 db.commit()
                 processed_count += 1
             except Exception as e:
-                msg = f"Error {file['name']}: {e}"
-                logger.error(f"❌ {msg}")
+                msg = f"Error capturing {file['name']}: {str(e)}"
+                logger.error(msg)
                 errors.append(msg)
-                if 'job' in locals() and job:
+                if job: 
                     job.status = JobStatus.FAILED
-                    job.error_log = str(e)
+                    job.result_details = {'error': msg}
                     db.commit()
 
-        return {'status': 'success', 'processed': processed_count, 'errors': errors}
+        return {'status': 'ok', 'processed': processed_count, 'errors': errors}
 
     except Exception as e:
-        logger.error(f"❌ Sync Fatal Error: {e}")
+        logger.error(f"Global Sync Error: {e}", exc_info=True)
+        return {'error': str(e)}
+    finally:
+        db.close()
+
+def process_global_changes(drive_service):
+    """
+    Processa mudanças globais do Drive (Changes API).
+    Identifica arquivos criados nas pastas de Lojas conhecidas.
+    """
+    if not drive_service:
+        return {'error': 'Drive Service unavailable'}
+        
+    db = next(get_db())
+    logger.info("🌍 [GLOBAL SYNC] Checking for Drive changes...")
+    
+    try:
+        from src.models_db import AppConfig, Establishment, Job, JobStatus, Inspection, InspectionStatus
+        from src.services.processor import processor_service
+        
+        # 1. Obter Token Atual
+        config_token = db.query(AppConfig).get('drive_page_token')
+        page_token = config_token.value if config_token else None
+        
+        # Se não tiver token, pega o start token (ignora passado) e SALVA.
+        if not page_token:
+            logger.info("🌍 [GLOBAL SYNC] No page token found. Fetching start token (ignoring history).")
+            page_token = drive_service.get_start_page_token()
+            if page_token:
+                # Save Initial Token
+                if not config_token:
+                    db.add(AppConfig(key='drive_page_token', value=page_token))
+                else:
+                    config_token.value = page_token
+                db.commit()
+                return {'status': 'ok', 'message': 'Initialized Watch Token', 'processed': 0}
+            else:
+                return {'error': 'Failed to get start token'}
+
+        # 2. Listar Mudanças
+        changes, new_token = drive_service.list_changes(page_token)
+        
+        if not changes:
+            logger.info("🌍 [GLOBAL SYNC] No changes found.")
+            # Even if no changes, we might get a new token? usually only if changes exist or periodically.
+            # But list_changes returns newStartPageToken if provided.
+            # Update token anyway to keep fresh? logic says yes if new_token differs.
+            if new_token and new_token != page_token:
+                if not config_token:
+                     db.add(AppConfig(key='drive_page_token', value=new_token))
+                else:
+                     config_token.value = new_token
+                db.commit()
+            return {'status': 'ok', 'processed': 0}
+
+        # 3. Preparar Cache de Pastas (Map: FolderID -> EstID)
+        # TODO: Otimizar para centenas de lojas? load all IDs is fine for now (<10k rows).
+        all_est = db.query(Establishment).filter(Establishment.drive_folder_id != None).all()
+        folder_map = {e.drive_folder_id: e.id for e in all_est}
+        
+        processed_file_ids = {r[0] for r in db.query(Inspection.drive_file_id).all()}
+        
+        processed_count = 0
+        
+        for change in changes:
+            if change.get('removed'):
+                continue
+                
+            file = change.get('file')
+            if not file or file.get('mimeType') == 'application/vnd.google-apps.folder':
+                continue
+            
+            # Check Parents
+            parents = file.get('parents', [])
+            establishment_id = None
+            
+            for parent_id in parents:
+                if parent_id in folder_map:
+                    establishment_id = folder_map[parent_id]
+                    break
+            
+            # Se achou loja OU é da pasta legacy (se suportado), processa.
+            # Aqui focamos apenas na HIERARQUIA para garantir o "Company Recognition".
+            if establishment_id and file['id'] not in processed_file_ids:
+                logger.info(f"✨ [GLOBAL SYNC] New File detected in Store Folder! StoreID: {establishment_id}, File: {file.get('name')}")
+               
+                # Create Job & Inspection (Similar logic to sync)
+                # DRY: This block matches perform_drive_sync logic.
+                job = Job(
+                    type="WEBHOOK_PROCESS",
+                    status=JobStatus.PENDING,
+                    input_payload={
+                        'file_id': file['id'], 
+                        'filename': file['name'], 
+                        'source': 'webhook_global',
+                        'establishment_id': str(establishment_id)
+                    }, 
+                    company_id=None 
+                )
+                db.add(job)
+                db.commit()
+                
+                new_insp = Inspection(
+                    drive_file_id=file['id'], 
+                    drive_web_link=file.get('webViewLink'), 
+                    status=InspectionStatus.PROCESSING,
+                    establishment_id=establishment_id
+                )
+                db.add(new_insp)
+                db.commit()
+                
+                try:
+                    processor_service.process_single_file(
+                        {'id': file['id'], 'name': file['name']}, 
+                        job=job,
+                        establishment_id=establishment_id
+                    )
+                    processed_count += 1
+                except Exception as e:
+                    logger.error(f"Error processing file {file['id']}: {e}")
+        
+        # 4. Save New Token
+        if new_token:
+            if not config_token:
+                db.add(AppConfig(key='drive_page_token', value=new_token))
+            else:
+                config_token.value = new_token
+            db.commit()
+            
+        return {'status': 'ok', 'processed': processed_count}
+        
+    except Exception as e:
+        logger.error(f"Global Sync Logic Error: {e}", exc_info=True)
         return {'error': str(e)}
     finally:
         db.close()
