@@ -1,93 +1,185 @@
-# ghcastellano-project
+# MVP Inspeção Sanitária
 
+Sistema de gestão de inspeções sanitárias com processamento inteligente de PDFs via IA e geração automática de planos de ação.
 
+## 🎯 Visão Geral
 
-## Getting started
+Aplicação web para automatizar o processamento de relatórios de inspeção sanitária, gerando planos de ação corretivos via IA e permitindo gestão colaborativa entre consultores, gestores e administradores.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 🏗️ Arquitetura
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### Stack Tecnológica
+- **Backend**: Python 3.14 + Flask
+- **Banco de Dados**: PostgreSQL (Neon.tech)
+- **IA**: Google Vertex AI (Gemini)
+- **Storage**: Google Drive API
+- **Deploy**: Google Cloud Run (Serverless)
 
-## Add your files
+### Estrutura do Projeto
+```
+mvp-inspecao-sanitaria/
+├── src/                    # Código-fonte principal
+│   ├── models_db.py       # Modelos SQLAlchemy
+│   ├── app.py             # Aplicação Flask principal
+│   ├── manager_routes.py  # Rotas para gestores
+│   ├── admin_routes.py    # Rotas para administradores
+│   └── services/          # Serviços (Drive, PDF, IA)
+├── scripts/               # Scripts de migração e utilitários
+├── docs/                  # Documentação técnica
+└── tests/                 # Testes automatizados
+```
 
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 📊 Modelos de Dados
+
+### Principais Entidades
+
+- **Company**: Empresas clientes
+- **Establishment**: Estabelecimentos (lojas, unidades)
+- **User**: Usuários (CONSULTANT, MANAGER, ADMIN)
+- **Inspection**: Inspeções processadas
+- **ActionPlan**: Planos de ação gerados
+- **ActionPlanItem**: Itens individuais do plano
+
+### ⚡ Arquitetura ML-Ready para Prazos
+
+> **IMPORTANTE**: O sistema implementa uma estratégia de 3 campos para capturar prazos, permitindo aprendizado futuro da IA.
+
+#### Campos de Prazo em `ActionPlanItem`
+
+| Campo | Tipo | Propósito | Quando Preencher |
+|-------|------|-----------|------------------|
+| `ai_suggested_deadline` | String | **Sugestão original da IA** (nunca muda) | Ao processar PDF pela primeira vez |
+| `deadline_date` | Date | **Prazo estruturado** (dd/mm/yyyy) | Quando gestor define data específica |
+| `deadline_text` | Text | **Prazo textual editado** pelo gestor | Quando gestor edita prazo (diferente da IA) |
+
+#### Fluxo de Dados
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/ghcastellano-group/ghcastellano-project.git
-git branch -M main
-git push -uf origin main
+1. IA Processa PDF
+   └─> ai_suggested_deadline: "30 dias"
+
+2. Gestor Edita Prazo
+   ├─> ai_suggested_deadline: "30 dias" (preservado)
+   ├─> deadline_text: "15/02/2026" (captura edição)
+   └─> deadline_date: 2026-02-15 (conversão estruturada)
+
+3. Exibição no Template
+   └─> Prioridade: deadline_text > deadline_date > ai_suggested_deadline
 ```
 
-## Integrate with your tools
+#### Benefícios para ML
 
-* [Set up project integrations](https://gitlab.com/ghcastellano-group/ghcastellano-project/-/settings/integrations)
+- ✅ Preserva sugestões originais para análise
+- ✅ Captura correções humanas para treinamento
+- ✅ Permite dataset: "IA sugere X → Gestor corrige para Y"
 
-## Collaborate with your team
+**Documentação Completa**: [`docs/ml_deadline_strategy.md`](docs/ml_deadline_strategy.md)
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### Campos de Ordenação
 
-## Test and Deploy
+- **`order_index`**: Controle manual da ordem dos itens (adicionado em V15)
+- **`created_at`**: Removido propositalmente de `ActionPlanItem` para evitar ordenação automática por timestamp
 
-Use the built-in continuous integration in GitLab.
+## 🔄 Migrações
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### Scripts Disponíveis
 
-***
+- `migration_add_order.py` - Adiciona coluna `order_index`
+- `migration_add_deadline_text.py` - Adiciona coluna `deadline_text`
+- `migration_app_config.py` - Cria tabela de configuração
 
-# Editing this README
+### Como Executar
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```bash
+cd /caminho/para/mvp-inspecao-sanitaria
+python3 scripts/migration_add_order.py
+```
 
-## Suggestions for a good README
+## 🚀 Setup Local
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### Pré-requisitos
+- Python 3.14+
+- PostgreSQL (ou usar Neon.tech)
+- Credenciais do Google Drive API
+- Credenciais do Vertex AI
 
-## Name
-Choose a self-explaining name for your project.
+### Instalação
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```bash
+# 1. Clonar repositório
+git clone <repo-url>
+cd mvp-inspecao-sanitaria
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+# 2. Criar ambiente virtual
+python3 -m venv venv
+source venv/bin/activate  # Mac/Linux
+# ou: venv\Scripts\activate  # Windows
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+# 3. Instalar dependências
+pip install -r requirements.txt
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+# 4. Configurar variáveis de ambiente
+cp .env.example .env
+# Editar .env com suas credenciais
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+# 5. Executar migrações
+python3 scripts/migration_app_config.py
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+# 6. Iniciar aplicação
+python3 run_dev.py
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## 📝 Desenvolvimento
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Diretrizes do Projeto
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Consulte [`DIRETRIZES.md`](DIRETRIZES.md) para:
+- Regras de idioma (PT-BR)
+- Arquitetura Zero Cost
+- Gestão de segredos
+- Padrões de commit
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### Documentação Técnica
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+- [`docs/ml_deadline_strategy.md`](docs/ml_deadline_strategy.md) - Estratégia ML para prazos
+- [`docs/recurrent_issues.md`](docs/recurrent_issues.md) - Problemas recorrentes e soluções
 
-## License
-For open source projects, say how it is licensed.
+## 🔧 Troubleshooting
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### Erro "ModuleNotFoundError: No module named 'src'"
+
+**Solução**: Scripts devem adicionar o diretório raiz ao `sys.path`:
+
+```python
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+```
+
+### Erro "Database Engine is None"
+
+**Solução**: Use contexto Flask ao acessar database:
+
+```python
+from src.app import app
+with app.app_context():
+    # código aqui
+```
+
+## 📊 Roadmap ML
+
+1. **Exportação de Dataset** - Script para exportar dados de treinamento
+2. **Dashboard de Análise** - Visualizar padrões de correção
+3. **Fine-tuning** - Treinar modelo com dados capturados
+
+## 👥 Contribuindo
+
+Consulte [`CONTRIBUTING.md`](CONTRIBUTING.md) para guidelines de contribuição.
+
+## 📄 Licença
+
+Propriedade de ghcastellano-group. Todos os direitos reservados.
+
+---
+
+**Última Atualização**: 19/01/2026 - Implementação de arquitetura ML-ready para campos de prazo

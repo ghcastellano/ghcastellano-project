@@ -60,6 +60,7 @@ def create_company():
         company = Company(name=name, cnpj=cnpj)
         
         # [NEW] Drive Folder - Level 1: Company
+        drive_folder_created = False
         try:
              # Use Root Folder from Env or None (Root)
              from src.app import drive_service # Import instance
@@ -68,6 +69,7 @@ def create_company():
                  f_id, f_link = drive_service.create_folder(folder_name=name, parent_id=root_id)
                  if f_id:
                      company.drive_folder_id = f_id
+                     drive_folder_created = True
         except Exception as drive_err:
              current_app.logger.error(f"Failed to create Drive folder for Company: {drive_err}")
              
@@ -85,7 +87,12 @@ def create_company():
                 'message': f'Empresa {name} criada com sucesso!'
             }), 201
             
-        flash(f'Empresa {name} criada com sucesso!', 'success')
+        # [IMPROVEMENT] Notificar usuário se pasta do Drive não foi criada
+        success_msg = f'Empresa {name} criada com sucesso!'
+        if not drive_folder_created:
+            success_msg += ' ⚠️ Pasta no Drive não pôde ser criada.'
+            
+        flash(success_msg, 'success' if drive_folder_created else 'warning')
     except Exception as e:
         db.rollback()
         if request.accept_mimetypes.accept_json:

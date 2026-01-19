@@ -220,6 +220,21 @@ try:
     app.drive_service = DriveService()
     drive_service = app.drive_service # Global alias for routes
     logger.info("✅ Serviço do Drive Inicializado")
+
+    # [IMPROVEMENT] Validar ROOT_FOLDER_ID se configurado
+    root_folder_id = os.getenv('GDRIVE_ROOT_FOLDER_ID')
+    if root_folder_id and app.drive_service.service:
+        try:
+            folder_info = app.drive_service.service.files().get(
+                fileId=root_folder_id, 
+                fields='id,name',
+                supportsAllDrives=True
+            ).execute()
+            logger.info(f"✅ ROOT_FOLDER_ID válido: '{folder_info.get('name')}' ({root_folder_id})")
+        except Exception as e:
+            logger.error(f"❌ ROOT_FOLDER_ID inválido ou inacessível: {e}")
+            logger.warning("⚠️ Pastas de empresas serão criadas na raiz do Drive")
+
 except Exception as e:
     logger.error(f"⚠️ Falha ao inicializar Serviço do Drive: {e}")
     app.drive_service = None
@@ -1305,15 +1320,15 @@ def download_revised_pdf(file_id):
         # 2. Gerar PDF em memória
         pdf_bytes = pdf_service.generate_pdf_bytes(data)
         
-        # 3. Retornar arquivo
+        # 3. Retornar arquivo com headers corretos
         filename = f"Plano_Revisado_{data.get('nome_estabelecimento', 'Relatorio').replace(' ', '_')}.pdf"
         
-        return send_file(
-            io.BytesIO(pdf_bytes),
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=filename
-        )
+        # [FIX] Usar make_response para compatibilidade e evitar arquivo corrompido
+        response = make_response(pdf_bytes)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
     except Exception as e:
         logger.error(f"Erro gerando PDF revisado: {e}")
         return f"Erro na geração: {e}", 500

@@ -307,7 +307,11 @@ class ActionPlan(Base):
     # Relacionamentos
     inspection: Mapped["Inspection"] = relationship(back_populates="action_plan")
     approved_by: Mapped[Optional["User"]] = relationship(back_populates="approved_plans")
-    items: Mapped[List["ActionPlanItem"]] = relationship(back_populates="action_plan", cascade="all, delete-orphan")
+    items: Mapped[List["ActionPlanItem"]] = relationship(
+        back_populates="action_plan", 
+        cascade="all, delete-orphan",
+        order_by="ActionPlanItem.order_index"  # [FIX] Garantir ordem consistente
+    )
 
 class ActionPlanItem(Base):
     __tablename__ = "action_plan_items"
@@ -322,7 +326,8 @@ class ActionPlanItem(Base):
     
     severity: Mapped[SeverityLevel] = mapped_column(default=SeverityLevel.MEDIUM)
     status: Mapped[ActionPlanItemStatus] = mapped_column(default=ActionPlanItemStatus.OPEN)
-    ai_suggested_deadline: Mapped[Optional[str]] = mapped_column(String) # Compatibilidade POC
+    ai_suggested_deadline: Mapped[Optional[str]] = mapped_column(String) # Sugestão original da IA
+    deadline_text: Mapped[Optional[str]] = mapped_column(Text) # [ML-READY] Prazo textual editado pelo gestor
     
     sector: Mapped[Optional[str]] = mapped_column(Text) # V14 Agrupamento
     order_index: Mapped[Optional[int]] = mapped_column(Integer) # V15 Ordem de Classificacao

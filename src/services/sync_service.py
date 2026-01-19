@@ -19,7 +19,6 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
     errors = []
 
     try:
-    try:
         from src.config import config
         from src.models_db import Establishment, Company
         
@@ -194,6 +193,27 @@ def process_global_changes(drive_service):
                 if parent_id in folder_map:
                     establishment_id = folder_map[parent_id]
                     break
+            
+            # [NEW] Validação de Coerência Pasta-Documento
+            # Verifica se arquivo JSON está na pasta correta antes de processar
+            if file.get('name', '').endswith('.json'):
+                try:
+                    from src.services.document_validator import DocumentFolderValidator
+                    validator = DocumentFolderValidator(drive_service, db)
+                    validation_result = validator.validate_and_fix_location(file['id'], file)
+                    
+                    if validation_result.get('moved'):
+                        # Arquivo foi movido! Atualizar establishment_id
+                        logger.warning(f"📦 Arquivo movido para pasta correta: {validation_result.get('message')}")
+                        validator.create_alert_for_manager(file, validation_result)
+                        
+                        # Re-buscar pasta correta após movimento
+                        for parent_id in file.get('parents', []):
+                            if parent_id in folder_map:
+                                establishment_id  = folder_map[parent_id]
+                                break
+                except Exception as val_err:
+                    logger.error(f"Erro na validação de pasta: {val_err}")
             
             # Se achou loja OU é da pasta legacy (se suportado), processa.
             # Aqui focamos apenas na HIERARQUIA para garantir o "Company Recognition".

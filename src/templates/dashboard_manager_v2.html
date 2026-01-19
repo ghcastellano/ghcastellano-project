@@ -259,6 +259,62 @@
                     }
                 </style>
 
+                <!-- 🚨 NOVO: Card de Urgência para Planos Pendentes -->
+                <div id="urgent-approval-card" class="card"
+                    style="margin-bottom: 2rem; border: 2px solid #dc2626; background: linear-gradient(135deg, #fef2f2 0%, #fff 100%); display: none; animation: pulse 2s infinite;">
+                    <div class="card-body" style="padding: 1.5rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div
+                                    style="width: 60px; height: 60px; border-radius: 50%; background: #dc2626; display: flex; align-items: center; justify-content: center; animation: shake 0.5s infinite;">
+                                    <i class="ph-fill ph-warning-circle" style="font-size: 2rem; color: white;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; color: #dc2626; font-size: 1.3rem; font-weight: 700;">Planos
+                                        de Ação Aguardando Aprovação</h3>
+                                    <p style="margin: 0.25rem 0 0 0; color: #991b1b; font-size: 0.95rem;">
+                                        <span id="urgent-count">0</span> plano(s) precisam da sua análise urgente
+                                    </p>
+                                </div>
+                            </div>
+                            <button onclick="scrollToApprovals()" class="btn"
+                                style="background: #dc2626; color: white; padding: 0.75rem 1.5rem; font-weight: 600; border: none; cursor: pointer; border-radius: 8px; animation: pulse 1.5s infinite;">
+                                <i class="ph-bold ph-check-circle"></i> Aprovar Agora
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    @keyframes pulse {
+
+                        0%,
+                        100% {
+                            transform: scale(1);
+                        }
+
+                        50% {
+                            transform: scale(1.02);
+                        }
+                    }
+
+                    @keyframes shake {
+
+                        0%,
+                        100% {
+                            transform: rotate(0deg);
+                        }
+
+                        25% {
+                            transform: rotate(-5deg);
+                        }
+
+                        75% {
+                            transform: rotate(5deg);
+                        }
+                    }
+                </style>
+
                 <div class="stats-grid">
                     <div class="stat-card" onclick="document.getElementById('menu-est').click()">
                         <span class="stat-label">Estabelecimentos</span>
@@ -277,6 +333,14 @@
                         <div class="stat-trend" style="color: var(--accent-color);"><i class="ph-bold ph-hourglass"></i>
                             Ver
                             Status</div>
+                    </div>
+                    <!-- NOVO: Card de Pendentes -->
+                    <div class="stat-card" id="stat-card-approvals"
+                        style="border-color: #dc2626; background: #fef2f2; cursor: pointer; display: none;"
+                        onclick="scrollToApprovals()">
+                        <span class="stat-label" style="color: #dc2626;">Aguardando Aprovação</span>
+                        <span class="stat-value" id="stat-approvals" style="color: #dc2626;">0</span>
+                        <div class="stat-trend" style="color: #dc2626;"><i class="ph-bold ph-warning"></i> Urgente</div>
                     </div>
                 </div>
 
@@ -1240,9 +1304,30 @@
 
             // Processed
             const tbody = document.getElementById('list-processed-tbody');
+            const urgentCard = document.getElementById('urgent-approval-card');
+            const urgentCount = document.getElementById('urgent-count');
+            const statApprovals = document.getElementById('stat-approvals');
+            const statCardApprovals = document.getElementById('stat-card-approvals');
 
             if (tbody && data.processed_raw && data.processed_raw.length > 0) {
-                // Main Table
+                // Filter for urgent items
+                const urgentItems = data.processed_raw.filter(item =>
+                    item.status === 'PENDING_MANAGER_REVIEW' || item.status === 'WAITING_APPROVAL'
+                );
+
+                // Update Urgent Card
+                if (urgentItems.length > 0) {
+                    if (urgentCard) urgentCard.style.display = 'block';
+                    if (urgentCount) urgentCount.textContent = urgentItems.length;
+
+                    if (statCardApprovals) statCardApprovals.style.display = 'flex';
+                    if (statApprovals) statApprovals.textContent = urgentItems.length;
+                } else {
+                    if (urgentCard) urgentCard.style.display = 'none';
+                    if (statCardApprovals) statCardApprovals.style.display = 'none';
+                }
+
+                // Main Table with Enhanced UI
                 tbody.innerHTML = data.processed_raw.map(item => `
                     <tr>
                         <td>
@@ -1256,8 +1341,8 @@
                         <td>${item.date}</td>
                         <td>${getStatusBadge(item.status, item.id)}</td>
                         <td>
-                            <a href="${item.review_link}" class="btn btn-sm btn-white border shadow-sm">
-                                <i class="ph-bold ph-pencil-simple text-primary"></i> Validar
+                            <a href="${item.review_link}" class="btn btn-sm ${getActionButtonStyle(item.status)} shadow-sm">
+                                ${getActionButtonIcon(item.status)} ${getActionButtonText(item.status)}
                             </a>
                         </td>
                     </tr>
@@ -1291,6 +1376,7 @@
                 }
             } else if (tbody) {
                 tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Nenhuma vistoria encontrada.</td></tr>';
+                if (urgentCard) urgentCard.style.display = 'none';
             }
 
         } catch (e) {
@@ -1303,19 +1389,39 @@
         }
     }
 
+    // Helper: Button Style based on Status
+    function getActionButtonStyle(status) {
+        if (status === 'PENDING_MANAGER_REVIEW' || status === 'WAITING_APPROVAL') return 'btn-danger text-white'; // Urgent
+        if (status === 'PROCESSING') return 'btn-white border disabled';
+        return 'btn-white border'; // Default
+    }
+
+    // Helper: Button Icon
+    function getActionButtonIcon(status) {
+        if (status === 'PENDING_MANAGER_REVIEW' || status === 'WAITING_APPROVAL') return '<i class="ph-bold ph-warning-circle"></i>';
+        if (status === 'APPROVED') return '<i class="ph-bold ph-pencil-simple"></i>';
+        return '<i class="ph-bold ph-eye"></i>';
+    }
+
+    // Helper: Button Text
+    function getActionButtonText(status) {
+        if (status === 'PENDING_MANAGER_REVIEW' || status === 'WAITING_APPROVAL') return 'Validar Agora';
+        if (status === 'APPROVED') return 'Visualizar';
+        return 'Detalhes';
+    }
 
     function getStatusBadge(status, id) {
         // Map backend enum to UI Badge
         const map = {
-            'PROCESSING': { class: 'badge-primary', text: 'Processando' },
-            'PENDING': { class: 'badge-warning', text: 'Pendente' },
-            'PENDING_MANAGER_REVIEW': { class: 'badge-warning', text: 'Aguardando Aprovação' },
-            'WAITING_APPROVAL': { class: 'badge-warning', text: 'Aguardando Aprovação' },
+            'PROCESSING': { class: 'badge-primary', text: 'Processando AI' },
+            'PENDING': { class: 'badge-secondary', text: 'Aguardando' },
+            'PENDING_MANAGER_REVIEW': { class: 'badge-danger', text: 'Pendente Aprovação' }, // Red for Urgency
+            'WAITING_APPROVAL': { class: 'badge-danger', text: 'Pendente Aprovação' }, // Red for Urgency
             'APPROVED': { class: 'badge-success', text: 'Aprovado' },
             'PENDING_VERIFICATION': { class: 'badge-info', text: 'Em Verificação' },
             'COMPLETED': { class: 'badge-success', text: 'Concluído' },
-            'REJECTED': { class: 'badge-danger', text: 'Rejeitado' },
-            'FAILED': { class: 'badge-danger', text: 'Falha' }
+            'REJECTED': { class: 'badge-dark', text: 'Rejeitado' },
+            'FAILED': { class: 'badge-dark', text: 'Falha' }
         };
 
         const badge = map[status] || { class: 'badge-secondary', text: status || 'Desconhecido' };

@@ -98,6 +98,15 @@ class DriveService:
         
         try:
             logger.info(f"📁 Criando pasta '{folder_name}' (Parent: {parent_id})")
+            
+            # [IMPROVEMENT] Verificar se pasta já existe antes de criar
+            if parent_id:
+                existing_folders = self.list_files(parent_id, mime_type='application/vnd.google-apps.folder')
+                for folder in existing_folders:
+                    if folder.get('name') == folder_name:
+                        logger.warning(f"⚠️ Pasta '{folder_name}' já existe no parent {parent_id}, reutilizando")
+                        return folder.get('id'), folder.get('webViewLink')
+            
             file_metadata = {
                 'name': folder_name,
                 'mimeType': 'application/vnd.google-apps.folder'

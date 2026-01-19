@@ -364,6 +364,7 @@ def create_establishment():
         )
         
         # [NEW] Drive Folder - Level 2: Establishment
+        drive_folder_created = False
         try:
              # Find Company Folder ID
              company = db.query(Company).get(current_user.company_id)
@@ -373,8 +374,9 @@ def create_establishment():
                      f_id, f_link = drive_service.create_folder(folder_name=name, parent_id=company.drive_folder_id)
                      if f_id:
                          est.drive_folder_id = f_id
+                         drive_folder_created = True
              else:
-                 current_app.logger.warning(f"⚠️ Company {company.name} has no Drive Folder ID. Skipping Est folder.")
+                 current_app.logger.warning(f"⚠️ Company {company.name if company else 'N/A'} has no Drive Folder ID. Skipping Est folder.")
                  
         except Exception as drive_err:
              current_app.logger.error(f"Failed to create Drive folder for Establishment: {drive_err}")
@@ -383,6 +385,8 @@ def create_establishment():
         db.commit()
         
         msg = f'Estabelecimento {name} criado com sucesso!'
+        if not drive_folder_created:
+            msg += ' ⚠️ Pasta no Drive não pôde ser criada.'
         
         if request.accept_mimetypes.accept_json:
              return jsonify({
@@ -398,7 +402,7 @@ def create_establishment():
                  }
              }), 201
              
-        flash(msg, 'success')
+        flash(msg, 'success' if drive_folder_created else 'warning')
     except Exception as e:
         db.rollback()
         if request.accept_mimetypes.accept_json:
@@ -671,13 +675,19 @@ def edit_plan(file_id):
                 key = (item.item_verificado or "").strip()[:50]
                 recovered_score = score_map.get(key, 0)
                 
-                # Logic to prefer Saved Deadline over AI Suggestion
-                deadline_display = item.prazo_sugerido
+                # [ML-READY] Prioridade de exibição: deadline_text > deadline_date > ai_suggested_deadline
+                deadline_display = item.ai_suggested_deadline or "N/A"  # Fallback: Sugestão original da IA
+                
                 if item.deadline_date:
+                    # Se tem data estruturada, formatar
                     try:
                         deadline_display = item.deadline_date.strftime('%d/%m/%Y')
                     except:
                         pass
+                
+                if item.deadline_text:
+                    # Se gestor editou texto manualmente, priorizar essa versão
+                    deadline_display = item.deadline_text
                 
                 template_item = {
                     'id': str(item.id),
@@ -806,28 +816,42 @@ def save_plan(file_id):
                              item.severity = SeverityLevel.MEDIUM
                     
                     if 'deadline' in item_data and item_data.get('deadline'):
+                        deadline_input = item_data.get('deadline')
+                        
+                        # [ML-READY] Salvar versão textual se diferente da sugestão da IA
+                        if deadline_input != item.ai_suggested_deadline:
+                            item.deadline_text = deadline_input
+                        
+                        # Tentar converter para Date estruturado
                         try:
-                            # Try ISO first
-                            item.deadline_date = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
+                            # Try ISO first (YYYY-MM-DD)
+                            item.deadline_date = datetime.strptime(deadline_input, '%Y-%m-%d').date()
                         except:
                             try:
                                 # Try BR format (dd/mm/yyyy)
-                                item.deadline_date = datetime.strptime(item_data.get('deadline'), '%d/%m/%Y').date()
+                                item.deadline_date = datetime.strptime(deadline_input, '%d/%m/%Y').date()
                             except:
+                                # Não é data válida, mantém apenas texto em deadline_text
                                 pass
 
             else:
                 # Create
-                deadline = None
+                deadline_date = None
+                deadline_text = None
+                
                 if item_data.get('deadline'):
-                     try:
-                        deadline = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
-                     except ValueError as e1:
+                    deadline_input = item_data.get('deadline')
+                    deadline_text = deadline_input  # Salvar texto original
+                    
+                    # Tentar converter para Date
+                    try:
+                        deadline_date = datetime.strptime(deadline_input, '%Y-%m-%d').date()
+                    except ValueError:
                         try:
-                             deadline = datetime.strptime(item_data.get('deadline'), '%d/%m/%Y').date()
-                        except ValueError as e2:
-                             print(f"❌ Failed to parse deadline '{item_data.get('deadline')}': {e1}, {e2}")
-                             pass
+                            deadline_date = datetime.strptime(deadline_input, '%d/%m/%Y').date()
+                        except ValueError:
+                            # Não é data válida, só mantém texto
+                            pass
 
                 new_item = ActionPlanItem(
                     action_plan_id=plan.id,
@@ -836,7 +860,8 @@ def save_plan(file_id):
                     legal_basis=item_data.get('legal_basis'),
                     severity=SeverityLevel(item_data.get('severity', 'MEDIUM')) if item_data.get('severity') in SeverityLevel._member_names_ else SeverityLevel.MEDIUM,
                     status=ActionPlanItemStatus.OPEN,
-                    deadline_date=deadline,
+                    deadline_date=deadline_date,
+                    deadline_text=deadline_text,  # [ML-READY] Salvar texto original
                     order_index=len(plan.items) # [FIX] Append at end
                 )
                 db.add(new_item)

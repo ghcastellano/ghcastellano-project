@@ -718,20 +718,27 @@
                 const existingRows = Array.from(tbody.querySelectorAll(`tr[data-company-name="${mgr.company_name}"]`));
 
                 if (existingRows.length > 0) {
-                    // Start from the last one
+                    // Já existem gestores dessa empresa, inserir após o último
                     const lastRow = existingRows[existingRows.length - 1];
                     lastRow.insertAdjacentHTML('afterend', newRowHtml);
                 } else {
-                    // No rows found for this company. 
-                    // Create Group Header
-                    const headerHtml = `
-                    <tr class="group-header" data-group-name="${mgr.company_name}" style="background: rgba(248,250,252,0.5); font-weight:600; color:var(--text-secondary);">
-                        <td colspan="4"><i class="ph-bold ph-buildings"></i> ${mgr.company_name}</td>
-                    </tr>`;
+                    // Nenhum gestor desta empresa ainda
+                    // Verificar se header do grupo já existe
+                    const existingHeader = tbody.querySelector(`tr.group-header[data-group-name="${mgr.company_name}"]`);
 
-                    // Simple Strategy: Append to end (New Group)
-                    // If we wanted to be perfect we'd sort, but appending is acceptable for "New"
-                    tbody.insertAdjacentHTML('beforeend', headerHtml + newRowHtml);
+                    if (existingHeader) {
+                        // Header já existe, apenas adicionar row após ele
+                        existingHeader.insertAdjacentHTML('afterend', newRowHtml);
+                    } else {
+                        // Não existe nem header, criar novo grupo completo
+                        const headerHtml = `
+                        <tr class="group-header" data-group-name="${mgr.company_name}" style="background: rgba(248,250,252,0.5); font-weight:600; color:var(--text-secondary);">
+                            <td colspan="4"><i class="ph-bold ph-buildings"></i> ${mgr.company_name}</td>
+                        </tr>`;
+
+                        // Append to end (New Group)
+                        tbody.insertAdjacentHTML('beforeend', headerHtml + newRowHtml);
+                    }
                 }
 
                 document.getElementById('createManagerCard').style.display = 'none';
@@ -744,7 +751,7 @@
         e.preventDefault();
         const btn = document.getElementById('btnUpdateManager');
         btn.disabled = true; btn.innerHTML = 'Salvando...';
-        
+
         // [FIX] Explicitly ignore password if empty (logic handled in backend, but frontend clean)
         const pw = document.getElementById('edit_manager_password').value;
         if (!pw || pw.trim() === '') {

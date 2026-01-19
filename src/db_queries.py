@@ -113,9 +113,7 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
             InspectionStatus.PENDING_VERIFICATION,
             InspectionStatus.COMPLETED,
             InspectionStatus.WAITING_APPROVAL,
-            InspectionStatus.WAITING_APPROVAL,
             InspectionStatus.PENDING_MANAGER_REVIEW,
-            InspectionStatus.FAILED,
             InspectionStatus.REJECTED
         ]
         
@@ -129,28 +127,15 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
             query = query.filter(Inspection.establishment_id == establishment_id)
         
         # [SECURITY] Filter by allowed establishments (Consultant Scope)
-        # Fix: Allow seeing all Company inspections to support "New Stores" auto-created
-        if allowed_establishment_ids is not None or company_id:
+        # [FIX] Simplificar lógica - se temos establishment_ids, filtrar diretamente
+        elif allowed_establishment_ids is not None and len(allowed_establishment_ids) > 0:
+            # Consultor só vê inspeções dos estabelecimentos dele
+            query = query.filter(Inspection.establishment_id.in_(allowed_establishment_ids))
+        elif company_id:
+            # Fallback: Se não tem establishment_ids mas tem company_id, filtrar por company
             from sqlalchemy import or_
-            query = query.outerjoin(Inspection.establishment)
-            
-            conditions = []
-            if allowed_establishment_ids:
-                conditions.append(Inspection.establishment_id.in_(allowed_establishment_ids))
-            
-            if company_id:
-                 # Logic: If item is PENDING_MANAGER_REVIEW, it might not be linked to Est properly yet
-                 # But if it belongs to the Company, let Consultant see it (read-only usually)
-                 conditions.append(Establishment.company_id == company_id)
-                 
-                 # Also allow if inspection has NO establishment but created_by matches company scope? 
-                 # Harder query. For now, trusting Establishment.company_id link.
-            
-            if conditions:
-                query = query.filter(or_(*conditions))
-        
-        # Ensure PENDING_MANAGER_REVIEW is included if not explicitly filtered out
-        # (Already handled by 'status' param default in controller, but good to ensure here)
+            query = query.join(Inspection.establishment)
+            query = query.filter(Establishment.company_id == company_id)
         
         inspections = query.order_by(Inspection.created_at.desc()).limit(50).all()
         
@@ -173,10 +158,12 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
         # session.close()
         return result
     except Exception as e:
+        logger.error(f"❌ ERRO em get_consultant_inspections: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         if 'session' in locals():
             session.rollback()
             # session.close()
-            pass
         return []
 
 def get_consultant_pending_inspections(establishment_id=None, company_id=None, establishment_ids=None):
