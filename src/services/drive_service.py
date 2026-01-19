@@ -334,15 +334,12 @@ class DriveService:
             logger.error(f"Error listing changes: {e}")
             return [], None
 
-    def watch_global_changes(self, callback_url, channel_id, token, expiration=None):
+    def watch_global_changes(self, callback_url, channel_id, token, page_token, expiration=None):
         """
         Monitora TODAS as mudanças no Drive (Global Webhook).
+        Requires page_token to define start point.
         """
         if not self.service: return None
-        
-        # Obter startPageToken é vital para não receber histórico antigo, 
-        # mas aqui registramos o canal. O token de paginação deve ser salvo no APP para uso na leitura.
-        # O Watch em si não precisa do pageToken, mas a leitura subsequente sim.
         
         body = {
             "id": channel_id,
@@ -355,18 +352,11 @@ class DriveService:
 
         try:
             with self.lock:
-                # changes().watch() não recebe fileId
                 return self.service.changes().watch(
                     body=body,
                     supportsAllDrives=True,
                     includeItemsFromAllDrives=True,
-                    # pageToken=... # Optional: Watch from specific point? usually fetching start token is separate.
-                    # Warning: If we don't pass pageToken here, it might start from "now".
-                    # API Docs: "pageToken: The token for continuing a previous list request on the next page. This should be set to the value of 'nextPageToken' from the previous response." 
-                    # For Watch: "The token for continuing a previous list request...". 
-                    # We usually getStartPageToken first and pass it here to define the validity of the channel?
-                    # Actually, changes.watch is just meant to trigger calls. 
-                    # The app must maintain its own state (last known token).
+                    pageToken=page_token
                 ).execute()
         except Exception as e:
             logger.error(f"Error watching global changes: {e}")
