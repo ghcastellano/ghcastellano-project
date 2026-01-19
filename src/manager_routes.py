@@ -216,6 +216,7 @@ def create_consultant():
         
         db.add(user)
         db.commit()
+        db.refresh(user) # Recarrega para garantir relacionamentos M2M
         
         msg = f'Consultor criado com {len(establishments_to_assign)} estabelecimentos! Senha: {temp_pass}'
         

@@ -230,6 +230,7 @@ def create_manager():
         )
         db.add(user)
         db.commit()
+        db.refresh(user) # Recarrega para garantir relacionamentos
         
         # Helper for response
         company_name = user.company.name if user.company else 'Sem Empresa'

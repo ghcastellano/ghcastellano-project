@@ -139,14 +139,18 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
                 conditions.append(Inspection.establishment_id.in_(allowed_establishment_ids))
             
             if company_id:
+                 # Logic: If item is PENDING_MANAGER_REVIEW, it might not be linked to Est properly yet
+                 # But if it belongs to the Company, let Consultant see it (read-only usually)
                  conditions.append(Establishment.company_id == company_id)
-                 # Also allow processing items (NULL establishment) if we could link them, but proper link is hard.
-                 # For now, Company Check covers the "New Store" case.
+                 
+                 # Also allow if inspection has NO establishment but created_by matches company scope? 
+                 # Harder query. For now, trusting Establishment.company_id link.
             
             if conditions:
                 query = query.filter(or_(*conditions))
         
-        # elif company_id: ... (Removed/Merged above)
+        # Ensure PENDING_MANAGER_REVIEW is included if not explicitly filtered out
+        # (Already handled by 'status' param default in controller, but good to ensure here)
         
         inspections = query.order_by(Inspection.created_at.desc()).limit(50).all()
         

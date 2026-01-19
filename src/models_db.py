@@ -335,17 +335,33 @@ class ActionPlanItem(Base):
     def item_verificado(self):
         return self.problem_description
 
+    @item_verificado.setter
+    def item_verificado(self, value):
+        self.problem_description = value
+
     @property
     def fundamento_legal(self):
         return self.legal_basis
+
+    @fundamento_legal.setter
+    def fundamento_legal(self, value):
+        self.legal_basis = value
 
     @property
     def acao_corretiva_sugerida(self):
         return self.corrective_action
 
+    @acao_corretiva_sugerida.setter
+    def acao_corretiva_sugerida(self, value):
+        self.corrective_action = value
+
     @property
     def prazo_sugerido(self):
         return self.ai_suggested_deadline
+
+    @prazo_sugerido.setter
+    def prazo_sugerido(self, value):
+        self.ai_suggested_deadline = value
 
     # Relacionamento Reverso
     action_plan: Mapped["ActionPlan"] = relationship(back_populates="items")
