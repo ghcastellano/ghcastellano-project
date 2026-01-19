@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional, List
 import uuid
 
-from sqlalchemy import String, Boolean, ForeignKey, Index, Text, Date, TIMESTAMP
+from sqlalchemy import String, Boolean, ForeignKey, Index, Text, Date, TIMESTAMP, Integer
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
@@ -63,7 +63,7 @@ class Company(Base):
     cnpj: Mapped[Optional[str]] = mapped_column(String, unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
-    drive_folder_id: Mapped[Optional[str]] = mapped_column(String) # [NEW] Folder ID for Hierarchy
+    drive_folder_id: Mapped[Optional[str]] = mapped_column(String) # [NOVO] ID da Pasta para Hierarquia
 
     # Relacionamentos
     # establishments (Removido: Company não possui relacionamento direto com Establishment na nova regra)
@@ -74,8 +74,8 @@ class Establishment(Base):
     __tablename__ = "establishments"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # company_id mapping REMOVED (Decoupled)
-    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("companies.id"), nullable=True, index=True) # Added Index
+    # company_id mapeamento REMOVIDO (Desacoplado)
+    company_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("companies.id"), nullable=True, index=True) # Indice Adicionado
     # Melhor remover a obrigatoriedade da FK se o user pediu "não tem relacionamento".
     # Vou deixar nullable caso precisemos migrar dados, mas a lógica da app vai ignorar.
     
@@ -83,9 +83,9 @@ class Establishment(Base):
     code: Mapped[Optional[str]] = mapped_column(String) # Código interno ou identificador
     drive_folder_id: Mapped[Optional[str]] = mapped_column(String) # Pasta específica deste estabelecimento
     
-    # Novos campos V5 (WhatsApp Integration)
+    # Novos campos V5 (Integracao WhatsApp)
     responsible_name: Mapped[Optional[str]] = mapped_column(String)
-    responsible_email: Mapped[Optional[str]] = mapped_column(String) # [NEW] Added for responsible email
+    responsible_email: Mapped[Optional[str]] = mapped_column(String) # [NOVO] Adicionado para email do responsavel
     responsible_phone: Mapped[Optional[str]] = mapped_column(String)
     
     # Relacionamento com Contatos (1:N)
@@ -220,7 +220,7 @@ class Inspection(Base):
     @property
     def area_results(self):
         """
-        Aggregates action items by sector to match PydanticAreaInspecao structure.
+        Agrega itens de ação por setor para corresponder à estrutura PydanticAreaInspecao.
         """
         if not self.action_plan or not self.action_plan.items:
             return []
@@ -230,9 +230,10 @@ class Inspection(Base):
             sector = item.sector or "Geral"
             if sector not in areas:
                 areas[sector] = {
-                    'id': str(uuid.uuid4()), # Temporary ID for UI toggles
+                    'id': str(uuid.uuid4()), # ID temporario para toggles da UI
                     'nome_area': sector,
-                    'notes': "Visualização Agrupada", # TODO: Store per-area notes in JSON
+                    'notes': "Visualização Agrupada", # TODO: Armazenar notas por area no JSON
+
                     'score_obtido': 0, # Not strictly tracked per area in V1 yet
                     'score_maximo': 0,
                     'aproveitamento': None,
@@ -254,27 +255,27 @@ class Inspection(Base):
     @property
     def action_items(self):
         """
-        Returns flat list of items with new properties expected by template.
+        Retorna lista plana de itens com novas propriedades esperadas pelo template.
         """
         if not self.action_plan:
             return []
         
         enriched_items = []
         for item in self.action_plan.items:
-            # Map DB fields to Template expected fields
+            # Mapeia campos do BD para campos esperados pelo Template
             item.item_verificado = item.problem_description
-            item.status_inicial = "Não Conforme" # For now, assuming all items in ActionPlan are NCs. 
-            # If we store 'Conforme' items, we need a way to distinguish. 
-            # Current logic only creates items for NCs.
+            item.status_inicial = "Não Conforme" # Por enquanto, assumindo que todos itens no Plano são NCs.
+            # Se armazenarmos itens 'Conforme', precisamos distinguir.
+            # Logica atual so cria itens para NCs.
             
             item.acao_corretiva = item.corrective_action
             item.prazo_sugerido = item.deadline_date.strftime('%d/%m/%Y') if item.deadline_date else (item.ai_suggested_deadline or "N/A")
             item.fundamento_legal = item.legal_basis or "N/A"
             item.nome_area = item.sector or "Geral"
             
-            # Follow-up status
+            # Status de acompanhamento
             item.status_atual = "Corrigido" if item.status == "RESOLVED" else "Pendente"
-            item.correction_date = None # We don't track WHEN it was corrected exactly yet, maybe add field?
+            item.correction_date = None # Nao rastreamos QUANDO foi corrigido exatamente ainda, talvez adicionar campo?
             item.correction_notes = item.manager_notes
             
             enriched_items.append(item)
@@ -282,9 +283,9 @@ class Inspection(Base):
 
     @property
     def has_been_updated(self):
-        # Logic: If any item has a status change or specific flag. 
-        # For layout demo: False (shows format form)
-        return False # MVP: Always show form for now, or check if any item is RESOLVED?
+        # Logica: Se algum item tem mudança de status ou flag especifica.
+        # Para demo de layout: False (mostra formulario formatado)
+        return False # MVP: Sempre mostrar form por enquanto, ou checar se algum item está RESOLVED?
 
 class ActionPlan(Base):
     __tablename__ = "action_plans"
@@ -298,10 +299,10 @@ class ActionPlan(Base):
     approved_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     approved_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     
-    # Rich Content (Added in Migration V11)
+    # Conteudo Rico (Adicionado na Migracao V11)
     summary_text: Mapped[Optional[str]] = mapped_column(Text)
     strengths_text: Mapped[Optional[str]] = mapped_column(Text)
-    stats_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True) # Added V11
+    stats_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True) # Adicionado V11
 
     # Relacionamentos
     inspection: Mapped["Inspection"] = relationship(back_populates="action_plan")
@@ -321,12 +322,30 @@ class ActionPlanItem(Base):
     
     severity: Mapped[SeverityLevel] = mapped_column(default=SeverityLevel.MEDIUM)
     status: Mapped[ActionPlanItemStatus] = mapped_column(default=ActionPlanItemStatus.OPEN)
-    ai_suggested_deadline: Mapped[Optional[str]] = mapped_column(String) # POC compatibility
+    ai_suggested_deadline: Mapped[Optional[str]] = mapped_column(String) # Compatibilidade POC
     
-    sector: Mapped[Optional[str]] = mapped_column(Text) # V14 Grouping
+    sector: Mapped[Optional[str]] = mapped_column(Text) # V14 Agrupamento
+    order_index: Mapped[Optional[int]] = mapped_column(Integer) # V15 Ordem de Classificacao
     
     manager_notes: Mapped[Optional[str]] = mapped_column(Text) # Notas do gestor
     evidence_image_url: Mapped[Optional[str]] = mapped_column(String) # URL da evidência (Cloud Storage)
+
+    # --- Propriedades para Compatibilidade Legada (PDF/Dashboard) ---
+    @property
+    def item_verificado(self):
+        return self.problem_description
+
+    @property
+    def fundamento_legal(self):
+        return self.legal_basis
+
+    @property
+    def acao_corretiva_sugerida(self):
+        return self.corrective_action
+
+    @property
+    def prazo_sugerido(self):
+        return self.ai_suggested_deadline
 
     # Relacionamento Reverso
     action_plan: Mapped["ActionPlan"] = relationship(back_populates="items")

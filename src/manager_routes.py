@@ -540,7 +540,8 @@ def edit_plan(file_id):
                         corrective_action=item.get('acao_corretiva', 'N/A'),
                         legal_basis=item.get('base_legal'),
                         severity=severity,
-                        status=ActionPlanItemStatus.OPEN
+                        status=ActionPlanItemStatus.OPEN,
+                        order_index=i # [FIX] Save explicit order from JSON
                     )
                     db.add(db_item)
                 
@@ -643,7 +644,11 @@ def edit_plan(file_id):
                     rebuilt_areas[area['nome_area']] = area
                     area['itens'] = [] # Clear JSON items, we will fill with DB items
 
-            db_items = sorted(inspection.action_items, key=lambda i: i.created_at or i.id) # [FIX] Stable Sort
+            # [FIX] Stable Sort by Order Index (if present) then UUID
+            db_items = sorted(
+                inspection.action_items, 
+                key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
+            )
             # Note: action_items is a property returning list, so we sort it here.
             
             for item in db_items:
@@ -665,14 +670,22 @@ def edit_plan(file_id):
                 key = (item.item_verificado or "").strip()[:50]
                 recovered_score = score_map.get(key, 0)
                 
+                # Logic to prefer Saved Deadline over AI Suggestion
+                deadline_display = item.prazo_sugerido
+                if item.deadline_date:
+                    try:
+                        deadline_display = item.deadline_date.strftime('%d/%m/%Y')
+                    except:
+                        pass
+                
                 template_item = {
                     'id': str(item.id),
                     'item_verificado': item.item_verificado,
                     'status': 'Não Conforme', 
                     'observacao': item.problem_description,
                     'fundamento_legal': item.fundamento_legal,
-                    'acao_corretiva_sugerida': item.acao_corretiva,
-                    'prazo_sugerido': item.prazo_sugerido,
+                    'acao_corretiva_sugerida': item.corrective_action,
+                    'prazo_sugerido': deadline_display, # Now reflects saved data
                     'pontuacao': recovered_score # Injected from JSON map
                 }
                 rebuilt_areas[area_name]['itens'].append(template_item)
@@ -808,10 +821,11 @@ def save_plan(file_id):
                 if item_data.get('deadline'):
                      try:
                         deadline = datetime.strptime(item_data.get('deadline'), '%Y-%m-%d').date()
-                     except:
+                     except ValueError as e1:
                         try:
                              deadline = datetime.strptime(item_data.get('deadline'), '%d/%m/%Y').date()
-                        except:
+                        except ValueError as e2:
+                             print(f"❌ Failed to parse deadline '{item_data.get('deadline')}': {e1}, {e2}")
                              pass
 
                 new_item = ActionPlanItem(
@@ -821,7 +835,8 @@ def save_plan(file_id):
                     legal_basis=item_data.get('legal_basis'),
                     severity=SeverityLevel(item_data.get('severity', 'MEDIUM')) if item_data.get('severity') in SeverityLevel._member_names_ else SeverityLevel.MEDIUM,
                     status=ActionPlanItemStatus.OPEN,
-                    deadline_date=deadline
+                    deadline_date=deadline,
+                    order_index=len(plan.items) # [FIX] Append at end
                 )
                 db.add(new_item)
         

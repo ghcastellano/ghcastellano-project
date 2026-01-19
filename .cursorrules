@@ -1,0 +1,13 @@
+# REGRAS DO PROJETO
+
+## 1. Idioma
+- **TUDO EM PORTUGUÊS**: Todos os comentários de código, logs, mensagens de commit, documentação e nomes de variáveis (sempre que possível/sensato) devem estar em Português do Brasil (pt-BR).
+- **Sem exceções**: Mesmo "thinking" ou notas de rascunho.
+
+## 2. Padrão de Commit
+- Use verbos no imperativo ou infinitivo.
+- Exemplo: "corrigir: erro na geração de PDF", "adicionar: nova rota de dashboard".
+
+## 3. Logs
+- Logs devem ser claros e em português para facilitar depuração por brasileiros.
+- Ex: `logging.info("Iniciando processamento...")`

@@ -64,7 +64,7 @@ from src.services.storage_service import storage_service
 app.secret_key = os.getenv('SECRET_KEY')
 if not app.secret_key:
     # Fallback ONLY if ENV is missing (prevents 500 Error in Prod if Setup fails)
-    logger.warning("⚠️ SECRET_KEY not found in environment. Generating random key (Sessions will invalidate on restart).")
+    logger.warning("⚠️ SECRET_KEY não encontrada no ambiente. Gerando chave aleatória (Sessões serão invalidadas ao reiniciar).")
     import secrets
     app.secret_key = secrets.token_hex(32)
     
@@ -92,7 +92,7 @@ logger.info("🔧 Carregando Blueprints...")
 # Dev Mode Blueprint (Mock Data)
 from src.dev_routes import dev_bp
 app.register_blueprint(dev_bp)
-logger.info("🛠️ Dev Routes registered at /dev")
+logger.info("🛠️ Rotas de Dev registradas em /dev")
 try:
     from src.auth import auth_bp
     from src.admin_routes import admin_bp
@@ -498,16 +498,16 @@ def upload_file():
                         id_drive, link_drive = drive_service.upload_file(caminho_temp, pasta_id, file.filename)
                     except Exception as e:
                         if "quota" in str(e).lower() or "403" in str(e) or "storage" in str(e).lower():
-                            logger.warning(f"⚠️ Drive Quota Error via API. Falling back to Alternate Storage for {file.filename}")
+                            logger.warning(f"⚠️ Erro de Cota do Drive via API. Usando Armazenamento Alternativo para {file.filename}")
                             # Fallback to GCS / Local
                             try:
                                 link_drive = storage_service.upload_file(file, "evidence", file.filename)
                                 # Generate a "Fake" ID that indicates GCS/Local source
                                 # Processor will see "gcs:" prefix and use storage_service.download_file
                                 id_drive = f"gcs:{file.filename}"
-                                logger.info(f"✅ Fallback Upload Success: {id_drive}")
+                                logger.info(f"✅ Sucesso no Upload Alternativo: {id_drive}")
                             except Exception as store_e:
-                                logger.error(f"❌ Fallback Upload Failed: {store_e}")
+                                logger.error(f"❌ Falha no Upload Alternativo: {store_e}")
                                 raise e # Raise original error if fallback also fails
                         else:
                             raise e
@@ -750,12 +750,12 @@ def get_status():
                     })
                 else:
                     # Banco vazio/falhou, usa Drive
-                    logger.info("Database returned None, falling back to Drive")
+                    logger.info("Banco de dados retornou None, buscando no Drive")
             except Exception as e:
-                logger.warning(f"Database query failed, falling back to Drive: {e}")
+                logger.warning(f"Falha na consulta ao Banco, buscando no Drive: {e}")
         
     except Exception as fatal_e:
-        logger.error(f"FATAL ERROR in /api/status: {fatal_e}")
+        logger.error(f"ERRO FATAL em /api/status: {fatal_e}")
         return jsonify({'error': str(fatal_e)}), 500
 
     # Lógica original baseada no Drive (fallback)
@@ -806,7 +806,7 @@ def get_processed_item_details(file_id):
                 return jsonify(details)
             # If not found in DB, try Drive fallback
         except Exception as e:
-            logger.warning(f"Database query failed for {file_id}, falling back to Drive: {e}")
+            logger.warning(f"Falha na consulta ao Banco para {file_id}, buscando no Drive: {e}")
         
     # Lógica original baseada no Drive (fallback)
     try:
@@ -907,7 +907,7 @@ def download_pdf_route(json_id):
                 if pdf_files:
                     pdf_id = pdf_files[0]['id']
                 else:
-                    logger.warning(f"PDF Fuzzy not found for {json_id}")
+                    logger.warning(f"PDF Fuzzy não encontrado para {json_id}")
                     return "PDF não encontrado (Fuzzy)", 404
             else:
                 return "PDF não encontrado", 404
@@ -959,6 +959,63 @@ def review_page(file_id):
                     items_in_area = area.get('itens', [])
                     # Count items where status is NOT 'Conforme'
                     area['items_nc'] = sum(1 for item in items_in_area if item.get('status') != 'Conforme')
+            
+            # [FIX] Rebuild Items from DB (Sorted) to ensure consistency with Manager View
+            if inspection.action_plan.items:
+                # 1. Map existing JSON areas for scores/stats
+                rebuilt_areas = {}
+                if 'areas_inspecionadas' in data:
+                    for area in data['areas_inspecionadas']:
+                        # Use normalized name as key
+                        key = area.get('nome_area') or area.get('name')
+                        if key:
+                            rebuilt_areas[key] = area
+                            area['itens'] = [] # Clear items to refill from DB
+
+                # 2. Sort DB Items by Order Index
+                db_items = sorted(
+                    inspection.action_items, 
+                    key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
+                )
+
+                # 3. Populate
+                for item in db_items:
+                    area_name = item.nome_area or "Geral"
+                    
+                    # Create area if missing (unlikely if synced, but safe)
+                    if area_name not in rebuilt_areas:
+                         rebuilt_areas[area_name] = {
+                             'nome_area': area_name, 
+                             'itens': [], 
+                             'items_nc': 0,
+                             'pontuacao_obtida': 0,
+                             'pontuacao_maxima': 0,
+                             'aproveitamento': 0
+                         }
+                    
+                    # Formatting
+                    deadline_display = item.prazo_sugerido
+                    if item.deadline_date:
+                        try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
+                        except: pass
+
+                    rebuilt_areas[area_name]['itens'].append({
+                        'id': str(item.id),
+                        'item_verificado': item.item_verificado,
+                        'status': 'Não Conforme', 
+                        'observacao': item.problem_description,
+                        'fundamento_legal': item.fundamento_legal,
+                        'acao_corretiva_sugerida': item.corrective_action,
+                        'prazo_sugerido': deadline_display,
+                        'pontuacao': 0 
+                    })
+                    
+                # 4. Recalculate NC counts
+                for area in rebuilt_areas.values():
+                    area['items_nc'] = len(area['itens'])
+
+                # 5. Save back to data used by template
+                data['areas_inspecionadas'] = list(rebuilt_areas.values())
             
             # Contacts (for Email Modal)
             if inspection.establishment:
@@ -1040,7 +1097,7 @@ def share_plan(file_id):
              
              return redirect(wa_link)
         except Exception as e:
-             logger.error(f"Share GET Error: {e}")
+             logger.error(f"Erro GET em Compartilhamento: {e}")
              return f"Erro ao gerar link de compartilhamento: {e}", 500
 
     return _handle_service_call(file_id, is_approval=False)
@@ -1096,7 +1153,7 @@ def email_plan(file_id):
         
         return jsonify({'error': 'Serviço de email indisponível.'}), 500
     except Exception as e:
-        logger.error(f"Email share error: {e}")
+        logger.error(f"Erro no compartilhamento por email: {e}")
         return jsonify({'error': str(e)}), 500
 
 def _handle_service_call(file_id, is_approval):
@@ -1376,6 +1433,15 @@ def renew_webhook():
         from src import database
         import uuid
         
+        # [FIX] Run migration lazily because __main__ block doesn't run in Gunicorn
+        try:
+            from scripts.migration_app_config import create_app_config_table
+            create_app_config_table()
+            logger.info("✅ AppConfig Migration Verified")
+        except Exception as mig_err:
+            logger.warning(f"⚠️ Migration Check Failed: {mig_err}")
+            return jsonify({'error': f'Migration Failed: {mig_err}'}), 500
+
         callback_url = os.getenv("APP_PUBLIC_URL") 
         if not callback_url:
             return jsonify({'error': 'APP_PUBLIC_URL environment variable not set'}), 500
