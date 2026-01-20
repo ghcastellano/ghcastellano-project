@@ -1304,10 +1304,24 @@ def download_revised_pdf(file_id):
                     'prazo_sugerido': deadline_str
                 })
             
+            # Recuperar estatísticas por setor para preencher aproveitamento
+            sector_stats = data.get('detalhe_pontuacao', {})
+
             for area_name, items in areas_map.items():
+                # Tenta pegar estatísticas da área pre-calculadas
+                # O formato pode variar, então tratamos com segurança
+                aprov_area = 0
+                if isinstance(sector_stats, dict):
+                    s_stat = sector_stats.get(area_name)
+                    if isinstance(s_stat, dict):
+                        aprov_area = s_stat.get('percentage', 0)
+                    elif isinstance(s_stat, (int, float)): # Caso simplificado
+                        aprov_area = s_stat
+                
                 data['areas_inspecionadas'].append({
                     'nome_area': area_name,
-                    'itens': items
+                    'itens': items,
+                    'aproveitamento': aprov_area # [FIX] Adicionado para evitar erro no template
                 })
         else:
             # Fallback to Drive
