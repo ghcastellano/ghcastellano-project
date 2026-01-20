@@ -92,6 +92,31 @@ class ApprovalService:
             est_name = json_data.get('estabelecimento')
             
             # Generate PDF
+            
+            # [FIX] Polyfill Data to prevent AttributeError in PDF Generation
+            # Ensure 'aproveitamento' exists in inspection areas
+            if 'areas_inspecionadas' in json_data:
+                # Try to get sector stats if available
+                sector_stats = json_data.get('detalhe_pontuacao', {})
+                
+                for area in json_data['areas_inspecionadas']:
+                    if 'aproveitamento' not in area:
+                        # Fallback logic: Try to get from stats or default to 0
+                        aprov = 0
+                        area_name = area.get('nome_area')
+                        
+                        if isinstance(sector_stats, dict) and area_name:
+                             s_stat = sector_stats.get(area_name)
+                             if isinstance(s_stat, dict):
+                                 aprov = s_stat.get('percentage', 0)
+                             elif isinstance(s_stat, (int, float)):
+                                 aprov = s_stat
+                        
+                        area['aproveitamento'] = aprov
+
+            if 'aproveitamento_geral' not in json_data:
+                 json_data['aproveitamento_geral'] = 0
+
             pdf_bytes = pdf_service.generate_pdf_bytes(json_data)
             date_str = json_data.get('data_inspecao', '').replace('/', '-')
             filename = f"Plano_Acao_{est_name.replace(' ', '_')}_{date_str}.pdf"
