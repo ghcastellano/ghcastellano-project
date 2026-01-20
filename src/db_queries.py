@@ -14,10 +14,14 @@ def get_pending_inspections(establishment_id=None):
     """Busca inspeções com status PROCESSING do banco de dados."""
     try:
         session = database.db_session()
+        from datetime import datetime, timedelta
+        cutoff = datetime.utcnow() - timedelta(hours=2)
+
         query = session.query(Inspection).options(
             joinedload(Inspection.establishment)
         ).filter(
-            Inspection.status == InspectionStatus.PROCESSING
+            Inspection.status == InspectionStatus.PROCESSING,
+            Inspection.created_at >= cutoff
         )
         
         if establishment_id:

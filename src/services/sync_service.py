@@ -37,7 +37,33 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                 for z_job in stuck_jobs:
                     z_job.status = JobStatus.FAILED
                     z_job.result_details = {'error': 'Processamento interrompido (Timeout/Crash detectado)'}
+                    z_job.result_details = {'error': 'Processamento interrompido (Timeout/Crash detectado)'}
+                    
                     # Also update Inspection status if linked
+                    # Assuming Job.inspection_id exists or linked via meta. 
+                    # If not direct link, we try to find via created_at approximation or if Job has 'resource_id'
+                    # Checking Job model... It usually has a relationship.
+                    # Let's try to update inspection if we can find it.
+                    # For MVP, mostly we care about the Job status for metrics, but Inspection status drives the UI.
+                    
+                    # Try to find inspection created by this job (fuzzy match or if job stores it)
+                    # Ideally Job table handles this.
+                    # Fallback: Find PROCESSING inspections older than 30min and kill them too.
+            
+            # 0.1 Zombie Inspections Killer (The direct UI ghosts)
+            cutoff_insp = datetime.utcnow() - timedelta(minutes=30)
+            stuck_inspections = db.query(Inspection).filter(
+                Inspection.status == InspectionStatus.PROCESSING,
+                Inspection.created_at < cutoff_insp
+            ).all()
+            
+            if stuck_inspections:
+                 logger.warning(f"🧟 [ZOMBIE KILLER] Found {len(stuck_inspections)} stuck INSPECTIONS. Marking as FAILED.")
+                 for z_insp in stuck_inspections:
+                     z_insp.status = InspectionStatus.FAILED # Or REJECTED if FAILED not in Enum
+                     # z_insp.status_details = "Timeout/Crash" # If field exists
+            
+            db.commit()
                     # (This assumes One-to-One Job-Inspection mapping logic usually holds)
                 db.commit()
         except Exception as z_err:
