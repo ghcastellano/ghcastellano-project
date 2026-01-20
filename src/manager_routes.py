@@ -692,12 +692,12 @@ def edit_plan(file_id):
                 template_item = {
                     'id': str(item.id),
                     'item_verificado': item.item_verificado,
-                    'status': 'Não Conforme', 
+                    'status': item.status_inicial or 'Não Conforme', 
                     'observacao': item.problem_description,
                     'fundamento_legal': item.fundamento_legal,
                     'acao_corretiva_sugerida': item.corrective_action,
                     'prazo_sugerido': deadline_display, # Now reflects saved data
-                    'pontuacao': recovered_score # Injected from JSON map
+                    'pontuacao': item.original_score if item.original_score is not None else recovered_score # Injected from JSON map
                 }
                 rebuilt_areas[area_name]['itens'].append(template_item)
             

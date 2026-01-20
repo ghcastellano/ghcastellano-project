@@ -819,11 +819,11 @@
                             : `<span class="badge badge-warning" style="opacity: 0.7;">Detectando...</span>`
                         }
                            </td>
-                           <td>
-                                <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Detalhes">${item.status}</span>
+                            <td>
+                                <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Detalhes">${translate(item.status)}</span>
 </td>
 <td style="font-size: 0.85em;">
-    <div style="font-weight: 600; color: var(--text-primary);">${item.stage}</div>
+    <div style="font-weight: 600; color: var(--text-primary);">${translate(item.stage)}</div>
     <div style="color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
         title="${item.message}">
         ${item.message}
@@ -855,6 +855,31 @@
     <td colspan="7" class="text-center text-danger">Erro de conexão: ${err.message}</td>
 </tr>`;
         }
+    }
+
+    const TRANSLATIONS = {
+        'APPROVED': 'APROVADO',
+        'WAITING_APPROVAL': 'AGUARDANDO APROVAÇÃO',
+        'PENDING_MANAGER_REVIEW': 'PENDENTE REVISÃO',
+        'PROCESSING': 'PROCESSANDO',
+        'COMPLETED': 'CONCLUÍDO',
+        'REJECTED': 'REJEITADO',
+        'FAILED': 'FALHA',
+        'PENDING_VERIFICATION': 'EM VERIFICAÇÃO',
+        'upload': 'Upload',
+        'ai_process': 'Processamento IA',
+        'db_save': 'Salvando DB',
+        'plan_gen': 'Gerando Plano',
+        'analysis': 'Análise',
+        'manager_review': 'Revisão Gestor',
+        'consultant_check': 'Visita Consultor',
+        'finished': 'Finalizado'
+    };
+
+    function translate(text) {
+        if (!text) return '';
+        const upper = text.toUpperCase();
+        return TRANSLATIONS[text] || TRANSLATIONS[upper] || text.replace(/_/g, ' ');
     }
 
     function getStatusColor(status) {

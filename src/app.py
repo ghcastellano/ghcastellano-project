@@ -1296,12 +1296,13 @@ def download_revised_pdf(file_id):
                     deadline_str = item.ai_suggested_deadline
 
                 areas_map[area_name].append({
-                    'item_verificado': item.item_verificado, # [FIX] Use Item Name, not problem
-                    'status': item.status.value if hasattr(item.status, 'value') else str(item.status),
+                    'item_verificado': item.item_verificado,
+                    'status': item.original_status if item.original_status else (item.status.value if hasattr(item.status, 'value') else str(item.status)),
                     'observacao': item.problem_description,
-                    'fundamento_legal': item.fundamento_legal,
+                    'fundamento_legal': item.fundamento_legal or "Não informado",
                     'acao_corretiva_sugerida': item.corrective_action,
-                    'prazo_sugerido': deadline_str
+                    'prazo_sugerido': deadline_str,
+                    'pontuacao': item.original_score if item.original_score is not None else 0
                 })
             
             # Recuperar estatísticas por setor para preencher aproveitamento
@@ -1338,6 +1339,10 @@ def download_revised_pdf(file_id):
         filename = f"Plano_Revisado_{data.get('nome_estabelecimento', 'Relatorio').replace(' ', '_')}.pdf"
         
         # [FIX] Usar make_response para compatibilidade e evitar arquivo corrompido
+        response = make_response(pdf_bytes)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+        return response
         response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'

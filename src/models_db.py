@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional, List
 import uuid
 
-from sqlalchemy import String, Boolean, ForeignKey, Index, Text, Date, TIMESTAMP, Integer
+from sqlalchemy import String, Boolean, ForeignKey, Index, Text, Date, TIMESTAMP, Integer, Float
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
@@ -264,7 +264,12 @@ class Inspection(Base):
         for item in self.action_plan.items:
             # Mapeia campos do BD para campos esperados pelo Template
             item.item_verificado = item.problem_description
-            item.status_inicial = "Não Conforme" # Por enquanto, assumindo que todos itens no Plano são NCs.
+            item.item_verificado = item.problem_description
+            
+            # [V16] Use original AI status if available, fallback to legacy hardcoded NC
+            item.status_inicial = item.original_status or "Não Conforme"
+            item.original_score = item.original_score # Propagate score to template
+            
             # Se armazenarmos itens 'Conforme', precisamos distinguir.
             # Logica atual so cria itens para NCs.
             
@@ -326,6 +331,11 @@ class ActionPlanItem(Base):
     
     severity: Mapped[SeverityLevel] = mapped_column(default=SeverityLevel.MEDIUM)
     status: Mapped[ActionPlanItemStatus] = mapped_column(default=ActionPlanItemStatus.OPEN)
+    
+    # [V16] Metadados da IA (Parcialmente Conforme)
+    original_status: Mapped[Optional[str]] = mapped_column(String) 
+    original_score: Mapped[Optional[float]] = mapped_column(Float)
+
     ai_suggested_deadline: Mapped[Optional[str]] = mapped_column(String) # Sugestão original da IA
     deadline_text: Mapped[Optional[str]] = mapped_column(Text) # [ML-READY] Prazo textual editado pelo gestor
     

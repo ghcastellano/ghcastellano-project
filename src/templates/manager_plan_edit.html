@@ -45,11 +45,17 @@
 
     <!-- Standard Header -->
     <div class="row align-items-center mb-4">
-        <div class="col-md-8">
-            <h1 class="h3 mb-1 text-gray-800">Validação do Plano</h1>
-            <p class="text-muted mb-0">
-                {{ report_data.nome_estabelecimento }} • {{ report_data.data_inspecao }}
-            </p>
+        <div class="col-md-8 d-flex align-items-center">
+            <a href="{{ url_for('manager.dashboard_manager') if current_user.role == 'MANAGER' else url_for('root') }}"
+                class="btn btn-link text-decoration-none text-muted p-0 me-3">
+                <i class="ph-bold ph-arrow-left fa-lg"></i>
+            </a>
+            <div>
+                <h1 class="h3 mb-1 text-gray-800">Validação do Plano</h1>
+                <p class="text-muted mb-0">
+                    {{ report_data.nome_estabelecimento }} • {{ report_data.data_inspecao }}
+                </p>
+            </div>
         </div>
         <div class="col-md-4 text-end">
             <div class="card border-0 shadow-sm d-inline-block">
@@ -225,9 +231,11 @@
                         <i class="ph-bold ph-check me-2"></i> Plano Validado
                     </button>
                     {% else %}
+                    {% if current_user.role != 'CONSULTANT' %}
                     <button class="btn btn-primary px-4 fw-bold" onclick="approvePlan()" id="btn-approve">
                         <i class="ph-bold ph-check-circle me-2"></i> Aprovar Plano
                     </button>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>

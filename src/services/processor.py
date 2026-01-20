@@ -478,6 +478,11 @@ class ProcessorService:
                         sector=area.nome_area, # VITAL: Use Area Name as Sector
                         severity=severity,
                         status=status_db,
+                        
+                        # [V16] Persist AI Metadata
+                        original_status=item.status,
+                        original_score=item.pontuacao,
+
                         legal_basis=item.fundamento_legal,
                         corrective_action=item.acao_corretiva_sugerida,
                         ai_suggested_deadline=item.prazo_sugerido

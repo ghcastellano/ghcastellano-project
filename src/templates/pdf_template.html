@@ -283,14 +283,26 @@
 
                     <td class="status-cell"
                         style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center;">
-                        {% if item.status == 'Não Conforme' %}
-                        <div style="color: #e74a3b; font-weight: bold; font-size: 9pt;">NÃO CONFORME</div>
+                        {% if 'Não Conforme' in item.status %}
+                        <div style="color: #e74a3b; font-weight: bold; font-size: 9pt;">{{ item.status|upper }}</div>
+                        {% elif 'Parcial' in item.status %}
+                        <div style="color: #d97706; font-weight: bold; font-size: 9pt;">{{ item.status|upper }}</div>
                         {% else %}
-                        <div style="color: #f6c23e; font-weight: bold; font-size: 9pt;">PARCIAL</div>
+                        <div style="color: #4e73df; font-weight: bold; font-size: 9pt;">{{ item.status|upper }}</div>
+                        {% endif %}
+
+                        {% if item.pontuacao is defined and item.pontuacao is not none %}
+                        <div style="margin-top: 4px; font-size: 8pt; color: #666;">
+                            Nota: {{ item.pontuacao }}
+                        </div>
                         {% endif %}
                     </td>
 
                     <td class="plan-cell" style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top;">
+                        <div style="margin-bottom: 6px;">
+                            <span style="font-weight: bold; color: #555;">Lei/Norma:</span>
+                            <span style="font-style: italic;">{{ item.fundamento_legal or 'Não citado' }}</span>
+                        </div>
                         <div style="margin-bottom: 6px;">
                             <span style="font-weight: bold; color: #555;">Ação:</span> {{ item.acao_corretiva_sugerida
                             or 'Não definida' }}

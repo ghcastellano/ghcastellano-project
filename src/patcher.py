@@ -51,7 +51,11 @@ def run_auto_patch():
         # Table: jobs (Just in case)
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cost_tokens_input INTEGER DEFAULT 0",
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cost_tokens_output INTEGER DEFAULT 0",
-        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS finished_at TIMESTAMP"
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS finished_at TIMESTAMP",
+
+        # Table: action_plan_items (V16)
+        "ALTER TABLE action_plan_items ADD COLUMN IF NOT EXISTS original_status VARCHAR(50)",
+        "ALTER TABLE action_plan_items ADD COLUMN IF NOT EXISTS original_score FLOAT"
     ]
     
     try:
