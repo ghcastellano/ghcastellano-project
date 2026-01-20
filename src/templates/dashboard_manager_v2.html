@@ -1732,5 +1732,17 @@
     }
     // Expose
     window.openTracker = openTracker;
+    // [FIX] Scroll Function exposed globally
+    window.scrollToApprovals = function () {
+        console.log("Scrolling to approvals...");
+        const el = document.getElementById('tabela-planos');
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            el.classList.add('highlight-section');
+            setTimeout(() => el.classList.remove('highlight-section'), 2000);
+        } else {
+            console.warn("Elemento 'tabela-planos' não encontrado");
+        }
+    }
 </script>
 {% endblock %}
