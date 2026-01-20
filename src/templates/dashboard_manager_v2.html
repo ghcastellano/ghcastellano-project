@@ -818,12 +818,13 @@
     }
     window.openEditConsultant = openEditConsultant;
 
-    function openEditEst(id, name, code, respName, respPhone) {
+    function openEditEst(id, name, code, respName, respEmail, respPhone) {
         document.getElementById('editEstCard').style.display = 'block';
         document.getElementById('edit_est_id').value = id;
         document.getElementById('edit_est_name').value = name;
         document.getElementById('edit_est_code').value = code;
         document.getElementById('edit_est_resp_name').value = respName || '';
+        document.getElementById('edit_est_resp_email').value = respEmail || ''; // [FIX] Populate Email
         document.getElementById('edit_est_resp_phone').value = respPhone || '';
         window.scrollTo(0, 0);
     }
