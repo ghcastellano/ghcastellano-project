@@ -21,7 +21,28 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
     try:
         from src.config import config
         from src.models_db import Establishment, Company
-        
+        from datetime import datetime, timedelta
+
+        # 0. Zombie Killer: Fail stuck jobs (Auto-Recovery)
+        # Identifies jobs stuck in PROCESSING for > 30 minutes (likely crashed/timeout)
+        try:
+            cutoff = datetime.utcnow() - timedelta(minutes=30)
+            stuck_jobs = db.query(Job).filter(
+                Job.status == JobStatus.PROCESSING,
+                Job.created_at < cutoff
+            ).all()
+            
+            if stuck_jobs:
+                logger.warning(f"🧟 [ZOMBIE KILLER] Found {len(stuck_jobs)} stuck jobs. Marking as FAILED.")
+                for z_job in stuck_jobs:
+                    z_job.status = JobStatus.FAILED
+                    z_job.result_details = {'error': 'Processamento interrompido (Timeout/Crash detectado)'}
+                    # Also update Inspection status if linked
+                    # (This assumes One-to-One Job-Inspection mapping logic usually holds)
+                db.commit()
+        except Exception as z_err:
+             logger.error(f"Zombie Killer Error: {z_err}")
+
         # 1. Prepare
         processed_file_ids = {r[0] for r in db.query(Inspection.drive_file_id).all()}
         files_to_process = [] # List of tuples: (file_meta, establishment_id)
