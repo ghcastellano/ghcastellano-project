@@ -302,11 +302,8 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
     try:
         session = database.db_session()
         # Filter for active jobs
-        # Filter active jobs - Only show recent ones (last 24h) to avoid stuck ghosts
-        from datetime import datetime, timedelta
-        from src.models_db import Job, JobStatus
-        
-        cutoff = datetime.utcnow() - timedelta(hours=24)
+        # Filter active jobs - Only show recent ones (last 2h) to avoid stuck ghosts
+        cutoff = datetime.utcnow() - timedelta(hours=2) # [FIX] Reduced from 24h to hide ghosts
         query = session.query(Job).filter(
             Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.FAILED, JobStatus.COMPLETED]),
             Job.created_at >= cutoff

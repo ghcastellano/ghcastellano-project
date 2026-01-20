@@ -36,12 +36,19 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                 continue
                 
             est_files = drive_service.list_files(est.drive_folder_id, extension='.pdf')
+            logger.info(f"   📂 [SYNC] Loja '{est.name}': {len(est_files)} arquivos encontrados.")
+            
             for f in est_files:
                 if f['id'] not in processed_file_ids:
                     # Enqueue with Context
+                    logger.info(f"      🆕 Enfileirando: {f['name']} ({f['id']})")
                     files_to_process.append((f, est.id))
                     if len(files_to_process) >= limit:
                         break
+                else:
+                    # Debug log for ignored files (only show first 3 to avoid spam)
+                    pass 
+
             if len(files_to_process) >= limit:
                 break
 
