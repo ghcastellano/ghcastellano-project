@@ -56,9 +56,13 @@ class PDFService:
         Recalcula pontuações e traduz status para garantir PDF e Views completos.
         Público para ser usado por rotas de WEB também.
         """
+        """
         if not data:
+            logger.warning("Enrich Data received empty payload")
             return
             
+        logger.info(f"Enriching Data... Areas Count: {len(data.get('areas_inspecionadas', []))}")
+        
         if 'areas_inspecionadas' not in data:
             data['areas_inspecionadas'] = []
 

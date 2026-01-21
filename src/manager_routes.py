@@ -640,7 +640,11 @@ def edit_plan(file_id):
                     for item in area.get('itens', []):
                          # Normalize key: substring or full match
                          key = (item.get('observacao') or item.get('problema') or "").strip()[:50]
-                         score_map[key] = item.get('pontuacao', 0)
+                         # [FIX] Store both score and status for recovery
+                         score_map[key] = {
+                             'pontuacao': item.get('pontuacao', 0),
+                             'status': item.get('status')
+                         }
 
             # 3b. Group DB Items by Sector
             rebuilt_areas = {}
@@ -671,10 +675,13 @@ def edit_plan(file_id):
                         'itens': []
                     }
                 
-                # Recover Score
+                # Recover Score and Status from JSON
                 # Try validation using problem_description
                 key = (item.item_verificado or "").strip()[:50]
-                recovered_score = score_map.get(key, 0)
+                
+                raw_data = score_map.get(key, {})
+                recovered_score = raw_data.get('pontuacao', 0)
+                recovered_status = raw_data.get('status') # e.g. 'PARTIAL'
                 
                 # [ML-READY] Prioridade de exibição: deadline_text > deadline_date > ai_suggested_deadline
                 deadline_display = item.ai_suggested_deadline or "N/A"  # Fallback: Sugestão original da IA
@@ -693,7 +700,9 @@ def edit_plan(file_id):
                 template_item = {
                     'id': str(item.id),
                     'item_verificado': item.item_verificado,
-                    'status': item.status_inicial or 'Não Conforme', 
+                    # [VITAL FIX] Use Recovered Status from JSON if available (e.g. 'PARTIAL') 
+                    # This allows enrich_data to correctly translate and score it.
+                    'status': recovered_status or item.original_status or 'Não Conforme', 
                     'observacao': item.problem_description,
                     'fundamento_legal': item.fundamento_legal,
                     'acao_corretiva_sugerida': item.corrective_action,
