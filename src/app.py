@@ -968,35 +968,39 @@ def review_page(file_id):
             if 'detalhe_pontuacao' not in data:
                  data['detalhe_pontuacao'] = data.get('by_sector', {})
 
-            # [FIX] Polyfill: Calculate items_nc existing data
+            # [FIX] Polyfill: Calcular items_nc para dados existentes
             if 'areas_inspecionadas' in data:
                 for area in data['areas_inspecionadas']:
                     items_in_area = area.get('itens', [])
-                    # Count items where status is NOT 'Conforme'
+                    # Contar itens onde status NÃO é 'Conforme'
                     area['items_nc'] = sum(1 for item in items_in_area if item.get('status') != 'Conforme')
             
-            # [FIX] Rebuild Items from DB (Sorted) to ensure consistency with Manager View
+            # [FIX] Reconstruir Itens do BD (Ordenados) para garantir consistência com a Visão do Gestor
             if inspection.action_plan.items:
-                # 1. Map existing JSON areas for scores/stats AND Status Recovery
+                # 1. Mapear áreas JSON existentes para pontuações/estatísticas E Recuperação de Status
                 rebuilt_areas = {}
-                normalized_area_map = {} # Key: normalized_name -> area object
+                normalized_area_map = {} # Chave: nome_normalizado -> objeto área
                 
-                # Lookup maps for status recovery
-                score_map_by_index = {} # Key: (area_name, index) -> data
-                score_map_by_text = {}  # Key: text -> data
+                # Mapas de busca para recuperação de status
+                score_map_by_index = {} # Chave: (area_name, index) -> dados
+                score_map_by_text = {}  # Chave: texto -> dados
                 
                 if 'areas_inspecionadas' in data:
                     for area in data['areas_inspecionadas']:
-                        # Use normalized name as key
+                        # Usar nome normalizado como chave
                         key_name = area.get('nome_area') or area.get('name')
                         if key_name:
                             rebuilt_areas[key_name] = area
                             normalized_area_map[key_name.strip().lower()] = area
                             
-                            # Build score maps
+                            # Construir mapas de pontuação
                             for idx, item_json in enumerate(area.get('itens', [])):
+                                 # [FIX] Garantir valor numérico seguro (evita NoneType > int)
+                                 score_val = item_json.get('pontuacao', 0)
+                                 if score_val is None: score_val = 0
+                                 
                                  payload = {
-                                     'pontuacao': item_json.get('pontuacao', 0),
+                                     'pontuacao': float(score_val),
                                      'status': item_json.get('status')
                                  }
                                  score_map_by_index[(key_name, idx)] = payload
@@ -1004,27 +1008,27 @@ def review_page(file_id):
                                  text_key = (item_json.get('item_verificado') or item_json.get('observacao') or "").strip()[:50]
                                  score_map_by_text[text_key] = payload
 
-                            area['itens'] = [] # Clear items to refill from DB
+                            area['itens'] = [] # Limpar itens para reabastecer do BD
 
-                # 2. Sort DB Items by Order Index
+                # 2. Ordenar Itens do BD por Índice de Ordem
                 db_items = sorted(
                     inspection.action_items, 
                     key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
                 )
 
-                # 3. Populate
+                # 3. Popular
                 for item in db_items:
                     raw_area_name = item.nome_area or "Geral"
                     norm_area_name = raw_area_name.strip().lower()
                     
-                    # Robust Area Lookup
+                    # Busca Robusta de Área
                     target_area = normalized_area_map.get(norm_area_name)
                     if target_area:
                         area_name = target_area['nome_area']
                     else:
-                        area_name = raw_area_name # Fallback to creating new (unavoidable if really new)
+                        area_name = raw_area_name # Fallback para criar nova (inevitável se realmente nova)
                     
-                    # Create area if missing (unlikely if synced, but safe)
+                    # Criar área se faltando (improvável se sincronizado, mas seguro)
                     if area_name not in rebuilt_areas:
                          rebuilt_areas[area_name] = {
                              'nome_area': area_name, 
@@ -1035,19 +1039,19 @@ def review_page(file_id):
                              'aproveitamento': 0
                          }
                     
-                    # Formatting
+                    # Formatação
                     deadline_display = item.prazo_sugerido
                     if item.deadline_date:
                         try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
                         except: pass
                     
-                    # Robust Status Recovery
+                    # Recuperação Robusta de Status
                     recovered_data = {}
-                    # Try Index match
+                    # Tentar correspondência por Índice
                     if item.order_index is not None:
                          recovered_data = score_map_by_index.get((area_name, item.order_index), {})
                     
-                    # Try Text match fallback
+                    # Tentar correspondência por Texto como fallback
                     if not recovered_data:
                          full_desc = item.problem_description or ""
                          candidate_name = full_desc.split(":", 1)[0].strip() if ":" in full_desc else full_desc

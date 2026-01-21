@@ -642,56 +642,60 @@ def edit_plan(file_id):
                 for area in report_data['areas_inspecionadas']:
                     a_name = area.get('nome_area', 'Geral')
                     for idx, item in enumerate(area.get('itens', [])):
+                         # [FIX] Garantir valor numérico seguro (evita NoneType > int)
+                         score_v = item.get('pontuacao', 0)
+                         if score_v is None: score_v = 0
+                         
                          data_payload = {
-                             'pontuacao': item.get('pontuacao', 0),
+                             'pontuacao': float(score_v),
                              'status': item.get('status')
                          }
                          
-                         # Map 1: By Index (Most Robust)
+                         # Mapa 1: Por Índice (Mais Robusto)
                          score_map_by_index[(a_name, idx)] = data_payload
                          
-                         # Map 2: By Text (Fallback)
+                         # Mapa 2: Por Texto (Fallback)
                          key = (item.get('item_verificado') or item.get('observacao') or "").strip()[:50]
                          score_map_by_text[key] = data_payload
 
-            # 3b. Group DB Items by Sector
+            # 3b. Agrupar Itens do BD por Setor
             rebuilt_areas = {}
-            # Initialize with existing areas to keep scores/names
-            # [FIX] Create Normalized Lookup Map (lowercase stripped -> area object)
+            # Inicializar com áreas existentes para manter notas/nomes
+            # [FIX] Criar Mapa de Busca Normalizado (minusculo sem espaço -> objeto area)
             normalized_area_map = {}
             
             if 'areas_inspecionadas' in report_data:
                 for area in report_data['areas_inspecionadas']:
                     key_name = area['nome_area']
                     rebuilt_areas[key_name] = area
-                    area['itens'] = [] # Clear JSON items, we will fill with DB items
+                    area['itens'] = [] # Limpar itens JSON, encheremos com itens BD
                     
-                    # Normalize key for lookup
+                    # Normalizar chave para busca
                     norm_key = key_name.strip().lower()
                     normalized_area_map[norm_key] = area
 
-            # [FIX] Stable Sort by Order Index (if present) then UUID
+            # [FIX] Ordenação Estável por Índice de Ordem (se presente) então UUID
             db_items = sorted(
                 inspection.action_items, 
                 key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
             )
-            # Note: action_items is a property returning list, so we sort it here.
+            # Nota: action_items é uma propriedade retornando lista, então ordenamos aqui.
             
             for item in db_items:
                 raw_area_name = item.nome_area or "Geral"
                 norm_area_name = raw_area_name.strip().lower()
                 
-                # Try to find existing area via Normalized Map
+                # Tentar encontrar área existente via Mapa Normalizado
                 target_area = normalized_area_map.get(norm_area_name)
                 
                 if target_area:
-                    # Found match! Use the official JSON name
+                    # Encontrou correspondência! Usar nome oficial do JSON
                     area_name = target_area['nome_area'] 
                 else:
-                    # No match found, use raw name (will create new area)
+                    # Nenhuma correspondência, usar nome cru (criará nova área)
                     area_name = raw_area_name
                 
-                # If area not in JSON (e.g. added later), create it
+                # Se área não estiver no JSON (ex: adicionada depois), criar
                 if area_name not in rebuilt_areas:
                     rebuilt_areas[area_name] = {
                         'nome_area': area_name,
