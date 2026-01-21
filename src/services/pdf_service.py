@@ -56,7 +56,7 @@ class PDFService:
         Recalcula pontuações e traduz status para garantir PDF e Views completos.
         Público para ser usado por rotas de WEB também.
         """
-        """
+
         if not data:
             logger.warning("Enrich Data received empty payload")
             return
