@@ -634,17 +634,25 @@ def edit_plan(file_id):
         if inspection.action_plan.items:
             # 3a. Create Lookup for Scores from Original JSON (to recover lost scores)
             # We map "Problem Description" -> Score
-            score_map = {}
+            # [FIX] STRATEGY: Use (AreaName + Index) as primary key, fallback to Item Name
+            score_map_by_index = {} # Key: (area_name, index) -> data
+            score_map_by_text = {}  # Key: item_verificado_partial -> data
+            
             if 'areas_inspecionadas' in report_data:
                 for area in report_data['areas_inspecionadas']:
-                    for item in area.get('itens', []):
-                         # Normalize key: substring or full match
-                         key = (item.get('item_verificado') or item.get('observacao') or item.get('problema') or "").strip()[:50]
-                         # [FIX] Store both score and status for recovery
-                         score_map[key] = {
+                    a_name = area.get('nome_area', 'Geral')
+                    for idx, item in enumerate(area.get('itens', [])):
+                         data_payload = {
                              'pontuacao': item.get('pontuacao', 0),
                              'status': item.get('status')
                          }
+                         
+                         # Map 1: By Index (Most Robust)
+                         score_map_by_index[(a_name, idx)] = data_payload
+                         
+                         # Map 2: By Text (Fallback)
+                         key = (item.get('item_verificado') or item.get('observacao') or "").strip()[:50]
+                         score_map_by_text[key] = data_payload
 
             # 3b. Group DB Items by Sector
             rebuilt_areas = {}
@@ -676,10 +684,22 @@ def edit_plan(file_id):
                     }
                 
                 # Recover Score and Status from JSON
-                # Try validation using problem_description
-                key = (item.item_verificado or "").strip()[:50]
+                # [FIX] Robust Recovery Strategy
+                raw_data = {}
                 
-                raw_data = score_map.get(key, {})
+                # Strategy 1: Match by Order Index (Perfect Match)
+                if item.order_index is not None:
+                     raw_data = score_map_by_index.get((area_name, item.order_index), {})
+                
+                # Strategy 2: Match by Extracted Name (Fallback for Legacy Data)
+                if not raw_data:
+                     # DB 'problem_description' is "Item Verified: Observation"
+                     # We try to extract just the "Item Verified" part
+                     full_desc = item.problem_description or ""
+                     candidate_name = full_desc.split(":", 1)[0].strip() if ":" in full_desc else full_desc
+                     key_text = candidate_name[:50]
+                     raw_data = score_map_by_text.get(key_text, {})
+
                 recovered_score = raw_data.get('pontuacao', 0)
                 recovered_status = raw_data.get('status') # e.g. 'PARTIAL'
                 
