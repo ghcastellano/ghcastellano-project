@@ -146,7 +146,7 @@
                                 <small class="text-muted">{{ item.fundamento_legal }}</small>
                             </div>
                             <div>
-                                {% if 'Parcial' in (item.status or '') or (item.pontuacao|float > 0 and
+                                {% if 'parcial' in (item.status or '')|lower or (item.pontuacao|float > 0 and
                                 item.pontuacao|float < area.pontuacao_maxima_item|default(10)|float) %} <span
                                     class="badge bg-warning text-dark rounded-pill px-3">Parcialmente Conforme</span>
                                     {% else %}
