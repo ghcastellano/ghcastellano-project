@@ -4,6 +4,7 @@ from typing import List, Optional
 class ChecklistItem(BaseModel):
     item_verificado: str = Field(description="O requisito ou item específico que foi inspecionado.")
     status: str = Field(description="O status do item, deve ser 'Conforme' ou 'Não Conforme' ou 'Parcialmente Conforme'.")
+    pontuacao: Optional[float] = Field(description="Pontuação atribuída ao item (0 a 10).")
     observacao: str = Field(description="Descrição detalhada da evidência encontrada e do problema.")
     fundamento_legal: str = Field(description="A base legal para a não conformidade, citando a legislação relevante (ex: 'RDC 216/2004 item 4.1.1').")
     acao_corretiva_sugerida: str = Field(description="Ação corretiva técnica sugerida para resolver o problema.")

@@ -153,6 +153,8 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                 
                 job.status = JobStatus.COMPLETED
                 job.finished_at = datetime.utcnow()
+                job.execution_time_seconds = (job.finished_at - job.created_at.replace(tzinfo=None)).total_seconds()
+                job.attempts += 1
                 db.commit()
                 processed_count += 1
             except Exception as e:

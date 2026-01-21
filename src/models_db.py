@@ -298,8 +298,8 @@ class ActionPlan(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     inspection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("inspections.id"), unique=True, nullable=False)
     
-    final_pdf_drive_id: Mapped[Optional[str]] = mapped_column(String)
-    final_pdf_public_link: Mapped[Optional[str]] = mapped_column(String)
+    # final_pdf_drive_id: Mapped[Optional[str]] = mapped_column(String)  # REMOVED
+    # final_pdf_public_link: Mapped[Optional[str]] = mapped_column(String) # REMOVED
     
     approved_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     approved_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True), nullable=True)

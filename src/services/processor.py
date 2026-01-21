@@ -176,12 +176,25 @@ class ProcessorService:
             self._log_trace(file_id, "AI_ANALYSIS", "SUCCESS", "Análise de IA concluída", details=usage)
             
             # Update Job Metrics immediately (Legacy/Optional)
+            # Update Job Metrics immediately (Legacy/Optional)
             if job:
                 job.cost_tokens_input = usage.get('prompt_tokens', 0)
                 job.cost_tokens_output = usage.get('completion_tokens', 0)
-                try:
-                    database.db_session.flush()
-                except: pass
+                job.api_calls_count += 1
+                
+                # Calculate Costs (Estimativa GPT-4o-mini)
+                # Input: $0.15 / 1M tokens | Output: $0.60 / 1M tokens
+                cost_in = (job.cost_tokens_input / 1_000_000) * 0.15
+                cost_out = (job.cost_tokens_output / 1_000_000) * 0.60
+                job.cost_input_usd = cost_in
+                job.cost_output_usd = cost_out
+                
+                # Fixed Exchange Rate (or fetch dynamic) - USD 1 = BRL 6.00 (Example)
+                job.cost_input_brl = cost_in * 6.0
+                job.cost_output_brl = cost_out * 6.0
+
+                job.result_payload = {'usage': usage}
+
 
             # 3. Hash
             file_hash = self.calculate_hash(file_content)
@@ -438,7 +451,9 @@ class ProcessorService:
                 session.add(action_plan)
                 logger.info("🆕 ActionPlan created")
                 
-            action_plan.final_pdf_public_link = output_link
+            # action_plan.final_pdf_public_link = output_link # REMOVED (Field Deleted)
+            if output_link:
+                pass # Logic related to link moved/removed
             
             # Enrich Action Plan Fields
             action_plan.summary_text = report_data.resumo_geral
@@ -458,7 +473,7 @@ class ProcessorService:
             for area in report_data.areas_inspecionadas:
                 area_nc_count = 0
                 logger.info(f"  📂 Area: {area.nome_area} ({len(area.itens)} items)")
-                for item in area.itens:
+                for idx, item in enumerate(area.itens):
                     total_items += 1
                     
                     is_nc = "não conforme" in item.status.lower() or "parcialmente" in item.status.lower()
@@ -480,12 +495,14 @@ class ProcessorService:
                         status=status_db,
                         
                         # [V16] Persist AI Metadata
+                        # [V16] Persist AI Metadata
                         original_status=item.status,
-                        original_score=item.pontuacao,
+                        original_score=getattr(item, 'pontuacao', 0), # Safe Get
 
                         legal_basis=item.fundamento_legal,
                         corrective_action=item.acao_corretiva_sugerida,
-                        ai_suggested_deadline=item.prazo_sugerido
+                        ai_suggested_deadline=item.prazo_sugerido,
+                        order_index=idx # Persist sorting order
                     )
                     session.add(db_item)
                 

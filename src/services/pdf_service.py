@@ -83,6 +83,8 @@ class PDFService:
                     item['status'] = 'Não Conforme' # Default fallback
                 elif status == 'COMPLIANT':
                     item['status'] = 'Conforme'
+                elif status == 'PARTIAL':
+                    item['status'] = 'Parcialmente Conforme'
                 
                 # Cálculo de Pontuação
                 try:
