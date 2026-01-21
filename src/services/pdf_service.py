@@ -126,17 +126,32 @@ class PDFService:
                 except (ValueError, TypeError):
                     continue
 
-            # Atualiza Totais da Área
-            area['pontuacao_obtida'] = round(area_obtido, 1)
-            area['pontuacao_maxima'] = round(area_maximo, 1)
-            
-            if area_maximo > 0:
-                area['aproveitamento'] = round((area_obtido / area_maximo) * 100, 1)
+            # [CRITICAL FIX] Preservar notas da IA se já existirem
+            # Se o JSON já trouxe pontuação máxima, NÃO recalculamos a area baseada nos itens
+            # pois os itens podem ser apenas um resumo (NCs), o que distorceria a nota real.
+            current_max = float(area.get('pontuacao_maxima', 0) or 0)
+            if current_max > 0:
+                 # Mantém o que veio do JSON (Trust the AI)
+                 # Apenas garantimos que está float e arredondado
+                 area['pontuacao_obtida'] = round(float(area.get('pontuacao_obtida', 0)), 1)
+                 area['pontuacao_maxima'] = round(current_max, 1)
+                 area['aproveitamento'] = round(float(area.get('aproveitamento', 0)), 1)
+                 
+                 # Somamos ao total geral acumulado usando os valores da IA
+                 total_obtido += area['pontuacao_obtida']
+                 total_maximo += area['pontuacao_maxima']
             else:
-                area['aproveitamento'] = 0
-
-            total_obtido += area_obtido
-            total_maximo += area_maximo
+                # Fallback: Recalcula tudo se não tiver dados da área (Modo Legado/Manual)
+                area['pontuacao_obtida'] = round(area_obtido, 1)
+                area['pontuacao_maxima'] = round(area_maximo, 1)
+                
+                if area_maximo > 0:
+                    area['aproveitamento'] = round((area_obtido / area_maximo) * 100, 1)
+                else:
+                    area['aproveitamento'] = 0
+    
+                total_obtido += area_obtido
+                total_maximo += area_maximo
 
         # Atualiza Total Geral
         data['total_pontuacao_obtida'] = round(total_obtido, 1) # Útil para debug ou display
