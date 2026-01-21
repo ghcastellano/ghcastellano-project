@@ -8,6 +8,11 @@ from sqlalchemy.orm import joinedload, defer
 from sqlalchemy.exc import IntegrityError
 from src.services.email_service import EmailService # Mock verify first
 from src.services.pdf_service import pdf_service
+from werkzeug.security import generate_password_hash
+from flask import session
+import uuid
+import random
+import string
 
 manager_bp = Blueprint('manager', __name__)
 
