@@ -82,7 +82,9 @@ class PDFService:
             
             for item in itens:
                 # Tradução de Status de Item
-                status = item.get('status', 'OPEN')
+                status_raw = item.get('status', 'OPEN')
+                status = str(status_raw).upper() if status_raw else 'OPEN'
+                
                 if status == 'OPEN':
                     item['status'] = 'Não Conforme' # Default fallback
                 elif status == 'COMPLIANT':
