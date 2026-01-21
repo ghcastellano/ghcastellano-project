@@ -113,6 +113,13 @@ class PDFService:
                             if max_score > 0 and max_score != 10:
                                  score = max_score / 2
                             item['pontuacao'] = score
+                    
+                    # [SAFETY NET] Se status for "Não Conforme" mas tiver nota válida (>0 e <max), forçar Parcial
+                    # Isso corrige casos onde o status se perdeu mas a nota foi recuperada.
+                    elif 'não' in item_status_lower and score > 0 and score < max_score:
+                         item['status'] = 'Parcialmente Conforme'
+                         # Atualiza status lower para logs subsequentes se necessário
+                         item_status_lower = 'parcialmente conforme'
 
                     area_obtido += score
                     area_maximo += max_score

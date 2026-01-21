@@ -639,7 +639,7 @@ def edit_plan(file_id):
                 for area in report_data['areas_inspecionadas']:
                     for item in area.get('itens', []):
                          # Normalize key: substring or full match
-                         key = (item.get('observacao') or item.get('problema') or "").strip()[:50]
+                         key = (item.get('item_verificado') or item.get('observacao') or item.get('problema') or "").strip()[:50]
                          # [FIX] Store both score and status for recovery
                          score_map[key] = {
                              'pontuacao': item.get('pontuacao', 0),
