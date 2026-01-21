@@ -7,11 +7,7 @@ from datetime import datetime
 from sqlalchemy.orm import joinedload, defer
 from sqlalchemy.exc import IntegrityError
 from src.services.email_service import EmailService # Mock verify first
-from werkzeug.security import generate_password_hash
-from flask import session
-import uuid
-import random
-import string
+from src.services.pdf_service import pdf_service
 
 manager_bp = Blueprint('manager', __name__)
 
@@ -716,6 +712,12 @@ def edit_plan(file_id):
              report_data['nome_estabelecimento'] = inspection.establishment.name if inspection.establishment else "Estabelecimento"
         if 'aproveitamento_geral' not in report_data:
              report_data['aproveitamento_geral'] = 0
+
+        # [HOTFIX] Enrich Data via PDFService (Calculates Scores, Normalizes Status)
+        try:
+             pdf_service.enrich_data(report_data)
+        except Exception as e:
+             print(f"Enrichment Failed: {e}")
 
         # 5. [NEW] Fetch Recipients for Sharing Widget
         recipients = []
