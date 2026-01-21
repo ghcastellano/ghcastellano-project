@@ -146,12 +146,13 @@
                                 <small class="text-muted">{{ item.fundamento_legal }}</small>
                             </div>
                             <div>
-                                {% if item.pontuacao|float == 0 %}
-                                <span class="badge bg-danger rounded-pill px-3">Não Conforme</span>
-                                {% else %}
-                                <span class="badge bg-warning text-dark rounded-pill px-3">Parcialmente Conforme</span>
-                                {% endif %}
-                                <span class="badge bg-secondary rounded-pill ms-1">{{ item.pontuacao }} PTS</span>
+                                {% if 'Parcial' in (item.status or '') or (item.pontuacao|float > 0 and
+                                item.pontuacao|float < area.pontuacao_maxima_item|default(10)|float) %} <span
+                                    class="badge bg-warning text-dark rounded-pill px-3">Parcialmente Conforme</span>
+                                    {% else %}
+                                    <span class="badge bg-danger rounded-pill px-3">Não Conforme</span>
+                                    {% endif %}
+                                    <span class="badge bg-secondary rounded-pill ms-1">{{ item.pontuacao }} PTS</span>
                             </div>
                         </div>
                         <div class="card-body">

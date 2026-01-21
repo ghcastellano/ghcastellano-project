@@ -283,8 +283,9 @@
 
                     <td class="status-cell"
                         style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center;">
-                        {% if 'Não Conforme' in item.status %}
-                        <div style="color: #e74a3b; font-weight: bold; font-size: 9pt;">{{ item.status|upper }}</div>
+                        {% if 'Não Conforme' in item.status or 'OPEN' in item.status %}
+                        <div style="color: #e74a3b; font-weight: bold; font-size: 9pt;">{{
+                            item.status|upper|replace('OPEN', 'NÃO CONFORME') }}</div>
                         {% elif 'Parcial' in item.status %}
                         <div style="color: #d97706; font-weight: bold; font-size: 9pt;">{{ item.status|upper }}</div>
                         {% else %}

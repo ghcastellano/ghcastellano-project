@@ -29,6 +29,9 @@ class PDFService:
             # Parsing de dados para garantir que corresponda às expectativas do template
             # "data" geralmente é um dict vindo da leitura do JSON
             
+            # Enriquecer dados (Cálculo de pontuações e tradução de status)
+            self._enrich_data(data)
+
             html_out = template.render(
                 relatorio=data,
                 data_geracao=datetime.now().strftime("%d/%m/%Y")
@@ -47,6 +50,64 @@ class PDFService:
         except Exception as e:
             logger.error(f"Erro gerando PDF: {e}")
             raise
+
+    def _enrich_data(self, data: dict):
+        """
+        Recalcula pontuações e traduz status para garantir PDF completo.
+        """
+        if not data.get('areas_inspecionadas'):
+            return
+
+        total_obtido = 0
+        total_maximo = 0
+
+        for area in data['areas_inspecionadas']:
+            area_obtido = 0
+            area_maximo = 0
+            
+            # Garante lista de itens
+            itens = area.get('itens', [])
+            
+            for item in itens:
+                # Tradução de Status de Item
+                status = item.get('status', 'OPEN')
+                if status == 'OPEN':
+                    item['status'] = 'Não Conforme' # Default fallback
+                elif status == 'COMPLIANT':
+                    item['status'] = 'Conforme'
+                
+                # Cálculo de Pontuação
+                try:
+                    score = float(item.get('pontuacao', 0))
+                    max_score = float(area.get('pontuacao_maxima_item', 10)) # Default 10 se não definido
+                    
+                    # Se status for conforme, força max score se tiver zerado (fix legacy)
+                    if item.get('status') == 'Conforme' and score == 0:
+                        score = max_score
+                        item['pontuacao'] = score
+                        
+                    area_obtido += score
+                    area_maximo += max_score
+                except (ValueError, TypeError):
+                    continue
+
+            # Atualiza Totais da Área
+            area['pontuacao_obtida'] = round(area_obtido, 1)
+            area['pontuacao_maxima'] = round(area_maximo, 1)
+            
+            if area_maximo > 0:
+                area['aproveitamento'] = round((area_obtido / area_maximo) * 100, 1)
+            else:
+                area['aproveitamento'] = 0
+
+            total_obtido += area_obtido
+            total_maximo += area_maximo
+
+        # Atualiza Total Geral
+        if total_maximo > 0:
+            data['aproveitamento_geral'] = round((total_obtido / total_maximo) * 100, 2)
+        else:
+            data['aproveitamento_geral'] = 0
 
     def resolve_path(self, url):
         """

@@ -1070,7 +1070,7 @@ def review_page(file_id):
 
         return render_template('review.html', 
                              inspection=inspection, 
-                             data=data,
+                             report_data=data,
                              users=users_list if 'users_list' in locals() else [],
                              contacts=contacts_list,
                              is_validated=is_validated)
