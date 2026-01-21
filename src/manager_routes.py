@@ -698,7 +698,8 @@ def edit_plan(file_id):
                     'fundamento_legal': item.fundamento_legal,
                     'acao_corretiva_sugerida': item.corrective_action,
                     'prazo_sugerido': deadline_display, # Now reflects saved data
-                    'pontuacao': item.original_score if item.original_score is not None else recovered_score # Injected from JSON map
+                    # [FIX] Score Priority: If original_score is 0 (suspicious) but we recovered a score, use recovered.
+                    'pontuacao': item.original_score if (item.original_score is not None and item.original_score > 0) else (recovered_score if recovered_score > 0 else (item.original_score or 0)) 
                 }
                 rebuilt_areas[area_name]['itens'].append(template_item)
             

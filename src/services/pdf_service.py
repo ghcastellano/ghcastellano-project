@@ -89,11 +89,23 @@ class PDFService:
                     score = float(item.get('pontuacao', 0))
                     max_score = float(area.get('pontuacao_maxima_item', 10)) # Default 10 se não definido
                     
-                    # Se status for conforme, força max score se tiver zerado (fix legacy)
-                    if item.get('status') == 'Conforme' and score == 0:
-                        score = max_score
-                        item['pontuacao'] = score
-                        
+                    # [FIX] Lógica de Correção de Pontuação
+                    item_status_lower = str(item.get('status', '')).lower()
+                    
+                    if 'conforme' in item_status_lower and 'não' not in item_status_lower and 'parcial' not in item_status_lower:
+                         # Se status == Conforme, deve ter nota máxima
+                         if score == 0:
+                             score = max_score
+                             item['pontuacao'] = score
+                    
+                    elif 'parcial' in item_status_lower:
+                        # Se status == Parcialmente Conforme, deve ter alguma nota positiva
+                        if score == 0:
+                            score = 5.0 # Fallback para parcial sem nota (metade do padrão)
+                            if max_score > 0 and max_score != 10:
+                                 score = max_score / 2
+                            item['pontuacao'] = score
+
                     area_obtido += score
                     area_maximo += max_score
                 except (ValueError, TypeError):
@@ -112,6 +124,8 @@ class PDFService:
             total_maximo += area_maximo
 
         # Atualiza Total Geral
+        data['total_pontuacao_obtida'] = round(total_obtido, 1) # Útil para debug ou display
+        
         if total_maximo > 0:
             data['aproveitamento_geral'] = round((total_obtido / total_maximo) * 100, 2)
         else:
