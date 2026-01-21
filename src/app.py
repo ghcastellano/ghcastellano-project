@@ -968,7 +968,7 @@ def review_page(file_id):
             if 'detalhe_pontuacao' not in data:
                  data['detalhe_pontuacao'] = data.get('by_sector', {})
 
-            # [FIX] Polyfill: Calculate items_nc for existing data (Required by template)
+            # [FIX] Polyfill: Calculate items_nc existing data
             if 'areas_inspecionadas' in data:
                 for area in data['areas_inspecionadas']:
                     items_in_area = area.get('itens', [])
@@ -977,14 +977,33 @@ def review_page(file_id):
             
             # [FIX] Rebuild Items from DB (Sorted) to ensure consistency with Manager View
             if inspection.action_plan.items:
-                # 1. Map existing JSON areas for scores/stats
+                # 1. Map existing JSON areas for scores/stats AND Status Recovery
                 rebuilt_areas = {}
+                normalized_area_map = {} # Key: normalized_name -> area object
+                
+                # Lookup maps for status recovery
+                score_map_by_index = {} # Key: (area_name, index) -> data
+                score_map_by_text = {}  # Key: text -> data
+                
                 if 'areas_inspecionadas' in data:
                     for area in data['areas_inspecionadas']:
                         # Use normalized name as key
-                        key = area.get('nome_area') or area.get('name')
-                        if key:
-                            rebuilt_areas[key] = area
+                        key_name = area.get('nome_area') or area.get('name')
+                        if key_name:
+                            rebuilt_areas[key_name] = area
+                            normalized_area_map[key_name.strip().lower()] = area
+                            
+                            # Build score maps
+                            for idx, item_json in enumerate(area.get('itens', [])):
+                                 payload = {
+                                     'pontuacao': item_json.get('pontuacao', 0),
+                                     'status': item_json.get('status')
+                                 }
+                                 score_map_by_index[(key_name, idx)] = payload
+                                 
+                                 text_key = (item_json.get('item_verificado') or item_json.get('observacao') or "").strip()[:50]
+                                 score_map_by_text[text_key] = payload
+
                             area['itens'] = [] # Clear items to refill from DB
 
                 # 2. Sort DB Items by Order Index
@@ -995,7 +1014,15 @@ def review_page(file_id):
 
                 # 3. Populate
                 for item in db_items:
-                    area_name = item.nome_area or "Geral"
+                    raw_area_name = item.nome_area or "Geral"
+                    norm_area_name = raw_area_name.strip().lower()
+                    
+                    # Robust Area Lookup
+                    target_area = normalized_area_map.get(norm_area_name)
+                    if target_area:
+                        area_name = target_area['nome_area']
+                    else:
+                        area_name = raw_area_name # Fallback to creating new (unavoidable if really new)
                     
                     # Create area if missing (unlikely if synced, but safe)
                     if area_name not in rebuilt_areas:
@@ -1013,16 +1040,31 @@ def review_page(file_id):
                     if item.deadline_date:
                         try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
                         except: pass
+                    
+                    # Robust Status Recovery
+                    recovered_data = {}
+                    # Try Index match
+                    if item.order_index is not None:
+                         recovered_data = score_map_by_index.get((area_name, item.order_index), {})
+                    
+                    # Try Text match fallback
+                    if not recovered_data:
+                         full_desc = item.problem_description or ""
+                         candidate_name = full_desc.split(":", 1)[0].strip() if ":" in full_desc else full_desc
+                         recovered_data = score_map_by_text.get(candidate_name[:50], {})
+
+                    recovered_status = recovered_data.get('status')
+                    recovered_score = recovered_data.get('pontuacao', 0)
 
                     rebuilt_areas[area_name]['itens'].append({
                         'id': str(item.id),
                         'item_verificado': item.item_verificado,
-                        'status': 'Não Conforme', 
+                        'status': recovered_status or item.original_status or 'Não Conforme', 
                         'observacao': item.problem_description,
                         'fundamento_legal': item.fundamento_legal,
                         'acao_corretiva_sugerida': item.corrective_action,
                         'prazo_sugerido': deadline_display,
-                        'pontuacao': 0 
+                        'pontuacao': item.original_score if (item.original_score is not None and item.original_score > 0) else (recovered_score if recovered_score > 0 else (item.original_score or 0))
                     })
                     
                 # 4. Recalculate NC counts
