@@ -140,7 +140,7 @@
                     {{ relatorio.aproveitamento_geral }}%
                 </div>
                 <div style="font-size: 8pt; color: #64748b;">
-                    Nota: {{ relatorio.pontuacao_geral }} de {{ relatorio.pontuacao_maxima }}
+                    Nota: {{ relatorio.pontuacao_geral|default(0) }} de {{ relatorio.pontuacao_maxima|default(0) }}
                 </div>
             </div>
         </div>
