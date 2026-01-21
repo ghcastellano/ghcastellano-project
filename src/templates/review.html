@@ -58,8 +58,8 @@
                 <div class="card-body py-2 px-3">
                     <span class="text-xs font-weight-bold text-muted text-uppercase d-block">Aproveitamento</span>
                     <span
-                        class="h2 font-weight-bold {% if report_data.aproveitamento_geral >= 70 %}text-success{% else %}text-danger{% endif %} mb-0">
-                        {{ report_data.aproveitamento_geral }}%
+                        class="h2 font-weight-bold {% if report_data.aproveitamento_geral|default(0) >= 70 %}text-success{% else %}text-danger{% endif %} mb-0">
+                        {{ report_data.aproveitamento_geral|default(0) }}%
                     </span>
                 </div>
             </div>
@@ -440,7 +440,7 @@
     const IS_DEV_MODE = {{ is_dev_mode|default (false) | tojson }};
     let contactModal;
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Init Modal
         contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
     });
@@ -599,63 +599,63 @@
     function shareAction(platform) {
         // Set platform in hidden field
         document.getElementById('sharePlatform').value = platform;
-        
+
         // Check if there are contacts
         const hasContacts = document.querySelectorAll('input[name="selectedContact"]').length > 0;
-        
+
         if (!hasContacts) {
-             alert('Nenhum contato cadastrado para este estabelecimento.');
-             // Optional: allow manual entry? kept simple for now.
-             return;
+            alert('Nenhum contato cadastrado para este estabelecimento.');
+            // Optional: allow manual entry? kept simple for now.
+            return;
         }
-        
+
         // Show Modal
         if (contactModal) contactModal.show();
     }
-    
+
     async function confirmShare() {
         const platform = document.getElementById('sharePlatform').value;
         const selected = document.querySelector('input[name="selectedContact"]:checked');
-        
+
         if (!selected) {
             alert("Selecione um contato.");
             return;
         }
-        
+
         const contactId = selected.value;
         const contactName = selected.dataset.name;
         const contactPhone = selected.dataset.phone;
         const contactEmail = selected.dataset.email;
-        
+
         // Hide modal
         if (contactModal) contactModal.hide();
-        
+
         try {
             if (IS_DEV_MODE) {
                 alert(`Dev Mode: Enviando para ${contactName} (${platform})`);
                 return;
             }
-            
-            const payload = { 
+
+            const payload = {
                 via: platform,
                 contact_id: contactId,
                 phone: contactPhone, # Override or use backend logic based on ID
                 email: contactEmail
             };
-            
+
             const res = await fetch('/api/share_plan/{{ inspection.drive_file_id }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
-            
+
             if (data.success) {
                 // Show Success Toast (reusing existing or alert)
                 alert('Processo de envio iniciado (Background).');
             }
-            else { 
-                alert('Erro: ' + data.error); 
+            else {
+                alert('Erro: ' + data.error);
             }
         } catch (e) {
             console.error(e);

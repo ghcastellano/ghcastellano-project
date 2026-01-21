@@ -30,7 +30,7 @@ class PDFService:
             # "data" geralmente é um dict vindo da leitura do JSON
             
             # Enriquecer dados (Cálculo de pontuações e tradução de status)
-            self._enrich_data(data)
+            self.enrich_data(data)
 
             html_out = template.render(
                 relatorio=data,
@@ -51,15 +51,23 @@ class PDFService:
             logger.error(f"Erro gerando PDF: {e}")
             raise
 
-    def _enrich_data(self, data: dict):
+    def enrich_data(self, data: dict):
         """
-        Recalcula pontuações e traduz status para garantir PDF completo.
+        Recalcula pontuações e traduz status para garantir PDF e Views completos.
+        Público para ser usado por rotas de WEB também.
         """
-        if not data.get('areas_inspecionadas'):
+        if not data:
             return
+            
+        if 'areas_inspecionadas' not in data:
+            data['areas_inspecionadas'] = []
 
         total_obtido = 0
         total_maximo = 0
+
+        # Garantir keys de nível superior para evitar KeyError
+        if 'aproveitamento_geral' not in data: data['aproveitamento_geral'] = 0
+        if 'resumo_geral' not in data: data['resumo_geral'] = ''
 
         for area in data['areas_inspecionadas']:
             area_obtido = 0

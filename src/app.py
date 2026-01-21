@@ -1065,6 +1065,13 @@ def review_page(file_id):
                     items_in_area = area.get('itens', [])
                     # Count items where status is NOT 'Conforme'
                     area['items_nc'] = sum(1 for item in items_in_area if item.get('status') != 'Conforme')
+            
+            # [HOTFIX] Enrich Data Globally via PDFService Logic (Fixes missing keys like aproveitamento_geral)
+            try:
+                # Usa o enrich_data do pdf_service para garantir consistência entre PDF e Web
+                pdf_service.enrich_data(data)
+            except Exception as e:
+                logger.warning(f"Failed to enrich data via PDF Service: {e}")
 
             # flash("Este relatório ainda não foi processado completamente para a nova visualização.", "warning")
 
