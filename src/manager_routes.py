@@ -657,10 +657,18 @@ def edit_plan(file_id):
             # 3b. Group DB Items by Sector
             rebuilt_areas = {}
             # Initialize with existing areas to keep scores/names
+            # [FIX] Create Normalized Lookup Map (lowercase stripped -> area object)
+            normalized_area_map = {}
+            
             if 'areas_inspecionadas' in report_data:
                 for area in report_data['areas_inspecionadas']:
-                    rebuilt_areas[area['nome_area']] = area
+                    key_name = area['nome_area']
+                    rebuilt_areas[key_name] = area
                     area['itens'] = [] # Clear JSON items, we will fill with DB items
+                    
+                    # Normalize key for lookup
+                    norm_key = key_name.strip().lower()
+                    normalized_area_map[norm_key] = area
 
             # [FIX] Stable Sort by Order Index (if present) then UUID
             db_items = sorted(
@@ -670,7 +678,18 @@ def edit_plan(file_id):
             # Note: action_items is a property returning list, so we sort it here.
             
             for item in db_items:
-                area_name = item.nome_area or "Geral"
+                raw_area_name = item.nome_area or "Geral"
+                norm_area_name = raw_area_name.strip().lower()
+                
+                # Try to find existing area via Normalized Map
+                target_area = normalized_area_map.get(norm_area_name)
+                
+                if target_area:
+                    # Found match! Use the official JSON name
+                    area_name = target_area['nome_area'] 
+                else:
+                    # No match found, use raw name (will create new area)
+                    area_name = raw_area_name
                 
                 # If area not in JSON (e.g. added later), create it
                 if area_name not in rebuilt_areas:
