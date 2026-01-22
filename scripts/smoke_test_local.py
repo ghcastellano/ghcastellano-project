@@ -8,17 +8,19 @@ def run_smoke_test():
     print("🔥 Iniciando Smoke Test (Local Server)...")
     
     # 1. Start the app in background
-    # Ensure PYTHONPATH is set
+    # Ensure PYTHONPATH is set to project root
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env = os.environ.copy()
-    env["PYTHONPATH"] = env.get("PYTHONPATH", "") + ":" + os.getcwd()
+    env["PYTHONPATH"] = project_root + ":" + env.get("PYTHONPATH", "")
     
-    print("⏳ Iniciando servidor Flask...")
+    print(f"⏳ Iniciando servidor Flask (Root: {project_root})...")
     process = subprocess.Popen(
         ["python3", "src/app.py"], 
+        cwd=project_root, # Run from root
         stdout=subprocess.DEVNULL, 
         stderr=subprocess.PIPE,
         env=env,
-        preexec_fn=os.setsid # Allow killing the whole group
+        preexec_fn=os.setsid 
     )
     
     # 2. Wait for startup
