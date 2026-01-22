@@ -1078,6 +1078,8 @@ def review_page(file_id):
                     if is_compliant_status:
                         continue # Skip showing this item
                     
+
+                    
                     # Recuperação Robusta de Status
                     recovered_data = {}
                     # Tentar correspondência por Índice
@@ -1329,7 +1331,7 @@ def upload_evidence():
 
 @app.route('/download_revised_pdf/<file_id>')
 def download_revised_pdf(file_id):
-    """Gera um novo PDF baseado no estado atual do Banco (preferencial) ou Drive."""
+    """Gera um PDF sincronizado com a visão do Gestor/Consultor."""
     if not drive_service or not pdf_service:
         return "Serviços indisponíveis", 500
         
@@ -1338,96 +1340,118 @@ def download_revised_pdf(file_id):
         db = database.db_session
         inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
         
-        data = {}
-        if inspection and inspection.action_plan:
-            plan = inspection.action_plan
-            # [FIX] Merge Logic for Summary/Scores (Same as Manager Route)
-            ai_raw = inspection.ai_raw_response or {}
-            
-            # Helper for fallbacks
-            stats = plan.stats_json or {} # [FIX] Define stats variable
-            def get_val(from_stats, from_raw, default=0):
-                return from_stats if from_stats else (from_raw or default)
+        if not inspection or not inspection.action_plan:
+            return "Plano não encontrado", 404
 
-            summary = plan.summary_text or ai_raw.get('summary') or ai_raw.get('summary_text') or "Resumo não disponível."
-            score = get_val(stats.get('score'), ai_raw.get('score'))
-            max_score = get_val(stats.get('max_score'), ai_raw.get('max_score'))
-            percentage = get_val(stats.get('percentage'), ai_raw.get('percentage'))
-            
-            # Format data to match base_layout.html expectations
-            data = {
-                'nome_estabelecimento': inspection.establishment.name if inspection.establishment else "Estabelecimento",
-                'data_inspecao': inspection.created_at.strftime('%d/%m/%Y'),
-                'resumo_geral': summary,
-                'pontos_fortes': plan.strengths_text,
-                'pontuacao_geral': score,
-                'pontuacao_maxima': max_score,
-                'aproveitamento_geral': percentage,
-                'detalhe_pontuacao': stats.get('by_sector') or ai_raw.get('by_sector', {}),
-                'areas_inspecionadas': [] 
-            }
-            
-            # Group items by area for the template
-            areas_map = {}
-            for item in plan.items:
-                # [FIX] Correct Field Mapping
-                area_name = item.sector or "Geral"
-                if area_name not in areas_map:
-                    areas_map[area_name] = []
-                
-                deadline_str = ''
-                if item.deadline_date:
-                    deadline_str = item.deadline_date.strftime('%d/%m/%Y')
-                elif item.ai_suggested_deadline:
-                    deadline_str = item.ai_suggested_deadline
-
-                areas_map[area_name].append({
-                    'item_verificado': item.item_verificado,
-                    'status': item.original_status if item.original_status else (item.status.value if hasattr(item.status, 'value') else str(item.status)),
-                    'observacao': item.problem_description,
-                    'fundamento_legal': item.fundamento_legal or "Não informado",
-                    'acao_corretiva_sugerida': item.corrective_action,
-                    'prazo_sugerido': deadline_str,
-                    'pontuacao': item.original_score if item.original_score is not None else 0
-                })
-            
-            # Recuperar estatísticas por setor para preencher aproveitamento
-            sector_stats = data.get('detalhe_pontuacao', {})
-
-            for area_name, items in areas_map.items():
-                # Tenta pegar estatísticas da área pre-calculadas
-                # O formato pode variar, então tratamos com segurança
-                aprov_area = 0
-                if isinstance(sector_stats, dict):
-                    s_stat = sector_stats.get(area_name)
-                    if isinstance(s_stat, dict):
-                        aprov_area = s_stat.get('percentage', 0)
-                    elif isinstance(s_stat, (int, float)): # Caso simplificado
-                        aprov_area = s_stat
-                
-                data['areas_inspecionadas'].append({
-                    'nome_area': area_name,
-                    'itens': items,
-                    'aproveitamento': aprov_area # [FIX] Adicionado para evitar erro no template
-                })
-        else:
-            # Fallback to Drive
-            logger.info(f"⚠️ PDF generation fallback to Drive for {file_id}")
-            data = drive_service.read_json(file_id)
-            # Ensure keys match (Drive JSON might use different keys)
-            if 'estabelecimento' in data and 'nome_estabelecimento' not in data:
-                data['nome_estabelecimento'] = data['estabelecimento']
+        # 1. Base Data from AI Raw (Source of Truth for Stats)
+        ai_raw = inspection.ai_raw_response or {}
+        plan = inspection.action_plan
         
-        # 2. Gerar PDF em memória
+        # Merge Stats
+        merged_stats = ai_raw.copy()
+        if plan.stats_json:
+            merged_stats.update(plan.stats_json)
+        
+        data = merged_stats
+        
+        # 2. Rebuild Items from DB (Sync with Edits)
+        if inspection.action_plan.items:
+            # Sort items
+            db_items = sorted(
+                inspection.action_items, 
+                key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
+            )
+            
+            # Map areas
+            rebuilt_areas = {}
+            normalized_area_map = {}
+            if 'areas_inspecionadas' in data:
+                for area in data['areas_inspecionadas']:
+                    key = area.get('nome_area') or area.get('name')
+                    if key:
+                         rebuilt_areas[key] = area
+                         # Reset items to fill from DB
+                         area['itens'] = []
+                         normalized_area_map[key.strip().lower()] = area
+
+            for item in db_items:
+                raw_area_name = item.nome_area or item.sector or "Geral"
+                norm_area_name = raw_area_name.strip().lower()
+                
+                # Find Area
+                target_area = normalized_area_map.get(norm_area_name)
+                if target_area:
+                    area_name = target_area['nome_area']
+                else:
+                    area_name = raw_area_name
+                
+                # Create Area if missing
+                if area_name not in rebuilt_areas:
+                    rebuilt_areas[area_name] = {
+                        'nome_area': area_name,
+                        'itens': [],
+                        'pontuacao_obtida': 0, 
+                        'pontuacao_maxima': 0,
+                        'aproveitamento': 0
+                    }
+                
+                # Format Dates
+                deadline_display = item.prazo_sugerido
+                if item.deadline_date:
+                    try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
+                    except: pass
+                
+                # Correct Score Logic (Prefer Original if valid, else 0)
+                score_val = item.original_score if item.original_score is not None else 0
+                
+                # Normalize Status for PDF Filter safely
+                status_val = item.original_status or "Não Conforme"
+                # Use str() ensures no AttributeError if item.status is string or Enum
+                current_status_str = str(item.status)
+                if hasattr(item.status, 'name'):
+                    current_status_str = item.status.name
+                
+                if current_status_str == 'COMPLIANT' or current_status_str == 'RESOLVED' or status_val == 'Conforme':
+                    status_val = 'Conforme'
+                elif current_status_str == 'PARTIAL' or 'Parcial' in status_val:
+                    status_val = 'Parcialmente Conforme'
+
+                rebuilt_areas[area_name]['itens'].append({
+                    'item_verificado': item.item_verificado,
+                    'status': status_val,
+                    'observacao': item.problem_description,
+                    'fundamento_legal': item.fundamento_legal,
+                    'acao_corretiva_sugerida': item.corrective_action,
+                    'prazo_sugerido': deadline_display,
+                    'pontuacao': float(score_val)
+                })
+
+            # Recalculate NC Counts
+            for area in rebuilt_areas.values():
+                items_in_area = area.get('itens', [])
+                area['items_nc'] = sum(1 for i in items_in_area if i['status'] != 'Conforme')
+            
+            data['areas_inspecionadas'] = list(rebuilt_areas.values())
+
+        # Ensure keys for template
+        if 'detalhe_pontuacao' not in data:
+             data['detalhe_pontuacao'] = data.get('by_sector', {})
+        if 'pontuacao_geral' not in data: data['pontuacao_geral'] = 0
+        if 'pontuacao_maxima' not in data: data['pontuacao_maxima'] = 0
+        if 'aproveitamento_geral' not in data: data['aproveitamento_geral'] = 0
+
+        # Generate PDF
         pdf_bytes = pdf_service.generate_pdf_bytes(data)
         
-        # 3. Retornar arquivo com headers corretos
         filename = f"Plano_Revisado_{data.get('nome_estabelecimento', 'Relatorio').replace(' ', '_')}.pdf"
-        
-        # [FIX] Usar make_response para compatibilidade e evitar arquivo corrompido
         response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+        return response
+
+    except Exception as e:
+        logger.error(f"Erro PDF Gen: {e}")
+        return f"Erro ao gerar PDF: {e}", 500
         return response
         response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'

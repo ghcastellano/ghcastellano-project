@@ -449,7 +449,7 @@
     function toggleEvidence(itemId) {
         // Encontra o radio 'Corrigido' específico deste item
         // Precisamos ser espertos no seletor pq itemId é único mas tem loop.index no ID.
-        // Melhor usar o name="status_{{ item.id }}" e verificar qual está checked.
+        // Melhor usar o name="status_${itemId}" e verificar qual está checked.
 
         const radioOk = document.querySelector(`input[name="status_${itemId}"][id*="status_ok_"]:checked`);
         const show = !!radioOk; // Se o radio OK estiver checado, show = true
