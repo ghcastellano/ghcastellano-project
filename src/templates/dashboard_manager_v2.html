@@ -1279,15 +1279,31 @@
             if (homeProcessing && homeProcessingList && data.pending) {
                 if (data.pending.length > 0) {
                     homeProcessing.style.display = 'block';
-                    homeProcessingList.innerHTML = data.pending.map(item => `
-                        <div style="padding: 1rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div style="font-weight: 600; color: var(--text-primary);">${item.name}</div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Iniciado há alguns instantes...</div>
-                            </div>
-                            <span class="badge badge-info" style="cursor: pointer;" onclick="openTracker('${item.id}'); event.stopPropagation();">Processando...</span>
-                        </div>
-                    `).join('');
+                    homeProcessingList.innerHTML = data.pending.map(item => {
+                        if (item.error) {
+                            return `
+                                <div style="padding: 1rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-weight: 600; color: #ef4444;">
+                                            <i class="ph-bold ph-warning-circle"></i> Erro: ${item.name}
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary);">${item.message || 'Falha no processamento.'}</div>
+                                    </div>
+                                    <span class="badge badge-danger">Falha</span>
+                                </div>
+                            `;
+                        } else {
+                            return `
+                                <div style="padding: 1rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-weight: 600; color: var(--text-primary);">${item.name}</div>
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary);">Iniciado há alguns instantes...</div>
+                                    </div>
+                                    <span class="badge badge-info" style="cursor: pointer;" onclick="openTracker('${item.id}'); event.stopPropagation();">Processando...</span>
+                                </div>
+                            `;
+                        }
+                    }).join('');
                 } else {
                     homeProcessing.style.display = 'none';
                 }

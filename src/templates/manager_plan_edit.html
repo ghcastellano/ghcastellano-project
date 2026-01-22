@@ -89,8 +89,6 @@
                     </thead>
                     <tbody>
                         {% for area in report_data.areas_inspecionadas %}
-                        {# Hide completely compliant areas #}
-                        {% if area.items_nc > 0 %}
                         <tr>
                             <td class="align-middle fw-bold text-dark">{{ area.nome_area }}</td>
                             <td class="align-middle text-center">{{ area.pontuacao_obtida }} / {{ area.pontuacao_maxima
@@ -106,7 +104,6 @@
                                 {% endif %}
                             </td>
                         </tr>
-                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>

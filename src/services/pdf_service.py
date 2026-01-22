@@ -87,9 +87,9 @@ class PDFService:
                 
                 if status == 'OPEN':
                     item['status'] = 'Não Conforme' # Default fallback
-                elif status == 'COMPLIANT':
+                elif status == 'COMPLIANT' or status == 'RESOLVED' or status == 'CONFORME':
                     item['status'] = 'Conforme'
-                elif status == 'PARTIAL':
+                elif status == 'PARTIAL' or 'PARCIAL' in status:
                     item['status'] = 'Parcialmente Conforme'
                 
                 # Cálculo de Pontuação
@@ -97,7 +97,7 @@ class PDFService:
                     score = float(item.get('pontuacao', 0))
                     max_score = float(area.get('pontuacao_maxima_item', 10)) # Default 10 se não definido
                     
-                    # [FIX] Lógica de Correção de Pontuação
+                    # [FIX] Lógica de Correção de Pontuação e Status
                     item_status_lower = str(item.get('status', '')).lower()
                     
                     if 'conforme' in item_status_lower and 'não' not in item_status_lower and 'parcial' not in item_status_lower:
@@ -133,20 +133,20 @@ class PDFService:
             if current_max > 0:
                  # Mantém o que veio do JSON (Trust the AI)
                  # Apenas garantimos que está float e arredondado
-                 area['pontuacao_obtida'] = round(float(area.get('pontuacao_obtida', 0)), 1)
-                 area['pontuacao_maxima'] = round(current_max, 1)
-                 area['aproveitamento'] = round(float(area.get('aproveitamento', 0)), 1)
+                 area['pontuacao_obtida'] = round(float(area.get('pontuacao_obtida', 0)), 2)
+                 area['pontuacao_maxima'] = round(current_max, 2)
+                 area['aproveitamento'] = round(float(area.get('aproveitamento', 0)), 2)
                  
                  # Somamos ao total geral acumulado usando os valores da IA
                  total_obtido += area['pontuacao_obtida']
                  total_maximo += area['pontuacao_maxima']
             else:
                 # Fallback: Recalcula tudo se não tiver dados da área (Modo Legado/Manual)
-                area['pontuacao_obtida'] = round(area_obtido, 1)
-                area['pontuacao_maxima'] = round(area_maximo, 1)
+                area['pontuacao_obtida'] = round(area_obtido, 2)
+                area['pontuacao_maxima'] = round(area_maximo, 2)
                 
                 if area_maximo > 0:
-                    area['aproveitamento'] = round((area_obtido / area_maximo) * 100, 1)
+                    area['aproveitamento'] = round((area_obtido / area_maximo) * 100, 2)
                 else:
                     area['aproveitamento'] = 0
     
@@ -154,7 +154,7 @@ class PDFService:
                 total_maximo += area_maximo
 
         # Atualiza Total Geral
-        data['total_pontuacao_obtida'] = round(total_obtido, 1) # Útil para debug ou display
+        data['total_pontuacao_obtida'] = round(total_obtido, 2) # Útil para debug ou display
         
         if total_maximo > 0:
             data['aproveitamento_geral'] = round((total_obtido / total_maximo) * 100, 2)

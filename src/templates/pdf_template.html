@@ -272,7 +272,7 @@
             <tbody>
                 {% for item in area.itens %}
                 {# Filtra Itens Conformes estritamente (Pontuação < Max e Status !=Conforme) #} {% if item.status
-                    !='Conforme' %} <tr>
+                    and 'Conforme' !=item.status and 'RESOLVED' not in item.status %} <tr>
                     <td
                         style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center; font-weight: bold; color: #888;">
                         #{{ loop.index }}

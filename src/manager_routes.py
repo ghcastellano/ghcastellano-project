@@ -609,19 +609,29 @@ def edit_plan(file_id):
         if 'areas_inspecionadas' in report_data:
             for area in report_data['areas_inspecionadas']:
                 # Normalize Area Keys first
-                if 'nome_area' not in area: area['nome_area'] = area.get('name', 'Área Desconhecida')
+                if 'nome_area' not in area: area['nome_area'] = area.get('name') or area.get('nome') or 'Área Desconhecida'
                 
-                # Backfill scores if missing/zero
-                current_score = area.get('pontuacao_obtida') or area.get('score') or 0
-                current_max = area.get('pontuacao_maxima') or area.get('max_score') or 0
-                
-                # Look for match in raw
+                # [FIX] Force high-precision data from AI Raw if available
                 raw_match = raw_areas_map.get(area['nome_area'])
-                if raw_match and (current_score == 0 and current_max == 0):
-                    # Recover scores
-                    area['pontuacao_obtida'] = raw_match.get('pontuacao_obtida') or raw_match.get('score', 0)
-                    area['pontuacao_maxima'] = raw_match.get('pontuacao_maxima') or raw_match.get('max_score', 0)
-                    area['aproveitamento'] = raw_match.get('aproveitamento') or raw_match.get('percentage', 0)
+                if raw_match:
+                    # Sync missing or zeroed values from raw JSON
+                    for key in ['pontuacao_obtida', 'pontuacao_maxima', 'aproveitamento', 'pontuacao', 'max_score', 'score']:
+                        if key in raw_match and (not area.get(key) or area.get(key) == 0):
+                            area[key] = raw_match[key]
+                
+                # Backfill normalized keys for template
+                if 'pontuacao_obtida' not in area: area['pontuacao_obtida'] = area.get('score') or area.get('pontuacao') or 0
+                if 'pontuacao_maxima' not in area: area['pontuacao_maxima'] = area.get('max_score') or area.get('maximo') or 0
+                if 'aproveitamento' not in area: 
+                     if area['pontuacao_maxima'] > 0:
+                         area['aproveitamento'] = (area['pontuacao_obtida'] / area['pontuacao_maxima']) * 100
+                     else:
+                         area['aproveitamento'] = 0
+
+                # [NEW] Count NCs for this area (Required for Template Accordion)
+                area['items_nc'] = sum(1 for item in area.get('itens', []) if 'conforme' in str(item.get('status', '')).lower() and 'não' in str(item.get('status', '')).lower() or 'parcial' in str(item.get('status', '')).lower())
+
+
 
                 # Ensure final keys exist
                 if 'pontuacao_obtida' not in area: area['pontuacao_obtida'] = area.get('score', 0)
@@ -725,6 +735,36 @@ def edit_plan(file_id):
 
                 recovered_score = raw_data.get('pontuacao', 0)
                 recovered_status = raw_data.get('status') # e.g. 'PARTIAL'
+                
+                # [FILTER] User Request: Only show NC or Partial items in the Action Plan View.
+                # If item is marked as COMPLIANT/RESOLVED or has max score, skip adding to the list.
+                # Note: Areas will still show up because we initialized them from the JSON structure above.
+                
+                # Check 1: Status String
+                is_compliant_status = False
+                status_check = (recovered_status or item.original_status or "").upper()
+                if 'CONFORME' in status_check and 'NÃO' not in status_check and 'PARCIAL' not in status_check:
+                    is_compliant_status = True
+                if status_check == 'COMPLIANT' or status_check == 'RESOLVED':
+                    is_compliant_status = True
+                    
+                # Check 2: Database Status Enum
+                if item.status == ActionPlanItemStatus.RESOLVED and not item.manager_notes: 
+                     # If RESOLVED but has manager notes, maybe it was fixed manually? 
+                     # But standard "compliant" items come as RESOLVED without notes usually.
+                     # Let's trust the status check mostly.
+                     pass
+
+                # Check 3: Perfect Score (Safety Net)
+                # If score is max_score (e.g. 10/10), it's compliant.
+                # We need item max score here. processor.py defaults to 10.
+                is_perfect_score = False
+                if item.original_score is not None and item.original_score >= 10: # Assuming 10 is max default
+                     is_perfect_score = True
+                
+                # Apply Filter
+                if is_compliant_status or is_perfect_score:
+                    continue  # Skip this item in the EDIT view
                 
                 # [ML-READY] Prioridade de exibição: deadline_text > deadline_date > ai_suggested_deadline
                 deadline_display = item.ai_suggested_deadline or "N/A"  # Fallback: Sugestão original da IA
@@ -1076,11 +1116,11 @@ def api_status():
             from src.models_db import Job, JobStatus
             jobs_query = db.query(Job).filter(
                 Job.company_id == current_user.company_id,
-                Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
+                Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.FAILED])
             )
             # Filter by Est if selected (if job input has it) 
             # Note: Input payload might have establishment_id as string
-            pending_jobs = jobs_query.order_by(Job.created_at.desc()).all()
+            pending_jobs = jobs_query.order_by(Job.created_at.desc()).limit(10).all()
             
             for job in pending_jobs:
                 # Check if filtered by establishment
@@ -1093,7 +1133,16 @@ def api_status():
                 if job.input_payload and 'filename' in job.input_payload:
                     fname = job.input_payload['filename']
                 
-                pending_list.append({'name': fname})
+                # Check if Failed
+                is_error = job.status == JobStatus.FAILED
+                err_msg = job.error_log if is_error else None
+
+                pending_list.append({
+                    'name': fname,
+                    'status': job.status.value,
+                    'error': is_error,
+                    'message': err_msg
+                })
                 
         return jsonify({
             'pending': pending_list,

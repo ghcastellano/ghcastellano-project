@@ -85,7 +85,6 @@
                     </thead>
                     <tbody>
                         {% for area in report_data.areas_inspecionadas %}
-                        {% if area.items_nc > 0 %}
                         <tr>
                             <td class="align-middle fw-bold text-dark">{{ area.nome_area }}</td>
                             <td class="align-middle text-center">{{ area.pontuacao_obtida|default(0) }} / {{
@@ -93,15 +92,14 @@
                             <td class="align-middle text-center">
                                 {% if "parcial" in area.status|default('')|lower or (area.aproveitamento > 0 and
                                 area.aproveitamento < 100) %} <span class="badge bg-warning text-dark">Parcialmente
-                                    Conforme ({{ area.aproveitamento|int }}%)</span>
+                                    Conforme ({{ area.aproveitamento }}%)</span>
                                     {% elif area.aproveitamento >= 100 %}
-                                    <span class="badge bg-success">Conforme ({{ area.aproveitamento|int }}%)</span>
+                                    <span class="badge bg-success">Conforme ({{ area.aproveitamento }}%)</span>
                                     {% else %}
-                                    <span class="badge bg-danger">Não Conforme ({{ area.aproveitamento|int }}%)</span>
+                                    <span class="badge bg-danger">Não Conforme ({{ area.aproveitamento }}%)</span>
                                     {% endif %}
                             </td>
                         </tr>
-                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>

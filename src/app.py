@@ -964,7 +964,15 @@ def review_page(file_id):
             is_validated = True
             
             # Populate data from Plan Stats (Source of Truth for Validated Data)
-            data = plan.stats_json or {}
+            # [FIX] Trust the AI for stats if available
+            ai_raw = inspection.ai_raw_response or {}
+            
+            # Use AI Raw as base, overlay with plan stats for edits
+            merged_stats = ai_raw.copy()
+            if plan.stats_json:
+                merged_stats.update(plan.stats_json)
+            
+            data = merged_stats
             if 'detalhe_pontuacao' not in data:
                  data['detalhe_pontuacao'] = data.get('by_sector', {})
 
@@ -973,7 +981,9 @@ def review_page(file_id):
                 for area in data['areas_inspecionadas']:
                     items_in_area = area.get('itens', [])
                     # Contar itens onde status NÃO é 'Conforme'
-                    area['items_nc'] = sum(1 for item in items_in_area if item.get('status') != 'Conforme')
+                    # [V19] Case-insensitive and robust status check
+                    area['items_nc'] = sum(1 for item in items_in_area if 'conforme' in str(item.get('status', '')).lower() and 'não' in str(item.get('status', '')).lower() or 'parcial' in str(item.get('status', '')).lower())
+
             
             # [FIX] Reconstruir Itens do BD (Ordenados) para garantir consistência com a Visão do Gestor
             if inspection.action_plan.items:
@@ -1044,6 +1054,29 @@ def review_page(file_id):
                     if item.deadline_date:
                         try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
                         except: pass
+                    
+
+                    
+                    # [FILTER] User Request: Only show NC or Partial items in the Review View.
+                    # Copy logic from manager_routes.py
+                    is_compliant_status = False
+                    status_check = (item.original_status or "").upper()
+                    
+                    # Also check recovered status if logic below finds it, but we filter early here
+                    # To do this safely, we need to peek at recovery logic or just use DB props
+                    if 'CONFORME' in status_check and 'NÃO' not in status_check and 'PARCIAL' not in status_check:
+                        is_compliant_status = True
+                    if status_check == 'COMPLIANT' or status_check == 'RESOLVED':
+                         is_compliant_status = True
+                         
+                    if item.status == ActionPlanItemStatus.RESOLVED and not item.manager_notes:
+                         pass # Likely original compliant
+                    
+                    if item.original_score is not None and item.original_score >= 10:
+                        is_compliant_status = True
+                        
+                    if is_compliant_status:
+                        continue # Skip showing this item
                     
                     # Recuperação Robusta de Status
                     recovered_data = {}
