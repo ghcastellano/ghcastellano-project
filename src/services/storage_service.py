@@ -84,7 +84,7 @@ class StorageService:
                         shutil.copyfileobj(file_obj, dest_f)
                 
                 logger.info(f"✅ Arquivo salvo localmente: {target_path}")
-                return f"/static/uploads/{filename}"
+                return f"/static/uploads/{destination_folder}/{filename}"
             except Exception as e:
                 logger.error(f"❌ Erro no Upload Local: {e}")
                 raise e

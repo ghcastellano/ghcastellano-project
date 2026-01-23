@@ -1105,7 +1105,10 @@ def review_page(file_id):
                         'fundamento_legal': item.fundamento_legal,
                         'acao_corretiva_sugerida': item.corrective_action,
                         'prazo_sugerido': deadline_display,
-                        'pontuacao': item.original_score if (item.original_score is not None and item.original_score > 0) else (recovered_score if recovered_score > 0 else (item.original_score or 0))
+                        'pontuacao': item.original_score if (item.original_score is not None and item.original_score > 0) else (recovered_score if recovered_score > 0 else (item.original_score or 0)),
+                        'manager_notes': item.manager_notes,
+                        'evidence_image_url': item.evidence_image_url,
+                        'status_atual': 'Corrigido' if item.status == ActionPlanItemStatus.RESOLVED else 'Pendente'
                     })
                     
                 # 4. Recalculate NC counts

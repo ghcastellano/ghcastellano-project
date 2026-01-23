@@ -161,9 +161,8 @@
                                         <div class="col-8">
                                             <label class="text-xs fw-bold text-muted text-uppercase mb-1">Ação Planejada
                                                 (Gestor)</label>
-                                            <input type="text" class="form-control bg-light"
-                                                value="{{ item.acao_corretiva_sugerida }}" readonly disabled
-                                                style="font-size: 0.9rem;">
+                                            <textarea class="form-control bg-light" rows="3" readonly disabled
+                                                style="font-size: 0.9rem; resize: none;">{{ item.acao_corretiva_sugerida or '' }}</textarea>
                                         </div>
                                         <div class="col-4">
                                             <label class="text-xs fw-bold text-muted text-uppercase mb-1">Prazo
