@@ -1001,6 +1001,7 @@ def review_page(file_id):
                         key_name = area.get('nome_area') or area.get('name')
                         if key_name:
                             rebuilt_areas[key_name] = area
+                            rebuilt_areas[key_name] = area
                             normalized_area_map[key_name.strip().lower()] = area
                             
                             # Construir mapas de pontuação
@@ -1077,6 +1078,7 @@ def review_page(file_id):
                         
                     if is_compliant_status:
                         continue # Skip showing this item
+
                     
 
                     
