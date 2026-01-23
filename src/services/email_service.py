@@ -3,6 +3,9 @@ import boto3
 from botocore.exceptions import ClientError
 from flask import current_app
 import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
 logger = logging.getLogger(__name__)
 
@@ -80,17 +83,73 @@ class EmailService:
             except ClientError as e:
                 msg = e.response['Error']['Message']
                 if "not verified" in msg:
-                    logger.warning(f"SES Sandbox Warning: {msg}. Email failed but system continues.")
+                    logger.warning(f"SES Sandbox Warning: {msg}. FALLING BACK TO MOCK.")
+                    # Fallback to Mock
+                    print(f" [MOCK EMAIL FALLBACK] (SES Sandbox Blocked Real Send)")
+                    return self._send_mock_email(to_email, subject, text_body)
                 else:
                     logger.error(f"SES Error: {msg}")
                 return False
         else:
-            # Mock Provider
-            print("="*60)
-            print(f" [MOCK EMAIL] To: {to_email}")
-            print(f" Subject: {subject}")
-            print("-" * 20)
-            print(text_body)
-            print("="*60)
-            logger.info(f"Mock email sent to {to_email}")
-            return True
+            return self._send_mock_email(to_email, subject, text_body)
+
+    def _send_mock_email(self, to_email, subject, text_body):
+        # Mock Provider
+        print("="*60)
+        print(f" [MOCK EMAIL] To: {to_email}")
+        print(f" Subject: {subject}")
+        print("-" * 20)
+        print(text_body)
+        print("="*60)
+        logger.info(f"Mock email sent to {to_email}")
+        return True
+
+    def send_email_with_attachment(self, to_email, subject, body, attachment_path):
+        if self.provider == 'ses' and self.ses_client:
+            msg = MIMEMultipart()
+            msg['Subject'] = subject
+            msg['From'] = self.sender
+            msg['To'] = to_email
+
+            # Add body
+            msg.attach(MIMEText(body, 'plain'))
+
+            # Add attachment
+            try:
+                with open(attachment_path, 'rb') as f:
+                    part = MIMEApplication(f.read())
+                    part.add_header('Content-Disposition', 'attachment', filename=os.path.basename(attachment_path))
+                    msg.attach(part)
+            except Exception as e:
+                logger.error(f"Failed to read attachment {attachment_path}: {e}")
+                return False
+
+            try:
+                response = self.ses_client.send_raw_email(
+                    Source=self.sender,
+                    Destinations=[to_email],
+                    RawMessage={'Data': msg.as_string()}
+                )
+                logger.info(f"Email (Raw) sent to {to_email} via SES. MsgId: {response['MessageId']}")
+                return True
+            except ClientError as e:
+                error_msg = e.response['Error']['Message']
+                if "not verified" in error_msg:
+                    logger.warning(f"SES Sandbox Warning (Raw): {error_msg}. FALLING BACK TO MOCK.")
+                    return self._send_mock_email_attachment(to_email, subject, body, attachment_path)
+                else:
+                    logger.error(f"SES Raw Error: {error_msg}")
+                return False
+        else:
+            return self._send_mock_email_attachment(to_email, subject, body, attachment_path)
+
+    def _send_mock_email_attachment(self, to_email, subject, body, attachment_path):
+        print("="*60)
+        print(f" [MOCK EMAIL WITH ATTACHMENT] To: {to_email}")
+        print(f" Subject: {subject}")
+        print(f" Attachment: {attachment_path}")
+        print("-" * 20)
+        print(body)
+        print("="*60)
+        logger.info(f"Mock email with attachment sent to {to_email}")
+        return True

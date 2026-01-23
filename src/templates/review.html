@@ -242,6 +242,8 @@
                                         <!-- Notes -->
                                         <textarea class="form-control text-sm" rows="2" id="notes_{{ item.id }}"
                                             placeholder="Observações do consultor... (Opcional)"
+                                            data-original="{{ item.manager_notes or '' }}"
+                                            oninput="markAsModified(this)"
                                             onblur="saveItem('{{ item.id }}')">{{ item.manager_notes or '' }}</textarea>
                                     </div>
                                 </div>
@@ -262,12 +264,9 @@
     <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div class="d-flex gap-2">
-                <!-- Share Actions -->
-                <button class="btn btn-outline-success" onclick="shareAction('whatsapp')">
-                    <i class="ph-bold ph-whatsapp-logo me-2"></i> WhatsApp
-                </button>
-                <button class="btn btn-outline-secondary" onclick="shareAction('email')">
-                    <i class="ph-bold ph-envelope-simple me-2"></i> Email
+                <!-- Unified Share Button (Matches Manager View) -->
+                <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#shareModal">
+                    <i class="ph-bold ph-share-network me-2"></i> Compartilhar
                 </button>
                 <!-- Download -->
                 <button class="btn btn-outline-primary" onclick="exportPDF()">
@@ -286,49 +285,94 @@
 </div>
 </div>
 
-<!-- Contact Selection Modal -->
-<div class="modal fade" id="contactModal" tabindex="-1" aria-hidden="true">
+<!-- Share Modal (Unified) -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-white border-bottom-0">
-                <h5 class="modal-title font-weight-bold">
-                    <i class="ph-bold ph-paper-plane-tilt me-2 text-primary"></i> Enviar Relatório
-                </h5>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Compartilhar Plano de Ação</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4">
-                <p class="text-muted text-sm mb-4">Selecione o responsável para receber o Plano de Ação.</p>
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3" id="shareTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="whatsapp-tab" data-bs-toggle="tab"
+                            data-bs-target="#whatsapp" type="button" role="tab" aria-selected="true">
+                            <i class="ph-bold ph-whatsapp-logo me-2"></i>WhatsApp
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="email-tab" data-bs-toggle="tab" data-bs-target="#email"
+                            type="button" role="tab" aria-selected="false">
+                            <i class="ph-bold ph-envelope-simple me-2"></i>Email
+                        </button>
+                    </li>
+                </ul>
 
-                <!-- Platform Selection (Hidden state) -->
-                <input type="hidden" id="sharePlatform" value="whatsapp">
-
-                <!-- Contact List -->
-                <div class="list-group mb-3" id="contactsListGroup">
-                    {% for contact in contacts %}
-                    <label
-                        class="list-group-item list-group-item-action d-flex align-items-center gap-3 p-3 border rounded mb-2 shadow-sm contact-option pointer-cursor">
-                        <input class="form-check-input flex-shrink-0" type="radio" name="selectedContact"
-                            value="{{ contact.id }}" data-phone="{{ contact.phone }}" data-email="{{ contact.email }}"
-                            data-name="{{ contact.name }}" {% if loop.first %}checked{% endif %}>
-                        <div class="d-flex flex-column">
-                            <span class="fw-bold text-dark">{{ contact.name }}</span>
-                            <span class="text-xs text-muted">
-                                <i class="ph-bold ph-phone me-1"></i> {{ contact.phone }}
-                            </span>
+                <div class="tab-content" id="shareTabContent">
+                    <!-- WhatsApp Tab -->
+                    <div class="tab-pane fade show active" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
+                        <div class="list-group mb-3">
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="radio" name="waRecipient" value="custom"
+                                    checked onchange="toggleCustom('wa', true)">
+                                Outro número
+                            </label>
+                            {% for c in contacts %}
+                            {% if c.phone %}
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="radio" name="waRecipient"
+                                    value="{{ c.phone }}" data-name="{{ c.name }}" onchange="toggleCustom('wa', false)">
+                                <div class="d-inline-block align-middle ms-2">
+                                    <strong>{{ c.name }}</strong> <span class="badge bg-light text-dark ms-1">{{ c.role
+                                        or 'Contato' }}</span><br>
+                                    <small class="text-muted">{{ c.phone }}</small>
+                                </div>
+                            </label>
+                            {% endif %}
+                            {% endfor %}
                         </div>
-                    </label>
-                    {% else %}
-                    <div class="text-center py-4 bg-light rounded text-muted">
-                        <i class="ph-bold ph-user-minus h4 mb-2"></i>
-                        <p class="mb-0 text-sm">Nenhum contato cadastrado.</p>
+                        <div id="waCustomInput">
+                            <label class="form-label text-xs fw-bold text-uppercase">Número do WhatsApp (DDD +
+                                Número)</label>
+                            <input type="text" id="customPhone" class="form-control" placeholder="Ex: 5511999999999">
+                        </div>
+                        <button class="btn btn-success w-100 mt-3" onclick="sendWhatsApp()">
+                            Enviar WhatsApp <i class="ph-bold ph-paper-plane-right ms-2"></i>
+                        </button>
                     </div>
-                    {% endfor %}
-                </div>
 
-                <div class="d-grid">
-                    <button class="btn btn-primary py-2 fw-bold" onclick="confirmShare()">
-                        Confirmar Envio
-                    </button>
+                    <!-- Email Tab -->
+                    <div class="tab-pane fade" id="email" role="tabpanel" aria-labelledby="email-tab">
+                        <div class="list-group mb-3">
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="radio" name="emailRecipient" value="custom"
+                                    checked onchange="toggleCustom('email', true)">
+                                Outro email
+                            </label>
+                            {% for c in contacts %}
+                            {% if c.email %}
+                            <label class="list-group-item">
+                                <input class="form-check-input me-1" type="radio" name="emailRecipient"
+                                    value="{{ c.email }}" data-name="{{ c.name }}"
+                                    onchange="toggleCustom('email', false)">
+                                <div class="d-inline-block align-middle ms-2">
+                                    <strong>{{ c.name }}</strong> <span class="badge bg-light text-dark ms-1">{{ c.role
+                                        or 'Contato' }}</span><br>
+                                    <small class="text-muted">{{ c.email }}</small>
+                                </div>
+                            </label>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div id="emailCustomInput">
+                            <label class="form-label text-xs fw-bold text-uppercase">Email do Destinatário</label>
+                            <input type="email" id="customEmail" class="form-control" placeholder="nome@exemplo.com">
+                        </div>
+                        <button class="btn btn-primary w-100 mt-3" onclick="sendEmail()">
+                            Enviar Email <i class="ph-bold ph-paper-plane-right ms-2"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -444,13 +488,18 @@
         contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
     });
 
-    // --- Evidence Logic ---
+    // --- UI Helpers ---
+    function markAsModified(input) {
+        if (input.value !== input.dataset.original) {
+            input.classList.add('modified-field');
+        } else {
+            input.classList.remove('modified-field');
+        }
+    }
+
     // --- Evidence Logic ---
     function toggleEvidence(itemId) {
         // Encontra o radio 'Corrigido' específico deste item
-        // Precisamos ser espertos no seletor pq itemId é único mas tem loop.index no ID.
-        // Melhor usar o name="status_${itemId}" e verificar qual está checked.
-
         const radioOk = document.querySelector(`input[name="status_${itemId}"][id*="status_ok_"]:checked`);
         const show = !!radioOk; // Se o radio OK estiver checado, show = true
 
@@ -584,6 +633,14 @@
 
             if (indicator) {
                 indicator.innerHTML = '<span class="status-saved"><i class="ph-bold ph-check"></i> Salvo</span>';
+
+                // Update original data to remove "modified" state
+                const notesInput = document.getElementById(`notes_${itemId}`);
+                if (notesInput) {
+                    notesInput.dataset.original = notesInput.value;
+                    notesInput.classList.remove('modified-field');
+                }
+
                 setTimeout(() => { indicator.innerHTML = ''; }, 2000);
             }
         } catch (e) {
@@ -592,8 +649,9 @@
         }
     }
 
-    function finishConsultantReview() {
+    async function finishConsultantReview() {
         const btn = document.getElementById('btn-finish-consultant');
+        const originalText = btn.innerHTML;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
         btn.disabled = true;
 
@@ -620,73 +678,93 @@
         }
     }
 
-    function shareAction(platform) {
-        // Set platform in hidden field
-        document.getElementById('sharePlatform').value = platform;
-
-        // Check if there are contacts
-        const hasContacts = document.querySelectorAll('input[name="selectedContact"]').length > 0;
-
-        if (!hasContacts) {
-            alert('Nenhum contato cadastrado para este estabelecimento.');
-            // Optional: allow manual entry? kept simple for now.
-            return;
-        }
-
-        // Show Modal
-        if (contactModal) contactModal.show();
+    // --- Unified Sharing Logic ---
+    function toggleCustom(type, isCustom) {
+        const inputDiv = document.getElementById(type === 'wa' ? 'waCustomInput' : 'emailCustomInput');
+        inputDiv.style.display = isCustom ? 'block' : 'none';
     }
 
-    async function confirmShare() {
-        const platform = document.getElementById('sharePlatform').value;
-        const selected = document.querySelector('input[name="selectedContact"]:checked');
+    function sendWhatsApp() {
+        const selected = document.querySelector('input[name="waRecipient"]:checked');
+        if (!selected) return alert('Selecione um destinatário.');
 
-        if (!selected) {
-            alert("Selecione um contato.");
-            return;
+        let phone = selected.value;
+        let name = "Responsável";
+
+        if (phone === 'custom') {
+            phone = document.getElementById('customPhone').value;
+            name = "Responsável";
+        } else {
+            name = selected.dataset.name || "Responsável";
         }
 
-        const contactId = selected.value;
-        const contactName = selected.dataset.name;
-        const contactPhone = selected.dataset.phone;
-        const contactEmail = selected.dataset.email;
+        // Clean Phone
+        phone = phone.replace(/\D/g, '');
+        if (phone.length === 0) return alert('Telefone inválido.');
+        if (phone.length <= 11) phone = '55' + phone;
 
-        // Hide modal
-        if (contactModal) contactModal.hide();
+        // Use the revised PDF link
+        const downloadUrl = "{{ url_for('download_revised_pdf', file_id=inspection.drive_file_id, _external=True) }}";
+        const msg = `Olá ${name}, segue o link do seu Plano de Ação: ${downloadUrl}`;
+
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+
+        // Optional: Close modal
+        // const modal = bootstrap.Modal.getInstance(document.getElementById('shareModal'));
+        // modal.hide();
+    }
+
+    async function sendEmail() {
+        const selected = document.querySelector('input[name="emailRecipient"]:checked');
+        if (!selected) return alert('Selecione um destinatário.');
+
+        let email = selected.value;
+        let name = "Responsável";
+
+        if (email === 'custom') {
+            email = document.getElementById('customEmail').value;
+            name = "Responsável";
+            if (!email) return alert('Digite um email.');
+        } else {
+            name = selected.dataset.name || "Responsável";
+        }
+
+        const btn = event.target; // Get clicked button
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+        btn.disabled = true;
 
         try {
-            if (IS_DEV_MODE) {
-                alert(`Dev Mode: Enviando para ${contactName} (${platform})`);
-                return;
-            }
-
-            const payload = {
-                via: platform,
-                contact_id: contactId,
-                phone: contactPhone, # Override or use backend logic based on ID
-                email: contactEmail
-            };
-
-            const res = await fetch('/api/share_plan/{{ inspection.drive_file_id }}', {
+            // Using existing API route
+            const response = await fetch(`/api/email_plan/{{ inspection.drive_file_id }}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-                body: JSON.stringify(payload)
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    target_email: email,
+                    target_name: name
+                })
             });
-            const data = await res.json();
 
-            if (data.success) {
-                // Show Success Toast (reusing existing or alert)
-                alert('Processo de envio iniciado (Background).');
-            }
-            else {
-                alert('Erro: ' + data.error);
+            const data = await response.json();
+            if (response.ok) {
+                alert('Email enviado com sucesso!');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('shareModal'));
+                if (modal) modal.hide();
+            } else {
+                alert('Erro: ' + (data.error || 'Falha no envio'));
             }
         } catch (e) {
             console.error(e);
-            alert('Erro de conexão ao tentar compartilhar.');
+            alert('Erro de conexão.');
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     }
 
-    function exportPDF() { window.open('/download_pdf/{{ inspection.drive_file_id }}', '_blank'); }
+    function exportPDF() { window.open('/download_revised_pdf/{{ inspection.drive_file_id }}', '_blank'); }
 </script>
 {% endblock %}

@@ -3,7 +3,7 @@ Funções auxiliares para consultas ao banco de dados na aplicação web.
 Todas as queries usam SQLAlchemy para interagir com o PostgreSQL (Supabase).
 """
 from sqlalchemy.orm import joinedload
-from src.models_db import Inspection, ActionPlan, ActionPlanItem, InspectionStatus, Establishment, Company
+from src.models_db import Inspection, ActionPlan, ActionPlanItem, InspectionStatus, Establishment, Company, Job, JobStatus
 from src import database
 import logging
 import uuid
@@ -305,11 +305,11 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
     """Busca JOBS (tarefas de background) que estão pendentes ou rodando."""
     try:
         session = database.db_session()
-        # Filter for active jobs
-        # Filter active jobs    # Filter by recent time (last 30 minutes) to avoid ghosts
-        cutoff_time = datetime.now() - timedelta(minutes=30) # [FIX] Reduced from 24h to hide ghosts
+        # Filter active jobs (Exclude COMPLETED to avoid "stuck" processing card)
+        # Filter by recent time (last 30 minutes) to avoid ghosts
+        cutoff_time = datetime.now() - timedelta(minutes=30)
         query = session.query(Job).filter(
-            Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.FAILED, JobStatus.COMPLETED]),
+            Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.FAILED]),
             Job.created_at >= cutoff_time
         )
         

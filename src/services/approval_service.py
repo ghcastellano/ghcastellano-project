@@ -2,7 +2,7 @@ import threading
 import os
 import json
 import logging
-from src.database import db_session
+from src.database import db_session, get_db
 
 # ...
 
@@ -116,6 +116,28 @@ class ApprovalService:
 
             if 'aproveitamento_geral' not in json_data:
                  json_data['aproveitamento_geral'] = 0
+
+            # [FIX] Fetch Actual Status from DB to Ensure PDF is Up-to-Date
+            try:
+                from src.models_db import Inspection
+                db_async = next(get_db())
+                insp = db_async.query(Inspection).filter_by(drive_file_id=file_id).first()
+                if insp:
+                    status_enum = insp.status
+                    status_val = status_enum.value if hasattr(status_enum, 'value') else str(status_enum)
+                    
+                    # Logic Mapping (Same as app.py)
+                    if status_val == 'COMPLETED':
+                        json_data['status_plano'] = 'CONCLUÍDO'
+                    elif status_val == 'APPROVED' or status_val == 'PENDING_VERIFICATION' or status_val == 'WAITING_APPROVAL':
+                        json_data['status_plano'] = 'AGUARDANDO VISITA'
+                    else:
+                        json_data['status_plano'] = 'EM APROVAÇÃO'
+                db_async.close()
+            except Exception as e:
+                logger.error(f"Error fetching status for PDF: {e}")
+                # Fallback to json status or default
+                pass
 
             pdf_bytes = pdf_service.generate_pdf_bytes(json_data)
             date_str = json_data.get('data_inspecao', '').replace('/', '-')

@@ -1307,6 +1307,10 @@ def upload_evidence():
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
+    
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    if '.' not in file.filename or file.filename.rsplit('.', 1)[1].lower() not in ALLOWED_EXTENSIONS:
+        return jsonify({'error': 'Apenas imagens (PNG, JPG) são permitidas.'}), 400
         
     if file:
         filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
@@ -1397,9 +1401,12 @@ def download_revised_pdf(file_id):
                         'aproveitamento': 0
                     }
                 
-                # Format Dates
-                deadline_display = item.prazo_sugerido
-                if item.deadline_date:
+                # Format Dates (Priority: Text Edit > Date > AI Suggestion)
+                deadline_display = item.prazo_sugerido # Default: AI
+                
+                if item.deadline_text and item.deadline_text.strip():
+                    deadline_display = item.deadline_text
+                elif item.deadline_date:
                     try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
                     except: pass
                 
@@ -1441,6 +1448,20 @@ def download_revised_pdf(file_id):
         if 'pontuacao_geral' not in data: data['pontuacao_geral'] = 0
         if 'pontuacao_maxima' not in data: data['pontuacao_maxima'] = 0
         if 'aproveitamento_geral' not in data: data['aproveitamento_geral'] = 0
+
+        # [FIX] Inject Mapped Plan Status for PDF Template
+        # Mapping: APPROVED -> 'AGUARDANDO VISITA', COMPLETED -> 'CONCLUÍDO', Others -> 'EM APROVAÇÃO'
+        status_enum = inspection.status
+        # Ensure we compare against Enum member if possible, or string value
+        status_val = status_enum.value if hasattr(status_enum, 'value') else str(status_enum)
+        
+        if status_val == 'COMPLETED':
+            data['status_plano'] = 'CONCLUÍDO'
+        elif status_val == 'APPROVED' or status_val == 'PENDING_VERIFICATION' or status_val == 'WAITING_APPROVAL':
+            data['status_plano'] = 'AGUARDANDO VISITA'
+        else:
+             # PENDING_MANAGER_REVIEW, PROCESSING, REJECTED
+            data['status_plano'] = 'EM APROVAÇÃO'
 
         # Generate PDF
         pdf_bytes = pdf_service.generate_pdf_bytes(data)
