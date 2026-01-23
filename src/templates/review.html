@@ -129,12 +129,12 @@
                     {# Strict filtering: only show if Not Conforming (Points < Max or Status !=Conforme) #} {% if
                         item.status !='Conforme' and item.pontuacao|float < area.pontuacao_maxima_item|default(10)|float
                         %} <div class="card border-0 shadow-sm mb-3">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                            <div>
+                        <div class="card-header bg-white d-flex justify-content-between align-items-start py-3">
+                            <div class="me-3 flex-grow-1">
                                 <h6 class="m-0 font-weight-bold text-dark">{{ item.item_verificado }}</h6>
                                 <small class="text-muted">{{ item.fundamento_legal }}</small>
                             </div>
-                            <div>
+                            <div class="text-end flex-shrink-0 text-nowrap">
                                 {% if "parcial" in (item.status or '')|lower or (item.pontuacao|float > 0 and
                                 item.pontuacao|float < area.pontuacao_maxima_item|default(10)|float) %} <span
                                     class="badge bg-warning text-dark rounded-pill px-3">Parcialmente Conforme</span>
