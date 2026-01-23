@@ -394,17 +394,18 @@
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Arquivo</th>
-                                    <th>Estabelecimento</th>
+                                    <th>Tipo</th>
+                                    <th>Empresa</th>
+                                    <th>Arquivo / Est.</th>
                                     <th>Status</th>
-                                    <th>Etapa</th>
-                                    <th>Tokens/Custo</th>
+                                    <th>Tokens (In/Out)</th>
+                                    <th>Custo Real</th>
                                     <th>Duração</th>
                                 </tr>
                             </thead>
                             <tbody id="monitoring-tbody">
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted">Carregando dados globais...</td>
+                                    <td colspan="8" class="text-center text-muted">Carregando dados globais...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -415,7 +416,7 @@
             <!-- 5. System Logs -->
             <div id="system" class="section-view">
                 <!-- Same as before -->
-                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">System Logs</h1>
+                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Logs do Sistema</h1>
                 <div class="card">
                     <div class="card-body">
                         <p>Log Stream disponível no Google Cloud Console.</p>
@@ -431,368 +432,7 @@
 
 <!-- Functions -->
 <script>
-    function showSection(sectionId, element) {
-        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-        if (element) element.classList.add('active');
-        document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
-        document.getElementById(sectionId).classList.add('active');
-        if (sectionId === 'monitoring') { updateMonitoring(); }
-    }
-
-    function toggleCreateCompany() {
-        const el = document.getElementById('createCompanyCard');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        document.getElementById('editCompanyCard').style.display = 'none';
-        if (el.style.display === 'block') document.getElementById('createCompanyForm').reset();
-    }
-
-    function toggleCreateManager() {
-        const el = document.getElementById('createManagerCard');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        document.getElementById('editManagerCard').style.display = 'none';
-        if (el.style.display === 'block') document.getElementById('createManagerForm').reset();
-    }
-
-    function openEditCompany(id, name, cnpj) {
-        document.getElementById('createCompanyCard').style.display = 'none';
-        document.getElementById('editCompanyCard').style.display = 'block';
-        document.getElementById('edit_company_id').value = id;
-        document.getElementById('edit_company_name').value = name;
-        document.getElementById('edit_company_cnpj').value = cnpj;
-        // Scroll to form if needed/visible
-    }
-
-    function openEditManager(id, name, email, companyId) {
-        document.getElementById('createManagerCard').style.display = 'none';
-        document.getElementById('editManagerCard').style.display = 'block';
-        document.getElementById('edit_manager_id').value = id;
-        document.getElementById('edit_manager_name').value = name;
-        document.getElementById('edit_manager_email').value = email;
-        if (companyId) document.getElementById('edit_manager_company').value = companyId;
-    }
-
-    // --- TOAST SYSTEM (Ported from Manager) ---
-    function showToast(message, type = 'success') {
-        const toastId = 'toast-' + Math.random().toString(36).substr(2, 9);
-        const color = type === 'success' ? '#10b981' : '#ef4444';
-        const bg = type === 'success' ? '#ecfdf5' : '#fef2f2';
-
-        const html = `
-            <div id="${toastId}" style="
-                position: fixed; top: 20px; right: 20px; z-index: 9999;
-                background: ${bg}; border-left: 4px solid ${color};
-                padding: 1rem 1.5rem; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-                display: flex; align-items: center; gap: 12px;
-                transform: translateX(100%); transition: transform 0.3s ease-out;
-            ">
-                <i class="ph-bold ${type === 'success' ? 'ph-check-circle' : 'ph-warning-circle'}" style="color: ${color}; font-size: 1.2rem;"></i>
-                <div style="font-weight: 500; color: #1f2937;">${message}</div>
-            </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', html);
-
-        setTimeout(() => {
-            const el = document.getElementById(toastId);
-            if (el) el.style.transform = 'translateX(0)';
-        }, 100);
-
-        setTimeout(() => {
-            const el = document.getElementById(toastId);
-            if (el) {
-                el.style.transform = 'translateX(120%)';
-                setTimeout(() => el.remove(), 300);
-            }
-        }, 4000);
-    }
-
-    // --- AJAX DELETE ACTIONS ---
-    // --- AJAX DELETE ACTIONS ---
-    function getCsrfToken() {
-        const input = document.querySelector('input[name="csrf_token"]');
-        return input ? input.value : null;
-    }
-
-    async function deleteCompany(id, name) {
-        if (!confirm(`ATENÇÃO: Apagar ${name} removerá TODOS os dados da empresa. Continuar?`)) return;
-
-        const token = getCsrfToken();
-        if (!token) {
-            alert('Erro de segurança: Token CSRF não encontrado. Recarregue a página.');
-            return;
-        }
-
-        try {
-            const res = await fetch(`/admin/company/${id}/delete`, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRFToken': token
-                }
-            });
-
-            // Handle non-JSON responses (e.g. fatal server errors)
-            const contentType = res.headers.get("content-type");
-            let data;
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-                data = await res.json();
-            } else {
-                throw new Error("Resposta inválida do servidor (HTML/500). Verifique logs.");
-            }
-
-            if (res.ok) {
-                showToast('Empresa removida com sucesso', 'success');
-                const row = document.getElementById(`row-company-${id}`);
-                if (row) {
-                    row.style.background = '#fee2e2';
-                    setTimeout(() => row.remove(), 500);
-                }
-            } else {
-                showToast(data.error || 'Erro ao remover', 'error');
-            }
-        } catch (err) {
-            console.error("Delete Error:", err);
-            showToast('Erro de conexão ou servidor. Verifique o console.', 'error');
-        }
-    }
-
-    async function deleteManager(id, name) {
-        if (!confirm(`Remover acesso de ${name}?`)) return;
-
-        const token = getCsrfToken();
-        if (!token) {
-            alert('Erro de segurança: Token CSRF não encontrado. Recarregue a página.');
-            return;
-        }
-
-        try {
-            const res = await fetch(`/admin/manager/${id}/delete`, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRFToken': token
-                }
-            });
-
-            const contentType = res.headers.get("content-type");
-            let data;
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-                data = await res.json();
-            } else {
-                throw new Error("Resposta inválida do servidor (HTML/500). Verifique logs.");
-            }
-
-            if (res.ok) {
-                showToast('Gestor removido com sucesso', 'success');
-                const row = document.getElementById(`row-manager-${id}`);
-                if (row) {
-                    row.style.background = '#fee2e2';
-                    setTimeout(() => row.remove(), 500);
-                }
-            } else {
-                showToast(data.error || 'Erro ao remover', 'error');
-            }
-        } catch (err) {
-            console.error("Delete Error:", err);
-            showToast('Erro de conexão ou servidor. Verifique o console.', 'error');
-        }
-    }
-
-    // --- UPDATED HANDLERS ---
-    async function handleCreateCompany(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btnCreateCompany');
-        btn.disabled = true; btn.innerHTML = 'Criando...';
-        try {
-            const formData = new FormData(e.target);
-            const res = await fetch("{{ url_for('admin.create_company') }}", { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            const data = await res.json();
-            if (res.ok) {
-                showToast(data.message || 'Empresa criada!', 'success');
-                // DOM Update
-                const tbody = document.querySelector('#companiesTable tbody');
-                const company = data.company;
-                const newRow = `
-                <tr id="row-company-${company.id}" style="animation: fadeIn 0.5s;">
-                    <td style="font-weight: 600;" class="col-name">${company.name}</td>
-                    <td class="text-sm text-muted col-cnpj">${company.cnpj || '--'}</td>
-                    <td><span class="badge badge-success">Ativo</span></td>
-                    <td class="text-right">
-                        <div class="btn-icon-group">
-                            <button class="btn-icon btn-icon-edit" data-id="${company.id}" data-name="${company.name}"
-                                data-cnpj="${company.cnpj || ''}"
-                                onclick="openEditCompany(this.dataset.id, this.dataset.name, this.dataset.cnpj)"
-                                title="Editar">
-                                <i class="ph-bold ph-pencil-simple"></i>
-                            </button>
-                            <button class="btn-icon btn-icon-delete"
-                                onclick="deleteCompany('${company.id}', '${company.name}')"
-                                title="Excluir">
-                                <i class="ph-bold ph-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>`;
-                tbody.insertAdjacentHTML('beforeend', newRow);
-                document.getElementById('createCompanyCard').style.display = 'none';
-
-                // Update Counter
-                const counter = document.getElementById('stat-companies-count');
-                if (counter) counter.innerText = parseInt(counter.innerText) + 1;
-
-            } else { showToast(data.error || 'Erro', 'error'); }
-        } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
-        finally { btn.disabled = false; btn.innerHTML = 'Criar'; }
-    }
-
-    async function handleUpdateCompany(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btnUpdateCompany');
-        btn.disabled = true; btn.innerHTML = 'Salvando...';
-        try {
-            const formData = new FormData(e.target);
-            const id = document.getElementById('edit_company_id').value;
-            const res = await fetch(`/admin/company/${id}/update`, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            const data = await res.json();
-            if (res.ok) {
-                showToast('Atualizado!', 'success');
-                // DOM Update
-                const row = document.getElementById(`row-company-${id}`);
-                if (row) {
-                    row.querySelector('.col-name').innerText = formData.get('name');
-                    row.querySelector('.col-cnpj').innerText = formData.get('cnpj') || '--';
-                    // Update dataset for edit button
-                    const editBtn = row.querySelector('.btn-icon-edit');
-                    editBtn.dataset.name = formData.get('name');
-                    editBtn.dataset.cnpj = formData.get('cnpj');
-                    // Flash effect
-                    row.style.background = '#ecfdf5';
-                    setTimeout(() => row.style.background = '', 1000);
-                }
-                document.getElementById('editCompanyCard').style.display = 'none';
-            } else { showToast(data.error || 'Erro', 'error'); }
-        } catch (err) { showToast('Erro', 'error'); }
-        finally { btn.disabled = false; btn.innerHTML = 'Salvar'; }
-    }
-
-    async function handleCreateManager(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btnCreateManager');
-        btn.disabled = true; btn.innerHTML = 'Criando...';
-        try {
-            const formData = new FormData(e.target);
-            const res = await fetch("{{ url_for('admin.create_manager') }}", { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            const data = await res.json();
-            if (res.ok) {
-                showToast(data.message || 'Gestor criado!', 'success');
-                const mgr = data.manager;
-                const tbody = document.querySelector('#managersTable tbody');
-
-                // HTML for the new row
-                const newRowHtml = `
-                <tr id="row-manager-${mgr.id}" data-company-name="${mgr.company_name}" style="animation: fadeIn 0.5s;">
-                    <td style="font-weight: 500; padding-left: 2rem;" class="col-name">${mgr.name}</td>
-                    <td class="text-sm text-muted col-email">${mgr.email}</td>
-                    <td>
-                        <span class="badge badge-blue col-comp">${mgr.company_name}</span>
-                    </td>
-                    <td class="text-right">
-                        <div class="btn-icon-group">
-                            <button class="btn-icon btn-icon-edit" data-id="${mgr.id}"
-                                data-name="${mgr.name}" data-email="${mgr.email}"
-                                data-company="${mgr.company_id || ''}"
-                                onclick="openEditManager(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.company)"
-                                title="Editar">
-                                <i class="ph-bold ph-pencil-simple"></i>
-                            </button>
-                            <button class="btn-icon btn-icon-delete"
-                                onclick="deleteManager('${mgr.id}', '${mgr.name}')"
-                                title="Excluir">
-                                <i class="ph-bold ph-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>`;
-
-                // Calculate Insertion Point
-                const existingRows = Array.from(tbody.querySelectorAll(`tr[data-company-name="${mgr.company_name}"]`));
-
-                if (existingRows.length > 0) {
-                    // Já existem gestores dessa empresa, inserir após o último
-                    const lastRow = existingRows[existingRows.length - 1];
-                    lastRow.insertAdjacentHTML('afterend', newRowHtml);
-                } else {
-                    // Nenhum gestor desta empresa ainda
-                    // Verificar se header do grupo já existe
-                    const existingHeader = tbody.querySelector(`tr.group-header[data-group-name="${mgr.company_name}"]`);
-
-                    if (existingHeader) {
-                        // Header já existe, apenas adicionar row após ele
-                        existingHeader.insertAdjacentHTML('afterend', newRowHtml);
-                    } else {
-                        // Não existe nem header, criar novo grupo completo
-                        const headerHtml = `
-                        <tr class="group-header" data-group-name="${mgr.company_name}" style="background: rgba(248,250,252,0.5); font-weight:600; color:var(--text-secondary);">
-                            <td colspan="4"><i class="ph-bold ph-buildings"></i> ${mgr.company_name}</td>
-                        </tr>`;
-
-                        // Append to end (New Group)
-                        tbody.insertAdjacentHTML('beforeend', headerHtml + newRowHtml);
-                    }
-                }
-
-                document.getElementById('createManagerCard').style.display = 'none';
-            } else { showToast(data.error || 'Erro', 'error'); }
-        } catch (err) { console.error(err); showToast('Erro de conexão', 'error'); }
-        finally { btn.disabled = false; btn.innerHTML = 'Salvar'; }
-    }
-
-    async function handleUpdateManager(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btnUpdateManager');
-        btn.disabled = true; btn.innerHTML = 'Salvando...';
-
-        // [FIX] Explicitly ignore password if empty (logic handled in backend, but frontend clean)
-        const pw = document.getElementById('edit_manager_password').value;
-        if (!pw || pw.trim() === '') {
-            // Remove from FormData if possible, or ensure backend ignores ''
-            // FormData is constructed from e.target, we can delete 'password' if empty
-            // But FormData doesn't support delete in all browsers? It does in modern ones.
-            // Let's trust backend logic (reviewed and valid).
-            // Focus on autofill prevention:
-        }
-        try {
-            const formData = new FormData(e.target);
-            const id = document.getElementById('edit_manager_id').value;
-            const res = await fetch(`/admin/manager/${id}/update`, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            const data = await res.json();
-            if (res.ok) {
-                showToast('Gestor atualizado!', 'success');
-                const row = document.getElementById(`row-manager-${id}`);
-                if (row) {
-                    row.querySelector('.col-name').innerText = formData.get('name');
-                    row.querySelector('.col-email').innerText = formData.get('email');
-
-                    // Company Name update is trickier as we only have ID in form. 
-                    // We can find the name from the select box text.
-                    const sel = document.getElementById('edit_manager_company');
-                    const compName = sel.options[sel.selectedIndex].text;
-                    row.querySelector('.col-comp').innerText = compName;
-
-                    // Update dataset
-                    const editBtn = row.querySelector('.btn-icon-edit');
-                    editBtn.dataset.name = formData.get('name');
-                    editBtn.dataset.email = formData.get('email');
-                    editBtn.dataset.company = formData.get('company_id');
-
-                    row.style.background = '#ecfdf5';
-                    setTimeout(() => row.style.background = '', 1000);
-                }
-                document.getElementById('editManagerCard').style.display = 'none';
-            } else { showToast(data.error || 'Erro', 'error'); }
-        } catch (err) { showToast('Erro', 'error'); }
-        finally { btn.disabled = false; btn.innerHTML = 'Atualizar'; }
-    }
+    // ... [Existing Functions] ...
 
     // Monitoring
     async function updateMonitoring() {
@@ -809,51 +449,45 @@
                                     ${item.id.substring(0, 8)}...
                                 </span>
                            </td>
-                           <td style="font-weight: 500; font-size: 0.9em;">
-                                <i class="ph-file-pdf" style="color: #ef4444; margin-right: 4px;"></i>
-                                ${item.filename}
+                           <td style="font-size: 0.85em;">
+                                <span class="badge badge-secondary">${item.type}</span>
                            </td>
-                           <td>
-                                ${item.establishment !== 'Detectando...'
-                            ? `<span class="badge badge-blue">${item.establishment}</span>`
-                            : `<span class="badge badge-warning" style="opacity: 0.7;">Detectando...</span>`
-                        }
+                           <td style="font-size: 0.9em; font-weight: 500;">
+                                ${item.company_name}
+                           </td>
+                           <td style="font-weight: 500; font-size: 0.9em;">
+                                <div style="display:flex; flex-direction:column;">
+                                    <span><i class="ph-file-pdf" style="color: #ef4444; margin-right: 4px;"></i> ${item.filename}</span>
+                                    <span style="font-size:0.8em; color:#64748b;">${item.establishment}</span>
+                                </div>
                            </td>
                             <td>
-                                <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Detalhes">${translate(item.status)}</span>
-</td>
-<td style="font-size: 0.85em;">
-    <div style="font-weight: 600; color: var(--text-primary);">${translate(item.stage)}</div>
-    <div style="color: var(--text-muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-        title="${item.message}">
-        ${item.message}
-    </div>
-    ${renderLogsPreview(item.logs)}
-</td>
-<td class="text-sm">
-    <div style="font-weight: 600; color: #475569;">${item.tokens_total > 0 ? item.tokens_total.toLocaleString() : '-'}
-    </div>
-    <div style="font-size: 0.8em; color: #64748b;">$${item.cost_usd > 0 ? item.cost_usd : '0.00'}</div>
-</td>
-<td class="text-sm text-muted">${item.duration ? item.duration + 's' : '-'}</td>
-</tr>
-`).join('');
+                                <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Erros/Logs">${translate(item.status)}</span>
+                                ${item.status === 'FAILED' ? '<div style="font-size:0.7em; color:red; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + (item.error_log || '') + '</div>' : ''}
+                            </td>
+                            <td class="text-sm">
+                                <div style="color: #475569;" title="Entrada / Saída">
+                                    <span style="color:#2563eb;">${(item.tokens_input || 0).toLocaleString()}</span> / 
+                                    <span style="color:#16a34a;">${(item.tokens_output || 0).toLocaleString()}</span>
+                                </div>
+                                <div style="font-size: 0.75em; color: #94a3b8;">Total: ${(item.tokens_total || 0).toLocaleString()}</div>
+                            </td>
+                            <td class="text-sm">
+                                <div style="font-weight: 600; color: #475569;">R$ ${(item.cost_brl || 0).toFixed(4)}</div>
+                                <div style="font-size: 0.8em; color: #64748b;">$ ${(item.cost_usd || 0).toFixed(4)}</div>
+                            </td>
+                            <td class="text-sm text-muted">${item.duration ? item.duration + 's' : '-'}</td>
+                        </tr>
+                    `).join('');
                 } else {
-                    tbody.innerHTML = `<tr>
-    <td colspan="7" class="text-center text-muted">Nenhum log de inspeção recente.</td>
-</tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Nenhum job recente encontrado.</td></tr>`;
                 }
             } else {
-                const errData = await res.json();
-                tbody.innerHTML = `<tr>
-    <td colspan="7" class="text-center text-danger">Erro ao carregar monitor: ${errData.error || res.statusText}</td>
-</tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Erro ao carregar monitoramento.</td></tr>`;
             }
         } catch (err) {
             console.error(err);
-            tbody.innerHTML = `<tr>
-    <td colspan="7" class="text-center text-danger">Erro de conexão: ${err.message}</td>
-</tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Erro de conexão: ${err.message}</td></tr>`;
         }
     }
 

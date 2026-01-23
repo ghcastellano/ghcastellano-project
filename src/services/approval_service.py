@@ -117,26 +117,121 @@ class ApprovalService:
             if 'aproveitamento_geral' not in json_data:
                  json_data['aproveitamento_geral'] = 0
 
-            # [FIX] Fetch Actual Status from DB to Ensure PDF is Up-to-Date
+            # [FIX] Reconstruct Data from DB (Source of Truth)
+            # Instead of using stale Drive data, we rebuild structure from ActionPlan
             try:
-                from src.models_db import Inspection
+                from src.models_db import Inspection, ActionPlan, ActionPlanItem, ActionPlanItemStatus
                 db_async = next(get_db())
+                
                 insp = db_async.query(Inspection).filter_by(drive_file_id=file_id).first()
-                if insp:
+                if not insp or not insp.action_plan:
+                    logger.warning(f"Inspection/Plan not found for {file_id}, using stale Drive data.")
+                    # Fallback to existing json_data if DB lookup fails
+                else:
+                    plan = insp.action_plan
+                    
+                    # 1. Base Structure from Stale JSON (for static fields like header)
+                    # We still keep basic info like 'estabelecimento', 'data_inspecao' from original JSON
+                    # as they might not be fully in DB or formatted differently
+                    
+                    # 2. Rebuild Areas & Scores
+                    # Load original stats to get max scores and base
+                    stats = plan.stats_json or {}
+                    sector_stats = stats.get('by_sector', {})
+                    
+                    # Group DB Items by Sector
+                    db_items_by_sector = {}
+                    for item in plan.items:
+                        sec = item.sector or "Geral"
+                        if sec not in db_items_by_sector: db_items_by_sector[sec] = []
+                        db_items_by_sector[sec].append(item)
+                    
+                    new_areas_list = []
+                    total_score_obtained = stats.get('score', 0) # Start with base (NCs = 0)
+                    total_max_score = stats.get('max_score', 100)
+                    
+                    # Correction Bonus Calculation
+                    # If an item is RESOLVED, we add its lost points back?
+                    # Assumption: 'pontuacao' in original JSON was the weight.
+                    # If item was NC, it contributed 0. If Resolved, it contributes Weight.
+                    # We need the weight. 'original_score' in DB is assumed to be Weight/Penalty.
+                    
+                    correction_bonus_global = 0
+                    
+                    # Iterate over ALL sectors known (from stats or items)
+                    all_sectors = set(list(sector_stats.keys()) + list(db_items_by_sector.keys()))
+                    
+                    for sec in all_sectors:
+                        orig_sec_stat = sector_stats.get(sec, {'score': 0, 'max_score': 0})
+                        sec_max = orig_sec_stat.get('max_score', 0)
+                        sec_current_score = orig_sec_stat.get('score', 0)
+                        
+                        items_list = db_items_by_sector.get(sec, [])
+                        
+                        processed_items = []
+                        for item in items_list:
+                            # Correction Logic
+                            is_corrected = item.status == ActionPlanItemStatus.RESOLVED
+                            weight = item.original_score or 0
+                            
+                            # If corrected, add weight to current score (assuming it was 0 before)
+                            # Note: This logic assumes 'score' in stats was calculated without this item.
+                            if is_corrected:
+                                sec_current_score += weight
+                                correction_bonus_global += weight
+                            
+                            # Build Item Dict for Template
+                            processed_items.append({
+                                'item_verificado': item.problem_description,
+                                'status': 'Conforme' if is_corrected else (item.original_status or 'Não Conforme'),
+                                'is_corrected': is_corrected,
+                                'status_real': 'RESOLVED' if is_corrected else 'OPEN', # For template logic
+                                'manager_notes': item.manager_notes,
+                                'correction_notes': item.manager_notes, # Map to correction notes
+                                'evidence_image_url': item.evidence_image_url,
+                                'pontuacao': weight
+                            })
+                        
+                        # Cap score at max
+                        if sec_current_score > sec_max and sec_max > 0:
+                            sec_current_score = sec_max
+                            
+                        # Calculate Percentage
+                        pct = (sec_current_score / sec_max * 100) if sec_max > 0 else 0
+                        
+                        new_areas_list.append({
+                            'nome_area': sec,
+                            'pontuacao_obtida': round(sec_current_score, 2),
+                            'pontuacao_maxima': round(sec_max, 2),
+                            'aproveitamento': round(pct, 2),
+                            'itens': processed_items
+                        })
+                        
+                    # Update Global Stats
+                    final_global_score = total_score_obtained + correction_bonus_global
+                    if final_global_score > total_max_score: final_global_score = total_max_score
+                    
+                    global_pct = (final_global_score / total_max_score * 100) if total_max_score > 0 else 0
+                    
+                    # Update json_data with Rebuilt Data
+                    json_data['areas_inspecionadas'] = new_areas_list
+                    json_data['aproveitamento_geral'] = round(global_pct, 2)
+                    json_data['pontuacao_global'] = round(final_global_score, 2)
+                    
+                    # Update Status String
                     status_enum = insp.status
                     status_val = status_enum.value if hasattr(status_enum, 'value') else str(status_enum)
-                    
-                    # Logic Mapping (Same as app.py)
                     if status_val == 'COMPLETED':
                         json_data['status_plano'] = 'CONCLUÍDO'
-                    elif status_val == 'APPROVED' or status_val == 'PENDING_VERIFICATION' or status_val == 'WAITING_APPROVAL':
+                    elif status_val in ['APPROVED', 'PENDING_VERIFICATION', 'WAITING_APPROVAL']:
                         json_data['status_plano'] = 'AGUARDANDO VISITA'
                     else:
                         json_data['status_plano'] = 'EM APROVAÇÃO'
+
                 db_async.close()
             except Exception as e:
-                logger.error(f"Error fetching status for PDF: {e}")
-                # Fallback to json status or default
+                logger.error(f"Error rebuilding PDF data from DB: {e}", exc_info=True)
+                # Fallback to original JSON data flow (already loaded)
                 pass
 
             pdf_bytes = pdf_service.generate_pdf_bytes(json_data)

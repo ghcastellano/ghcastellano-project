@@ -143,7 +143,7 @@ class ProcessorService:
         finally:
             session.close() # Safe to close this private session
 
-    def process_single_file(self, file_meta, company_id=None, establishment_id=None, job=None):
+    def process_single_file(self, file_meta, company_id=None, establishment_id=None, job_id=None):
         file_id = file_meta['id']
         filename = file_meta['name']
         
@@ -161,12 +161,18 @@ class ProcessorService:
             # Check for duplicate processing
             session = database.db_session()
             existing_insp = session.query(Inspection).filter_by(file_hash=file_hash).filter(Inspection.status.in_([InspectionStatus.WAITING_APPROVAL, InspectionStatus.PENDING_MANAGER_REVIEW, InspectionStatus.APPROVED])).first()
-            session.close()
             
             if existing_insp:
+                session.close()
                 logger.info(f"♻️ Skipping duplicate file (Hash: {file_hash})")
                 self._log_trace(file_id, "SKIPPED", "SUCCESS", "Arquivo duplicado detectado. Pulando análise de IA.")
+                
+                # Update Job as Skipped
+                if job_id:
+                    self._update_job_status(job_id, "SKIPPED", {"reason": "duplicate", "existing_id": existing_insp.drive_file_id})
+                    
                 return {'status': 'skipped', 'reason': 'duplicate', 'existing_id': existing_insp.drive_file_id}
+            session.close() # Close if not skipping
 
             # 2. Analyze (OCR + OpenAI)
             self._log_trace(file_id, "AI_ANALYSIS", "RUNNING", "Enviando para análise da IA (OpenAI)...")
@@ -175,26 +181,9 @@ class ProcessorService:
             usage = result['usage']
             self._log_trace(file_id, "AI_ANALYSIS", "SUCCESS", "Análise de IA concluída", details=usage)
             
-            # Update Job Metrics immediately (Legacy/Optional)
-            # Update Job Metrics immediately (Legacy/Optional)
-            if job:
-                job.cost_tokens_input = usage.get('prompt_tokens', 0)
-                job.cost_tokens_output = usage.get('completion_tokens', 0)
-                job.api_calls_count += 1
-                
-                # Calculate Costs (Estimativa GPT-4o-mini)
-                # Input: $0.15 / 1M tokens | Output: $0.60 / 1M tokens
-                cost_in = (job.cost_tokens_input / 1_000_000) * 0.15
-                cost_out = (job.cost_tokens_output / 1_000_000) * 0.60
-                job.cost_input_usd = cost_in
-                job.cost_output_usd = cost_out
-                
-                # Fixed Exchange Rate (or fetch dynamic) - USD 1 = BRL 6.00 (Example)
-                job.cost_input_brl = cost_in * 6.0
-                job.cost_output_brl = cost_out * 6.0
-
-                job.result_payload = {'usage': usage}
-
+            # Update Job Metrics immediately (Persisted)
+            if job_id:
+                self._update_job_metrics(job_id, usage)
 
             # 3. Hash
             file_hash = self.calculate_hash(file_content)
@@ -216,6 +205,10 @@ class ProcessorService:
             self._save_to_db_logic(data, file_id, filename, output_link, file_hash, company_id=company_id, override_est_id=establishment_id)
             self._log_trace(file_id, "COMPLETED", "SUCCESS", "Processamento finalizado com sucesso.")
 
+            # Final Job Success
+            if job_id:
+                self._update_job_status(job_id, "COMPLETED")
+
             # Return usage for caller (JobProcessor)
             return {
                 'usage': usage,
@@ -226,6 +219,8 @@ class ProcessorService:
             msg = str(e)
             logger.error("Erro processando arquivo", filename=filename, error=msg)
             self._log_trace(file_id, "ERROR", "FAILED", msg)
+            if job_id:
+                self._update_job_status(job_id, "FAILED", {"error": msg})
             try:
                 if not file_id.startswith('gcs:'):
                     self.drive_service.move_file(file_id, self.folder_error)
@@ -233,6 +228,55 @@ class ProcessorService:
             except:
                 pass
             raise # Re-raise to let caller (app.py) know it failed
+
+    def _update_job_metrics(self, job_id, usage):
+        """Update job metrics independently of main session"""
+        from src.models_db import Job
+        session = database.db_session()
+        try:
+            job = session.query(Job).get(job_id)
+            if job:
+                job.cost_tokens_input = usage.get('prompt_tokens', 0)
+                job.cost_tokens_output = usage.get('completion_tokens', 0)
+                job.api_calls_count = (job.api_calls_count or 0) + 1
+                
+                # Costs
+                cost_in = (job.cost_tokens_input / 1_000_000) * 0.15
+                cost_out = (job.cost_tokens_output / 1_000_000) * 0.60
+                job.cost_input_usd = cost_in
+                job.cost_output_usd = cost_out
+                job.cost_input_brl = cost_in * 6.0
+                job.cost_output_brl = cost_out * 6.0
+                
+                job.result_payload = {'usage': usage}
+                session.commit()
+        except Exception as e:
+            logger.error(f"Failed to update job metrics {job_id}: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+    def _update_job_status(self, job_id, status, error_data=None):
+        """Update job status independently"""
+        from src.models_db import Job
+        session = database.db_session()
+        try:
+            job = session.query(Job).get(job_id)
+            if job:
+                job.status = status
+                if status in ["COMPLETED", "FAILED"]:
+                    job.finished_at = datetime.utcnow()
+                
+                if error_data:
+                    current_err = job.error_log or ""
+                    job.error_log = f"{current_err}\n{json.dumps(error_data)}"
+                
+                session.commit()
+        except Exception as e:
+            logger.error(f"Failed to update job status {job_id}: {e}")
+            session.rollback()
+        finally:
+            session.close()
 
     def extract_text_from_pdf_bytes(self, file_content: bytes) -> str:
         try:

@@ -448,99 +448,52 @@ def api_monitor_stats():
     """
     db = next(get_db())
     try:
-        from src.models_db import Inspection, Job
-        from sqlalchemy import text
-        # Fetch Top 50 recent inspections
-        inspections = db.query(Inspection).options(joinedload(Inspection.establishment)).order_by(Inspection.created_at.desc()).limit(50).all()
+        from src.models_db import Job, JobStatus, Company
+        
+        # Fetch Top 50 recent jobs
+        jobs = db.query(Job).options(joinedload(Job.company)).order_by(Job.created_at.desc()).limit(50).all()
         
         monitor_list = []
-        for insp in inspections:
-            # Extract logs
-            logs = insp.processing_logs if insp.processing_logs else []
+        for job in jobs:
+            # Extract basic info
+            payload = job.input_payload or {}
+            filename = payload.get('filename', 'N/A')
+            est_name = payload.get('establishment_name') or payload.get('establishment', 'N/A')
             
-            # Determine Filename (MVP extraction from logs)
-            filename = "Unknown.pdf"
-            if logs:
-                first_log = logs[0]
-                # Log format: "Started processing filename.pdf" or "Iniciando processamento de filename.pdf"
-                if first_log.get('stage') == 'INIT':
-                    msg = first_log.get('message', '')
-                    if "Started processing " in msg:
-                        filename = msg.replace("Started processing ", "")
-                    elif "Iniciando processamento de " in msg:
-                        filename = msg.replace("Iniciando processamento de ", "")
-            
-            # Determine Last Status/Stage
-            last_stage = "PENDING"
-            last_msg = "-"
-            if logs:
-                last_log = logs[-1]
-                last_stage = last_log.get('stage', 'UNKNOWN')
-                last_msg = last_log.get('message', '')
-            
-            # Duration
+            # Duration calculation
             duration = None
-            if logs and len(logs) > 1:
-                try:
-                    start = datetime.fromisoformat(logs[0]['timestamp'])
-                    end = datetime.fromisoformat(logs[-1]['timestamp'])
-                    duration = round((end - start).total_seconds(), 2)
-                except: pass
-
-            # --- COST / TOKEN ENRICHMENT ---
-            tokens_in = 0
-            tokens_out = 0
-            cost_usd = 0.0
-            job_status = None
+            if job.finished_at and job.created_at:
+                delta = job.finished_at - job.created_at
+                duration = round(delta.total_seconds(), 2)
             
-            # Tentativa de Linkar com Job (assumindo file_id match)
-            # Nota: Isso pode ser N+1 query, mas para 50 itens é aceitável admin-side.
-            # Se performance degradar, fazer join ou eager load.
-            if insp.drive_file_id:
-                # Busca Job onde input_payload->>'file_id' == insp.drive_file_id
-                # Usando SQL texto para JSONB operator ->> (Postgres)
-                try:
-                    # Alternativa ORM pura se Job model tivesse mapeamento direto, mas input_payload é JSON
-                    # Vamos tentar buscar o job mais recente criado perto da inspection
-                    # Alternativa: Buscar por ID ou pelo Nome do Arquivo (Fallback robusto)
-                    filename_clean = str(insp.drive_file_id).replace("gcs:", "") if insp.drive_file_id else ""
-                    
-                    job = db.query(Job).filter(
-                        text("(input_payload->>'file_id' = :fid) OR (input_payload->>'filename' = :fname)")
-                    ).params(fid=str(insp.drive_file_id), fname=filename_clean).order_by(Job.created_at.desc()).first()
-                    
-                    if job:
-                        tokens_in = job.cost_tokens_input or 0
-                        tokens_out = job.cost_tokens_output or 0
-                        job_status = job.status.value
-                        
-                        # Pricing (GPT-4o-mini rough estimate: $0.15/1M in, $0.60/1M out)
-                        # Ajuste conforme modelo real no processor.py
-                        cost_usd = (tokens_in / 1_000_000 * 0.15) + (tokens_out / 1_000_000 * 0.60)
-                except Exception as db_err:
-                    logger.warning(f"Erro linkando Job para {insp.id}: {db_err}")
-
+            # Cost & Tokens
+            cost_usd = (job.cost_input_usd or 0) + (job.cost_output_usd or 0)
+            cost_brl = (job.cost_input_brl or 0) + (job.cost_output_brl or 0)
+            tokens_in = job.cost_tokens_input or 0
+            tokens_out = job.cost_tokens_output or 0
+            
             monitor_list.append({
-                'id': str(insp.id),
+                'id': str(job.id),
+                'type': job.type,
+                'company_name': job.company.name if job.company else "Sem Empresa",
                 'filename': filename,
-                'establishment': insp.establishment.name if insp.establishment else "Detectando...",
-                'status': insp.status.value,
-                'stage': last_stage,
-                'message': last_msg,
+                'establishment': est_name,
+                'status': job.status.value,
+                'created_at': job.created_at.isoformat() if job.created_at else None,
+                'finished_at': job.finished_at.isoformat() if job.finished_at else None,
                 'duration': duration,
-                'created_at': insp.created_at.isoformat() if insp.created_at else None,
-                'logs': logs, # Full logs for detail view
+                'tokens_input': tokens_in,
+                'tokens_output': tokens_out,
                 'tokens_total': tokens_in + tokens_out,
-                'cost_usd': round(cost_usd, 5), # 5 decimal places for micro-costs
-                'job_status': job_status
+                'cost_usd': round(cost_usd, 4),
+                'cost_brl': round(cost_brl, 4),
+                'error_log': job.error_log
             })
             
         return jsonify({'items': monitor_list})
     except Exception as e:
         import traceback
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"❌ Erro em api_monitor_stats: {str(e)}\n{traceback.format_exc()}")
+        current_app.logger.error(f"❌ Erro em api_monitor_stats: {str(e)}\n{traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
     finally:
         db.close()

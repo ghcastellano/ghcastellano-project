@@ -217,7 +217,7 @@
                 </thead>
                 <tbody>
                     {% for area in relatorio.areas_inspecionadas %}
-                    {% if area.itens|length > 0 %}
+                    {# Show all areas regardless of item count #}
                     <tr>
                         <td
                             style="padding: 8px; border: 1px solid #d1d3e2; font-weight: bold; color: #333; width: 50%;">
@@ -237,7 +237,6 @@
                             {{ area.aproveitamento }}%
                         </td>
                     </tr>
-                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>

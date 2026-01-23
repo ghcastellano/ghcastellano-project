@@ -573,27 +573,15 @@ def upload_file():
                             file_meta, 
                             company_id=job.company_id, 
                             establishment_id=est_alvo.id if est_alvo else None,
-                            job=job
+                            job_id=job.id
                         )
                         
                         # Updates Job Status & Metrics (Explicit Save)
-                        job.status = JobStatus.COMPLETED
-                        job.finished_at = datetime.utcnow()
+                        # Job updates handled internally by processor_service
+                        # We just commit here to ensure the transaction is clean, though processor uses its own session.
                         
-                        if result and 'usage' in result:
-                            usage = result['usage']
-                            job.cost_tokens_input = usage.get('prompt_tokens', 0)
-                            job.cost_tokens_output = usage.get('completion_tokens', 0)
-                            # Simple Cost Est (GPT-4o-mini: $0.15/1M in, $0.60/1M out)
-                            # This is just an estimate, exact logic can be in model
-                            job.cost_input_usd = (job.cost_tokens_input / 1_000_000) * 0.15
-                            job.cost_output_usd = (job.cost_tokens_output / 1_000_000) * 0.60
-
-                        if result and 'output_link' in result:
-                            # Save link in payload or another field if available
-                            current_payload = dict(job.result_payload) if job.result_payload else {}
-                            current_payload['pdf_link'] = result['output_link']
-                            job.result_payload = current_payload
+                        # Refresh job to show updated status in response if needed (optional) 
+                        db.refresh(job)
 
                         db.commit()
                         
