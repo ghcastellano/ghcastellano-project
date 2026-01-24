@@ -73,12 +73,9 @@ def get_processed_inspections_raw(company_id=None, establishment_id=None):
         if establishment_id:
             query = query.filter(Inspection.establishment_id == establishment_id)
         elif company_id:
-            from src.models_db import Visit, User
-            query = query.outerjoin(Inspection.establishment).outerjoin(Inspection.visit).outerjoin(Visit.consultant)
-            query = query.filter(
-                (Establishment.company_id == company_id) | 
-                (User.company_id == company_id)
-            )
+            # Filter by Establishment's Company
+            query = query.join(Inspection.establishment)
+            query = query.filter(Establishment.company_id == company_id)
             
         inspections = query.order_by(Inspection.created_at.desc()).limit(50).all()
         

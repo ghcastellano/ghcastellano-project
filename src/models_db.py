@@ -17,12 +17,6 @@ class UserRole(str, Enum):
     MANAGER = "MANAGER"
     ADMIN = "ADMIN"
 
-class VisitStatus(str, Enum):
-    SCHEDULED = "SCHEDULED"
-    COMPLETED = "COMPLETED"
-    CANCELED = "CANCELED"
-    MISSED = "MISSED"
-
 class InspectionStatus(str, Enum):
     PROCESSING = "PROCESSING"
     PENDING_MANAGER_REVIEW = "PENDING_MANAGER_REVIEW" # Aguardando Gestor
@@ -113,22 +107,6 @@ class Contact(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
 
-class Visit(Base):
-    __tablename__ = "visits"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    visit_date: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
-    status: Mapped[VisitStatus] = mapped_column(default=VisitStatus.SCHEDULED)
-    
-    # Foreign Keys
-    consultant_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"))
-    establishment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("establishments.id"))
-    
-    # Relationships
-    consultant: Mapped["User"] = relationship(back_populates="visits")
-    # establishment: Mapped["Establishment"] = relationship(back_populates="visits") # Add back_populates to Est if needed
-    inspections: Mapped[List["Inspection"]] = relationship(back_populates="visit")
-
 
 class User(UserMixin, Base):
     __tablename__ = "users"
@@ -144,9 +122,6 @@ class User(UserMixin, Base):
     # Novos campos V3
     company_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("companies.id"), nullable=True)
     
-    # establishment_id REMOVED (replaced by establishments list)
-    # Mantido temporariamente no DB físico se quiser, mas no modelo python vamos remover para usar a lista.
-    # Para migração funcionar é melhor comentar o campo mapeado ou deixá-lo deprecated.
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False) 
 
     # Relacionamentos
@@ -158,7 +133,6 @@ class User(UserMixin, Base):
         back_populates="users"
     )
     
-    visits: Mapped[List["Visit"]] = relationship(back_populates="consultant")
     approved_plans: Mapped[List["ActionPlan"]] = relationship(back_populates="approved_by")
 
 class AppConfig(Base):
@@ -180,7 +154,6 @@ class Inspection(Base):
     
     # Relacionamentos Foreign Keys
     establishment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("establishments.id"), nullable=True)
-    visit_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("visits.id"), nullable=True)
     
     # Dados de Processamento
     processing_logs: Mapped[Optional[list]] = mapped_column(JSONB, default=list) # Log estruturado
@@ -190,7 +163,6 @@ class Inspection(Base):
     # Relacionamentos
     # client: Mapped["Client"] = relationship(back_populates="inspections") # REMOVED
     establishment: Mapped[Optional["Establishment"]] = relationship(back_populates="inspections")
-    visit: Mapped[Optional["Visit"]] = relationship(back_populates="inspections")
     action_plan: Mapped[Optional["ActionPlan"]] = relationship(back_populates="inspection", uselist=False)
 
 

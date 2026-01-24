@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from src.database import get_db
 from datetime import datetime
-from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus, Inspection, InspectionStatus, ActionPlan, ActionPlanItem, Visit
+from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus, Inspection, InspectionStatus, ActionPlan, ActionPlanItem
 from sqlalchemy.orm import joinedload
 from functools import wraps
 import uuid
@@ -119,8 +119,7 @@ def delete_company(company_id):
             for user in users:
                 # Nullify approved plans (keep history but remove link or just nullify)
                 db.query(ActionPlan).filter(ActionPlan.approved_by_id == user.id).update({ActionPlan.approved_by_id: None})
-                # Delete visits
-                db.query(Visit).filter(Visit.consultant_id == user.id).delete()
+                # Delete visits - REMOVED
                 # Delete user
                 db.delete(user)
             
@@ -136,8 +135,7 @@ def delete_company(company_id):
                          db.delete(insp.action_plan)
                     db.delete(insp)
                 
-                # Delete Visits linked to Est (if any remained)
-                db.query(Visit).filter(Visit.establishment_id == est.id).delete()
+                # Delete Visits linked to Est (if any remained) - REMOVED
                 
                 db.delete(est)
 
@@ -289,7 +287,7 @@ def delete_manager(user_id):
             db.query(ActionPlan).filter(ActionPlan.approved_by_id == user.id).update({ActionPlan.approved_by_id: None})
             
             # 2. Delete Visits linked to this user (if any, usually consultants have visits)
-            db.query(Visit).filter(Visit.consultant_id == user.id).delete()
+            # db.query(Visit).filter(Visit.consultant_id == user.id).delete() # REMOVED
             
             db.delete(user)
             db.commit()
