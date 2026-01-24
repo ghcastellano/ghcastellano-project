@@ -430,8 +430,20 @@
     </div>
 </div>
 
-<!-- Functions -->
 <script>
+    function showSection(sectionId, element) {
+        // Hide all sections
+        document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
+        // Show target section
+        document.getElementById(sectionId).classList.add('active');
+
+        // Update Sidebar
+        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+        if (element) {
+            element.classList.add('active');
+        }
+    }
+
     // ... [Existing Functions] ...
 
     // Monitoring

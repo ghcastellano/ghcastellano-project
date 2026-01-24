@@ -64,8 +64,6 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                      # z_insp.status_details = "Timeout/Crash" # If field exists
             
             db.commit()
-                    # (This assumes One-to-One Job-Inspection mapping logic usually holds)
-                db.commit()
         except Exception as z_err:
              logger.error(f"Zombie Killer Error: {z_err}")
 

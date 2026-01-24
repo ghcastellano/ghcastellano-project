@@ -143,7 +143,7 @@ class ProcessorService:
         finally:
             session.close() # Safe to close this private session
 
-    def process_single_file(self, file_meta, company_id=None, establishment_id=None, job_id=None):
+    def process_single_file(self, file_meta, company_id=None, establishment_id=None, job_id=None, job=None):
         file_id = file_meta['id']
         filename = file_meta['name']
         
