@@ -186,6 +186,8 @@ class ApprovalService:
                                 'status': 'Conforme' if is_corrected else (item.original_status or 'Não Conforme'),
                                 'is_corrected': is_corrected,
                                 'status_real': 'RESOLVED' if is_corrected else 'OPEN', # For template logic
+                                'original_status_label': item.original_status or 'Não Conforme',
+                                'old_score_display': 0.0, # Assumes 0 for NC
                                 'manager_notes': item.manager_notes,
                                 'correction_notes': item.manager_notes, # Map to correction notes
                                 'evidence_image_url': item.evidence_image_url,

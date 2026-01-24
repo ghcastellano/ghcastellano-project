@@ -323,6 +323,14 @@
                                 Visita:
                                 [{% if item.is_corrected %}Corrigido{% else %}Pendente{% endif %}]
                             </span>
+                            {% if item.is_corrected %}
+                            <div
+                                style="font-size: 8pt; color: #555; margin-bottom: 5px; border-bottom: 1px dashed #ccc; padding-bottom: 4px;">
+                                <strong>Anterior:</strong> {{ item.original_status_label }}
+                                {% if item.old_score_display is defined %} (Nota: {{ item.old_score_display }}) {% endif
+                                %}
+                            </div>
+                            {% endif %}
                             <span
                                 style="display: block; font-style: italic; margin-bottom: 8px; font-size: 9pt; color: #333;">
                                 {{ item.correction_notes or item.manager_notes or 'Sem observações.' }}
