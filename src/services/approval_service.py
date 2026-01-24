@@ -174,11 +174,10 @@ class ApprovalService:
                             is_corrected = item.status == ActionPlanItemStatus.RESOLVED
                             weight = item.original_score or 0
                             
-                            # If corrected, add weight to current score (assuming it was 0 before)
-                            # Note: This logic assumes 'score' in stats was calculated without this item.
-                            if is_corrected:
-                                sec_current_score += weight
-                                correction_bonus_global += weight
+                            # [REVERTED] User asked NOT to update score, keep original inspection score.
+                            # if is_corrected:
+                            #    sec_current_score += weight
+                            #    correction_bonus_global += weight
                             
                             # Build Item Dict for Template
                             processed_items.append({
@@ -197,7 +196,7 @@ class ApprovalService:
                         # Cap score at max
                         if sec_current_score > sec_max and sec_max > 0:
                             sec_current_score = sec_max
-                            
+                        
                         # Calculate Percentage
                         pct = (sec_current_score / sec_max * 100) if sec_max > 0 else 0
                         
@@ -210,7 +209,8 @@ class ApprovalService:
                         })
                         
                     # Update Global Stats
-                    final_global_score = total_score_obtained + correction_bonus_global
+                    # [REVERTED] No bonus added
+                    final_global_score = total_score_obtained # + correction_bonus_global
                     if final_global_score > total_max_score: final_global_score = total_max_score
                     
                     global_pct = (final_global_score / total_max_score * 100) if total_max_score > 0 else 0
