@@ -207,7 +207,13 @@ class ProcessorService:
 
             # Final Job Success
             if job_id:
-                self._update_job_status(job_id, JobStatus.COMPLETED)
+                final_result = {
+                    'usage': usage,
+                    'output_link': output_link,
+                    'title': data.get('titulo'),
+                    'summary': data.get('summary') or data.get('summary_text')
+                }
+                self._update_job_status(job_id, JobStatus.COMPLETED, result=final_result)
 
             # Return usage for caller (JobProcessor)
             return {
@@ -259,7 +265,7 @@ class ProcessorService:
         finally:
             session.close()
 
-    def _update_job_status(self, job_id, status, error_data=None):
+    def _update_job_status(self, job_id, status, error_data=None, result=None):
         """Update job status independently"""
         from src.models_db import Job, JobStatus # Re-import locally to be safe
         session = database.db_session()
@@ -281,6 +287,14 @@ class ProcessorService:
                 if error_data:
                     current_err = job.error_log or ""
                     job.error_log = f"{current_err}\n{json.dumps(error_data)}"
+
+                if result:
+                    # Merge with existing payload
+                    current_payload = job.result_payload or {}
+                    # If current is not dict (rare), force it
+                    if not isinstance(current_payload, dict): current_payload = {}
+                    current_payload.update(result)
+                    job.result_payload = current_payload
                 
                 session.commit()
                 logger.info(f"Job {job_id} status updated to {status}.")

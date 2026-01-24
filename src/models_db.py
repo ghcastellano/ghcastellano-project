@@ -393,9 +393,7 @@ class Job(Base):
     error_log: Mapped[Optional[str]] = mapped_column(Text)
 
     # POC Rich Data
-    summary_text = Column(String)
-    strengths_text = Column(String) # For comma-separated or text block
-    stats_json = Column(JSONB) # For compliance counts
+
 
     # Relationships
     company: Mapped["Company"] = relationship()

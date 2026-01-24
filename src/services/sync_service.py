@@ -68,7 +68,11 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
              logger.error(f"Zombie Killer Error: {z_err}")
 
         # 1. Prepare
-        processed_file_ids = {r[0] for r in db.query(Inspection.drive_file_id).all()}
+        # Fetch ID and Status to allow retries on failure
+        existing_inspections = {
+            r[0]: r[1] 
+            for r in db.query(Inspection.drive_file_id, Inspection.status).all()
+        }
         files_to_process = [] # List of tuples: (file_meta, establishment_id)
         
         # 2. Hierarchy Scan: Iterate Establishments
@@ -84,7 +88,17 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
             logger.info(f"   📂 [SYNC] Loja '{est.name}': {len(est_files)} arquivos encontrados.")
             
             for f in est_files:
-                if f['id'] not in processed_file_ids:
+                current_status = existing_inspections.get(f['id'])
+                
+                # Rule: Process if NEW or if existing FAILED/REJECTED
+                should_process = False
+                if current_status is None:
+                    should_process = True
+                elif current_status in [InspectionStatus.FAILED, InspectionStatus.REJECTED]:
+                    logger.info(f"      ♻️ Retrying FAILED file: {f['name']}")
+                    should_process = True
+                
+                if should_process:
                     # Enqueue with Context
                     logger.info(f"      🆕 Enfileirando: {f['name']} ({f['id']})")
                     files_to_process.append((f, est.id))
@@ -103,7 +117,16 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
             if FOLDER_IN:
                 legacy_files = drive_service.list_files(FOLDER_IN, extension='.pdf')
                 for f in legacy_files:
-                     if f['id'] not in processed_file_ids and not any(queued[0]['id'] == f['id'] for queued in files_to_process):
+                     # Check status for legacy files too
+                     current_status = existing_inspections.get(f['id'])
+                     should_process = False
+                     if current_status is None:
+                         should_process = True
+                     elif current_status in [InspectionStatus.FAILED, InspectionStatus.REJECTED]:
+                         logger.info(f"      ♻️ Retrying FAILED legacy file: {f['name']}")
+                         should_process = True
+
+                     if should_process and not any(queued[0]['id'] == f['id'] for queued in files_to_process):
                          files_to_process.append((f, None)) # No Est ID linked
                          if len(files_to_process) >= limit:
                              break
@@ -111,58 +134,78 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
         if not files_to_process:
             return {'status': 'ok', 'message': 'No new files.', 'processed': 0}
 
-        # 4. Process
-        from src.services.processor import processor_service
-        
-        for file, est_id in files_to_process:
-            logger.info(f"⏳ [SYNC] Processing: {file['name']} (Est ID: {est_id})")
-            try:
-                # Job
-                job = Job(
-                    type="SYNC_PROCESS",
-                    status=JobStatus.PENDING,
-                    input_payload={
-                        'file_id': file['id'], 
-                        'filename': file['name'], 
-                        'source': 'admin_sync' if user_trigger else 'cron_scheduler',
-                        'establishment_id': str(est_id) if est_id else None
-                    },
-                    company_id=None # Could infer from Est
-                )
-                db.add(job)
-                db.commit() # Get Job ID
-                
-                # Inspection (Pre-Create with Linked Est)
-                new_insp = Inspection(
-                    drive_file_id=file['id'], 
-                    drive_web_link=file.get('webViewLink'), 
-                    status=InspectionStatus.PROCESSING,
-                    establishment_id=est_id # Direct Link!
-                )
-                db.add(new_insp)
-                db.commit()
+        # 4. Process Queue
+        if files_to_process:
+            logger.info(f"⚡ Processing {len(files_to_process)} prioritized files...")
+            
+            from src.services.processor import processor_service
+            
+            for file, est_id in files_to_process:
+                job = None # Initialize job to None for error handling
+                try:
+                    # 4.1 Check & Clean Old Failed Record (Idempotency)
+                    old_insp = db.query(Inspection).filter_by(drive_file_id=file['id']).first()
+                    if old_insp:
+                        logger.warning(f"      🧹 Cleaning up old record for {file['name']} before retry.")
+                        db.delete(old_insp)
+                        db.commit()
 
-                # Process
-                processor_service.process_single_file(
-                    {'id': file['id'], 'name': file['name']}, 
-                    job=job,
-                    establishment_id=est_id # Pass explicitly to processor
-                )
-                
-                job.status = JobStatus.COMPLETED
-                job.finished_at = datetime.utcnow()
-                job.execution_time_seconds = (job.finished_at - job.created_at.replace(tzinfo=None)).total_seconds()
-                job.attempts += 1
-                db.commit()
-                processed_count += 1
-            except Exception as e:
-                msg = f"Error capturing {file['name']}: {str(e)}"
-                logger.error(msg)
-                errors.append(msg)
-                if job: 
-                    job.status = JobStatus.FAILED
-                    job.result_details = {'error': msg}
+                    # 4.2 Resolve Context (Company ID)
+                    company_id = None
+                    est_obj = None
+                    if est_id:
+                        est_obj = db.query(Establishment).get(est_id)
+                        if est_obj: company_id = est_obj.company_id
+
+                    logger.info(f"⏳ [SYNC] Processing: {file['name']} (Est ID: {est_id})")
+                    
+                    # Job
+                    job = Job(
+                        type="SYNC_PROCESS",
+                        status=JobStatus.PENDING,
+                        input_payload={
+                            'file_id': file['id'], 
+                            'filename': file['name'], 
+                            'source': 'admin_sync' if user_trigger else 'cron_scheduler',
+                            'establishment_id': str(est_id) if est_id else None,
+                            'company_name': est_obj.company.name if est_obj and est_obj.company else None
+                        },
+                        company_id=company_id
+                    )
+                    db.add(job)
+                    db.commit() # Get Job ID
+                    
+                    # Inspection (Pre-Create with Linked Est)
+                    new_insp = Inspection(
+                        drive_file_id=file['id'], 
+                        drive_web_link=file.get('webViewLink'), 
+                        status=InspectionStatus.PROCESSING,
+                        establishment_id=est_id 
+                    )
+                    db.add(new_insp)
                     db.commit()
+    
+                    # Process
+                    processor_service.process_single_file(
+                        {'id': file['id'], 'name': file['name']}, 
+                        job=job,
+                        establishment_id=est_id 
+                    )
+                    
+                    job.status = JobStatus.COMPLETED
+                    job.finished_at = datetime.utcnow()
+                    job.execution_time_seconds = (job.finished_at - job.created_at.replace(tzinfo=None)).total_seconds()
+                    job.attempts += 1
+                    db.commit()
+                    processed_count += 1
+                except Exception as e:
+                    msg = f"Error capturing {file['name']}: {str(e)}"
+                    logger.error(msg)
+                    errors.append(msg)
+                    if job: 
+                        job.status = JobStatus.FAILED
+                        job.result_details = {'error': msg}
+                        db.commit()
 
         return {'status': 'ok', 'processed': processed_count, 'errors': errors}
 
