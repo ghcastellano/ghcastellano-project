@@ -1108,9 +1108,15 @@ def review_page(file_id):
             
             # Contacts (for Email Modal)
             if inspection.establishment:
-                contacts_list = [{'name': c.name, 'phone': c.phone, 'id': str(c.id)} for c in inspection.establishment.contacts]
-                if not contacts_list and inspection.establishment.responsible_name:
-                     contacts_list.append({'name': inspection.establishment.responsible_name, 'phone': inspection.establishment.responsible_phone, 'id': 'default'})
+                contacts_list = [{'name': c.name, 'phone': c.phone, 'email': c.email, 'role': c.role, 'id': str(c.id)} for c in inspection.establishment.contacts]
+                if not contacts_list and (inspection.establishment.responsible_name or inspection.establishment.responsible_email):
+                     contacts_list.append({
+                         'name': inspection.establishment.responsible_name or 'Responsável',
+                         'phone': inspection.establishment.responsible_phone,
+                         'email': inspection.establishment.responsible_email,
+                         'role': 'Responsável',
+                         'id': 'default'
+                     })
 
             # Users list for Email Modal (Fetch all users for now, or just company users)
             # Users list for Email Modal

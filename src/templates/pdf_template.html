@@ -270,8 +270,12 @@
             </thead>
             <tbody>
                 {% for item in area.itens %}
-                {# Filtra Itens Conformes estritamente (Pontuação < Max e Status !=Conforme) #} {% if item.status
-                    and 'Conforme' !=item.status and 'RESOLVED' not in item.status %} <tr>
+                {# Show item if: 1. It is NOT corrected (Open Issue) OR 2. It IS corrected but was originally
+                Non-Conform/Partial #}
+                {% if (not item.is_corrected) or (item.original_status_label and ('Não' in item.original_status_label or
+                'Parcial' in item.original_status_label)) or (not item.original_status_label and 'Não' in item.status)
+                %}
+                <tr>
                     <td
                         style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center; font-weight: bold; color: #888;">
                         #{{ loop.index }}
@@ -351,9 +355,9 @@
                         </div>
                         {% endif %}
                     </td>
-                    </tr>
-                    {% endif %}
-                    {% endfor %}
+                </tr>
+                {% endif %}
+                {% endfor %}
             </tbody>
         </table>
         {% else %}
