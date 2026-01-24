@@ -1534,6 +1534,7 @@ def finalize_verification(file_id):
     Muda status para COMPLETED e gera PDF final se necessario.
     """
     try:
+        from src.models_db import Inspection, InspectionStatus
         inspection = db_session.query(Inspection).filter_by(drive_file_id=file_id).first()
         if not inspection:
             return jsonify({'error': 'Inspection not found'}), 404

@@ -306,6 +306,7 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
     """Busca JOBS (tarefas de background) que estão pendentes ou rodando."""
     try:
         session = database.db_session()
+        from datetime import datetime, timedelta
         # Filter active jobs (Exclude COMPLETED to avoid "stuck" processing card)
         # Filter by recent time (last 30 minutes) to avoid ghosts
         cutoff_time = datetime.now() - timedelta(minutes=30)
