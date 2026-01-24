@@ -1,6 +1,10 @@
 import sys
 import os
 from sqlalchemy import text
+from dotenv import load_dotenv
+
+# Load env before imports
+load_dotenv()
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -9,7 +13,10 @@ from src import database
 
 def run_migration():
     print("🚀 Starting Database Schema Cleanup...")
-    session = database.db_session()
+    # Initialize DB connection
+    database.init_db()
+    database.init_db()
+    session = database.db_session() # Now it should be a scoped_session object
     try:
         # 1. Drop Visit Table (and dependent constraints if any, though Cascade is safer)
         print("🗑️  Dropping table 'visits'...")
