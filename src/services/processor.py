@@ -207,7 +207,7 @@ class ProcessorService:
 
             # Final Job Success
             if job_id:
-                self._update_job_status(job_id, "COMPLETED")
+                self._update_job_status(job_id, JobStatus.COMPLETED)
 
             # Return usage for caller (JobProcessor)
             return {
@@ -220,7 +220,7 @@ class ProcessorService:
             logger.error("Erro processando arquivo", filename=filename, error=msg)
             self._log_trace(file_id, "ERROR", "FAILED", msg)
             if job_id:
-                self._update_job_status(job_id, "FAILED", {"error": msg})
+                self._update_job_status(job_id, JobStatus.FAILED, {"error": msg})
             try:
                 if not file_id.startswith('gcs:'):
                     self.drive_service.move_file(file_id, self.folder_error)
@@ -250,6 +250,9 @@ class ProcessorService:
                 
                 job.result_payload = {'usage': usage}
                 session.commit()
+                logger.info(f"Job {job_id} metrics updated.")
+            else:
+                logger.warning(f"Job {job_id} not found in DB during metric update.")
         except Exception as e:
             logger.error(f"Failed to update job metrics {job_id}: {e}")
             session.rollback()
@@ -258,13 +261,21 @@ class ProcessorService:
 
     def _update_job_status(self, job_id, status, error_data=None):
         """Update job status independently"""
-        from src.models_db import Job
+        from src.models_db import Job, JobStatus # Re-import locally to be safe
         session = database.db_session()
         try:
             job = session.query(Job).get(job_id)
             if job:
+                # Handle String vs Enum
+                if isinstance(status, str):
+                    try:
+                        status = JobStatus(status)
+                    except:
+                        # Fallback try mapping
+                        status = JobStatus[status] if status in JobStatus.__members__ else status
+                        
                 job.status = status
-                if status in ["COMPLETED", "FAILED"]:
+                if status in [JobStatus.COMPLETED, JobStatus.FAILED]:
                     job.finished_at = datetime.utcnow()
                 
                 if error_data:
@@ -272,6 +283,9 @@ class ProcessorService:
                     job.error_log = f"{current_err}\n{json.dumps(error_data)}"
                 
                 session.commit()
+                logger.info(f"Job {job_id} status updated to {status}.")
+            else:
+                logger.warning(f"Job {job_id} not found for status update.")
         except Exception as e:
             logger.error(f"Failed to update job status {job_id}: {e}")
             session.rollback()
@@ -541,7 +555,7 @@ class ProcessorService:
                         # [V16] Persist AI Metadata
                         # [V16] Persist AI Metadata
                         original_status=item.status,
-                        original_score=getattr(item, 'pontuacao', 0), # Safe Get
+                        original_score=getattr(item, 'pontuacao', 0) or 0.0, # Force 0.0 if None
 
                         legal_basis=item.fundamento_legal,
                         corrective_action=item.acao_corretiva_sugerida,
