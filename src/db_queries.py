@@ -370,19 +370,35 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
                 status_color = 'orange'
                 status_label = 'Pendente'
 
+            # Calculate Costs (Fallback if not persisted)
+            input_cost = job.cost_input_brl if job.cost_input_brl > 0 else (job.cost_tokens_input * 0.150 / 1000000.0 * 6.00 if job.cost_tokens_input else 0)
+            output_cost = job.cost_output_brl if job.cost_output_brl > 0 else (job.cost_tokens_output * 0.600 / 1000000.0 * 6.00 if job.cost_tokens_output else 0)
+            total_cost_brl = input_cost + output_cost
+            
+            # USD approximation (BRL / 6.0)
+            total_cost_usd = total_cost_brl / 6.0
+
             result.append({
                 'id': str(job.id),
                 'drive_file_id': payload.get('file_id'),
-                'name': filename,
-                'establishment': payload.get('company_name') or payload.get('establishment_name') or 'N/A', # Add establishment/company context
-                'status': status_label,
-                'status_raw': job.status.value,
-                'color': status_color,
-                'created_at': job.created_at.strftime('%d/%m/%Y %H:%M'),
+                'type': job.type, 
+                'filename': filename,
+                'name': filename, # Compat
+                'establishment': payload.get('company_name') or payload.get('establishment_name') or 'N/A',
                 'company_name': job.company.name if job.company else 'N/A',
-                'cost_input': job.cost_input_brl if job.cost_input_brl > 0 else (job.cost_tokens_input / 1000000.0 * 0.150 * 6.00 if job.cost_tokens_input else 0),
-                'cost_output': job.cost_output_brl if job.cost_output_brl > 0 else (job.cost_tokens_output / 1000000.0 * 0.600 * 6.00 if job.cost_tokens_output else 0),
-                'duration': round(job.execution_time_seconds, 1) if job.execution_time_seconds else 0
+                'status': job.status.value, # Raw value for Frontend mapping
+                'status_label': status_label, # Legacy/Extra
+                'error_log': job.error_log,
+                
+                'tokens_input': job.cost_tokens_input or 0,
+                'tokens_output': job.cost_tokens_output or 0,
+                'tokens_total': (job.cost_tokens_input or 0) + (job.cost_tokens_output or 0),
+                
+                'cost_brl': total_cost_brl,
+                'cost_usd': total_cost_usd,
+                
+                'duration': round(job.execution_time_seconds, 1) if job.execution_time_seconds else 0,
+                'created_at': job.created_at.strftime('%d/%m/%Y %H:%M')
             })
             
         session.close()
