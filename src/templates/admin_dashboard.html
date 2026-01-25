@@ -736,5 +736,26 @@
             titleEl.innerText = "Erro de conexão";
         }
     }
+
+    // --- Toggle Functions ---
+    function toggleCreateCompany() {
+        const card = document.getElementById('createCompanyCard');
+        if (card.style.display === 'none' || card.style.display === '') {
+            card.style.display = 'block';
+            card.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            card.style.display = 'none';
+        }
+    }
+
+    function toggleCreateManager() {
+        const card = document.getElementById('createManagerCard');
+        if (card.style.display === 'none' || card.style.display === '') {
+            card.style.display = 'block';
+            card.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            card.style.display = 'none';
+        }
+    }
 </script>
 {% endblock %}
