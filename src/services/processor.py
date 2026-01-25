@@ -206,12 +206,11 @@ class ProcessorService:
             self._log_trace(file_id, "COMPLETED", "SUCCESS", "Processamento finalizado com sucesso.")
 
             # Final Job Success
-            if job_id:
                 final_result = {
                     'usage': usage,
                     'output_link': output_link,
-                    'title': data.get('titulo'),
-                    'summary': data.get('summary') or data.get('summary_text')
+                    'title': getattr(data, 'titulo', None),
+                    'summary': getattr(data, 'summary', None) or getattr(data, 'summary_text', None)
                 }
                 self._update_job_status(job_id, JobStatus.COMPLETED, result=final_result)
 
