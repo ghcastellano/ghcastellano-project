@@ -1,35 +1,47 @@
 
 import sys
 import os
+from dotenv import load_dotenv
 
-# Add project root to sys.path
+load_dotenv()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from dotenv import load_dotenv
-load_dotenv()
-
 from src import database
-from src.models_db import Inspection, Job, User, Establishment
-from sqlalchemy.orm import joinedload
+from src.models_db import Inspection, InspectionStatus, Establishment, Company
 
-def debug_db():
-    session = next(database.get_db())
+def list_recent_inspections():
+    db = next(database.get_db())
     try:
-        print("\n--- Users (Consultants) ---")
-        consultants = session.query(User).filter_by(role='CONSULTANT').all()
-        for c in consultants:
-            est_names = [e.name for e in c.establishments]
-            print(f"User: {c.email} (ID: {c.id}) | Company: {c.company_id} | Ests: {est_names}")
+        print("\n🔍 Listing Inspections for 'Loja 1':")
+        # Find establishment 'Loja 1'
+        est = db.query(Establishment).filter(Establishment.name == 'Loja 1').first()
+        if not est:
+            print("❌ Establishment 'Loja 1' not found!")
+        else:
+            print(f"🏠 Establishment: {est.name} (ID: {est.id}, Company ID: {est.company_id})")
+            
+            # List Inspections
+            inspections = db.query(Inspection).filter(Inspection.establishment_id == est.id).all()
+            if not inspections:
+                print("   No inspections found for this establishment.")
+            for insp in inspections:
+                print(f"   📄 ID: {insp.id}")
+                print(f"      Status: {insp.status}")
+                print(f"      Created At: {insp.created_at}")
+                print(f"      File ID: {insp.drive_file_id}")
+                print(f"      AI Title: {insp.ai_raw_response.get('titulo') if insp.ai_raw_response else 'N/A'}")
+                print("-" * 30)
 
-        print("\n--- Inspections (Last 10) ---")
-        insps = session.query(Inspection).options(joinedload(Inspection.establishment)).order_by(Inspection.created_at.desc()).limit(100).all()
-        for i in insps:
-            est_name = i.establishment.name if i.establishment else "NULL"
-            est_id = i.establishment.id if i.establishment else "NULL"
-            print(f"Insp ID: {i.id} | Status: {i.status} | Est: {est_name} ({est_id}) | File: {i.drive_file_id}")
+        print("\n🔍 Listing All Recent Inspections (Last 5):")
+        recent = db.query(Inspection).order_by(Inspection.created_at.desc()).limit(5).all()
+        for insp in recent:
+            est_name = insp.establishment.name if insp.establishment else "None"
+            print(f"📄 ID: {insp.id}, Status: {insp.status}, Est: {est_name}, Time: {insp.created_at}")
 
+    except Exception as e:
+        print(f"Error: {e}")
     finally:
-        session.close()
+        db.close()
 
 if __name__ == "__main__":
-    debug_db()
+    list_recent_inspections()
