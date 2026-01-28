@@ -206,6 +206,7 @@ class ProcessorService:
             self._log_trace(file_id, "COMPLETED", "SUCCESS", "Processamento finalizado com sucesso.")
 
             # Final Job Success
+            if job_id:
                 final_result = {
                     'usage': usage,
                     'output_link': output_link,

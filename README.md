@@ -11,7 +11,7 @@ Aplicação web para automatizar o processamento de relatórios de inspeção sa
 ### Stack Tecnológica
 - **Backend**: Python 3.14 + Flask
 - **Banco de Dados**: PostgreSQL (Neon.tech)
-- **IA**: Google Vertex AI (Gemini)
+- **IA**: OpenAI API (GPT-4o)
 - **Storage**: Google Drive API
 - **Deploy**: Google Cloud Run (Serverless)
 
@@ -101,7 +101,7 @@ python3 scripts/migration_add_order.py
 - Python 3.14+
 - PostgreSQL (ou usar Neon.tech)
 - Credenciais do Google Drive API
-- Credenciais do Vertex AI
+- OpenAI API Key
 
 ### Instalação
 
