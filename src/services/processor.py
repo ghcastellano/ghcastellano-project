@@ -16,7 +16,7 @@ from src.database import get_db, SessionLocal
 from src import database # access to db_session
 from src.services.drive_service import drive_service
 from src.services.storage_service import storage_service
-from src.models_db import Inspection, ActionPlan, ActionPlanItem, ActionPlanItemStatus, SeverityLevel, InspectionStatus, Company, Establishment
+from src.models_db import Inspection, ActionPlan, ActionPlanItem, ActionPlanItemStatus, SeverityLevel, InspectionStatus, Company, Establishment, Job, JobStatus
 
 # ... (rest of imports)
 
@@ -510,7 +510,7 @@ class ProcessorService:
             # Update Inspection
             inspection.establishment_id = est_id
             inspection.file_hash = file_hash
-            inspection.status = InspectionStatus.WAITING_APPROVAL
+            inspection.status = InspectionStatus.PENDING_MANAGER_REVIEW
             inspection.ai_raw_response = report_data.model_dump()
             
             session.flush()
