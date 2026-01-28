@@ -3,7 +3,7 @@ import os
 sys.path.append(os.getcwd())
 from src.app import app
 from src.database import db_session
-from src.models_db import Inspection, Job, ActionPlan, ActionPlanItem, Visit
+from src.models_db import Inspection, Job, ActionPlan, ActionPlanItem
 from sqlalchemy import text
 
 def clear_all_data():
@@ -28,9 +28,7 @@ def clear_all_data():
             print("Deleting Jobs...")
             db_session.query(Job).delete()
             
-            # Option: Delete Visits? Maybe keep them or delete if you want full clean.
-            # User said "relatórios criados e planos de ação".
-            # db_session.query(Visit).delete() 
+            # Visits table removed from models 
             
             db_session.commit()
             print("✅ All inspection data cleared successfully.")
