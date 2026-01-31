@@ -71,6 +71,10 @@ if not app.secret_key:
 app.config['SECRET_KEY'] = app.secret_key
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024 # 32MB Upload Limit
 
+# Cloud Run Load Balancer Fix (HTTPS / CSRF)
+# IMPORTANT: ProxyFix MUST be configured BEFORE CSRFProtect to properly detect HTTPS
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 # Session Configuration for Cloud Run (HTTPS)
 # Only enforce secure cookies in production (Cloud Run sets K_SERVICE env var)
 is_production = os.getenv('K_SERVICE') is not None
@@ -79,10 +83,6 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access (XSS p
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection while allowing navigation
 
 csrf = CSRFProtect(app)
-
-# Cloud Run Load Balancer Fix (HTTPS / CSRF)
-# Trust only one proxy by default for Cloud Run
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # --- Migrações (Execução automática V11 & V12) ---
 # Migrações (Legado) - Puladas em desenvolvimento para evitar sobrecarga de inicialização dupla
