@@ -528,20 +528,6 @@
                     </button>
                 </div>
 
-                <!-- Error View (Premium) -->
-                <div id="uploadErrorView"
-                    style="display:none; text-align:center; padding: 2rem; animation: fadeIn 0.3s ease;">
-                    <div style="color: #EF4444; font-size: 3rem; margin-bottom: 1rem;"><i
-                            class="fas fa-exclamation-circle"></i></div>
-                    <h3 style="color: #1E293B; margin-bottom: 0.5rem; font-weight:600;">Falha no Envio</h3>
-                    <p id="uploadErrorMessage" style="color: #64748B; line-height: 1.5;">Ocorreu um erro desconhecido.
-                    </p>
-                    <button type="button" onclick="openUploadModal()" class="btn btn-secondary"
-                        style="margin-top:1.5rem; padding: 0.5rem 1.5rem; border-radius: 50px; border: 1px solid #e2e8f0; background: white; color: #475569; cursor: pointer;">
-                        Tentar Novamente
-                    </button>
-                </div>
-
                 <!-- Progress Bar -->
                 <div id="progressContainer" style="display: none; margin-top: 1rem;">
                     <div
@@ -555,6 +541,20 @@
                     </div>
                 </div>
             </form>
+
+            <!-- Error View (fora do form para ficar visível quando form está hidden) -->
+            <div id="uploadErrorView"
+                style="display:none; text-align:center; padding: 2rem; animation: fadeIn 0.3s ease;">
+                <div style="color: #EF4444; font-size: 3rem; margin-bottom: 1rem;"><i
+                        class="fas fa-exclamation-circle"></i></div>
+                <h3 style="color: #1E293B; margin-bottom: 0.5rem; font-weight:600;">Falha no Envio</h3>
+                <p id="uploadErrorMessage" style="color: #64748B; line-height: 1.5;">Ocorreu um erro desconhecido.
+                </p>
+                <button type="button" onclick="openUploadModal()" class="btn btn-secondary"
+                    style="margin-top:1.5rem; padding: 0.5rem 1.5rem; border-radius: 50px; border: 1px solid #e2e8f0; background: white; color: #475569; cursor: pointer;">
+                    Tentar Novamente
+                </button>
+            </div>
         </div>
     </div>
 
@@ -724,6 +724,9 @@
         if (modalWrapper) modalWrapper.style.display = 'block'; // Ensure visible if hidden
         const procView = document.getElementById('aiProcessingView');
         if (procView) procView.remove();
+        const successView = document.getElementById('uploadSuccessView');
+        if (successView) successView.remove();
+        uploadJustCompleted = false;
         document.getElementById('uploadForm').style.display = 'block';
         document.querySelector('#uploadModal h2').style.display = 'block';
     }
@@ -919,6 +922,7 @@
 
         const showError = (msg) => {
             isProcessing = false; // Reset state
+            uploadJustCompleted = true; // Recarregar ao fechar modal
             const form = document.getElementById('uploadForm');
             const title = document.querySelector('#uploadModal h2');
             const errView = document.getElementById('uploadErrorView');
@@ -959,9 +963,11 @@
                 if (form) form.style.display = 'none';
                 if (title) title.style.display = 'none';
 
-                // Create success view
+                // Create success view (remove old one first if exists)
                 let successView = document.getElementById('uploadSuccessView');
-                if (!successView && modalWrapper) {
+                if (successView) successView.remove();
+
+                if (modalWrapper) {
                     successView = document.createElement('div');
                     successView.id = 'uploadSuccessView';
                     successView.style.cssText = 'text-align:center; padding:2.5rem 1.5rem;';
