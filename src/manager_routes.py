@@ -1169,12 +1169,33 @@ def approve_plan(file_id):
         inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
         if not inspection or not inspection.action_plan:
              return jsonify({'error': 'Plan not found'}), 404
-             
-        inspection.status = InspectionStatus.APPROVED
-        if inspection.action_plan:
-            inspection.action_plan.approved_by_id = current_user.id
-            inspection.action_plan.approved_at = datetime.utcnow()
-        
+
+        # [V17 Flow] Change status to PENDING_CONSULTANT_VERIFICATION (not APPROVED)
+        inspection.status = InspectionStatus.PENDING_CONSULTANT_VERIFICATION
+        plan = inspection.action_plan
+        plan.approved_by_id = current_user.id
+        plan.approved_at = datetime.utcnow()
+
+        # Generate and cache PDF for sharing
+        try:
+            from src.services.pdf_service import pdf_service
+            from src.services.storage_service import storage_service
+            import io
+
+            pdf_data = _prepare_pdf_data(inspection)
+            pdf_bytes = pdf_service.generate_pdf_bytes(pdf_data)
+
+            filename = f"Plano_Aprovado_{inspection.id}.pdf"
+            pdf_url = storage_service.upload_file(
+                io.BytesIO(pdf_bytes),
+                destination_folder="approved_pdfs",
+                filename=filename
+            )
+            plan.final_pdf_url = pdf_url
+        except Exception as pdf_err:
+            print(f"Failed to generate/cache PDF: {pdf_err}")
+            # Don't block approval
+
         db.commit()
         return jsonify({'success': True, 'message': 'Plano aprovado com sucesso!'}), 200
         
