@@ -811,6 +811,24 @@ def edit_plan(file_id):
         if 'aproveitamento_geral' not in report_data:
              report_data['aproveitamento_geral'] = 0
 
+        # 4b. Calculate general summary (total scores across all areas)
+        if 'areas_inspecionadas' in report_data and report_data['areas_inspecionadas']:
+            total_obtido = sum(float(area.get('pontuacao_obtida', 0) or 0) for area in report_data['areas_inspecionadas'])
+            total_maximo = sum(float(area.get('pontuacao_maxima', 0) or 0) for area in report_data['areas_inspecionadas'])
+
+            # Ensure fields exist (prefer AI values if present)
+            if 'pontuacao_geral' not in report_data or report_data.get('pontuacao_geral') == 0:
+                report_data['pontuacao_geral'] = round(total_obtido, 2)
+
+            if 'pontuacao_maxima_geral' not in report_data or report_data.get('pontuacao_maxima_geral') == 0:
+                report_data['pontuacao_maxima_geral'] = round(total_maximo, 2)
+
+            # Recalculate percentage
+            if total_maximo > 0:
+                report_data['aproveitamento_geral'] = round((total_obtido / total_maximo * 100), 2)
+            else:
+                report_data['aproveitamento_geral'] = 0
+
         # [HOTFIX] Enrich Data via PDFService (Calculates Scores, Normalizes Status)
         try:
              pdf_service.enrich_data(report_data)
@@ -865,7 +883,101 @@ def edit_plan(file_id):
     finally:
         db.close()
 
-@manager_bp.route('/manager/plan/<file_id>/save', methods=['POST'])
+def _prepare_pdf_data(inspection):
+    """
+    Helper to prepare data for PDF generation, merging AI raw data with DB edits.
+    """
+    if not inspection or not inspection.action_plan:
+        return {}
+        
+    # 1. Base Data from AI Raw
+    ai_raw = inspection.ai_raw_response or {}
+    plan = inspection.action_plan
+    
+    merged_stats = ai_raw.copy()
+    if plan.stats_json:
+        merged_stats.update(plan.stats_json)
+    
+    data = merged_stats
+    
+    # 2. Rebuild Items from DB
+    if plan.items:
+        db_items = sorted(
+            plan.items, 
+            key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
+        )
+        
+        rebuilt_areas = {}
+        normalized_area_map = {}
+        
+        if 'areas_inspecionadas' in data:
+            for area in data['areas_inspecionadas']:
+                key = area.get('nome_area') or area.get('name')
+                if key:
+                    rebuilt_areas[key] = area
+                    area['itens'] = []
+                    normalized_area_map[key.strip().lower()] = area
+
+        for item in db_items:
+            raw_area_name = item.nome_area or item.sector or "Geral"
+            norm_area_name = raw_area_name.strip().lower()
+            
+            target_area = normalized_area_map.get(norm_area_name)
+            if target_area:
+                area_name = target_area['nome_area']
+            else:
+                area_name = raw_area_name
+            
+            if area_name not in rebuilt_areas:
+                rebuilt_areas[area_name] = {
+                    'nome_area': area_name,
+                    'itens': [], 'pontuacao_obtida': 0, 'pontuacao_maxima': 0, 'aproveitamento': 0
+                }
+            
+            deadline_display = item.ai_suggested_deadline
+            if item.deadline_text and item.deadline_text.strip():
+                deadline_display = item.deadline_text
+            elif item.deadline_date:
+                try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
+                except: pass
+            
+            score_val = item.original_score if item.original_score is not None else 0
+            status_val = item.original_status or "Não Conforme"
+            current_status = item.current_status or ("Corrigido" if item.status == ActionPlanItemStatus.RESOLVED else "Pendente")
+            
+            # Map DB Status to PDF Readable
+            # Note: We keep original status unless it's strictly resolved?
+            # Actually, for PDF we want to show the current state.
+            
+            rebuilt_areas[area_name]['itens'].append({
+                'item_verificado': item.problem_description, # DB Truth
+                'status': status_val, # AI Original
+                'status_atual': current_status, # Current Workflow State
+                'observacao': item.problem_description,
+                'fundamento_legal': item.legal_basis,
+                'acao_corretiva_sugerida': item.corrective_action,
+                'prazo_sugerido': deadline_display,
+                'pontuacao': float(score_val),
+                'manager_notes': item.manager_notes
+            })
+
+        # Recalculate NC Counts
+        for area in rebuilt_areas.values():
+            area['items_nc'] = sum(1 for i in area.get('itens', []) if 'não' in str(i.get('status','')).lower())
+
+        data['areas_inspecionadas'] = list(rebuilt_areas.values())
+
+    # Map Status for Template
+    status_val = inspection.status.value if hasattr(inspection.status, 'value') else str(inspection.status)
+    if status_val == 'COMPLETED':
+        data['status_plano'] = 'CONCLUÍDO'
+    elif status_val == 'APPROVED' or status_val == 'PENDING_CONSULTANT_VERIFICATION':
+        data['status_plano'] = 'AGUARDANDO VISITA'
+    else:
+        data['status_plano'] = 'EM APROVAÇÃO'
+        
+    return data
+
 @login_required
 def save_plan(file_id):
     # [CHANGED] Allow Consultants to Edit Plan (Requested by User)
@@ -922,6 +1034,9 @@ def save_plan(file_id):
                         if deadline_input != item.ai_suggested_deadline:
                             item.deadline_text = deadline_input
                         
+                    if 'current_status' in item_data:
+                        item.current_status = item_data.get('current_status')
+                        
                         # Tentar converter para Date estruturado
                         try:
                             # Try ISO first (YYYY-MM-DD)
@@ -962,7 +1077,8 @@ def save_plan(file_id):
                     status=ActionPlanItemStatus.OPEN,
                     deadline_date=deadline_date,
                     deadline_text=deadline_text,  # [ML-READY] Salvar texto original
-                    order_index=len(plan.items) # [FIX] Append at end
+                    order_index=len(plan.items), # [FIX] Append at end
+                    current_status="Pendente" # Default new
                 )
                 db.add(new_item)
         
@@ -985,9 +1101,34 @@ def save_plan(file_id):
             
         # Update Inspection Status to APPROVED if requested
         if data.get('approve'):
-            inspection.status = InspectionStatus.APPROVED
+            # [V17 Flow] Change from APPROVED to PENDING_CONSULTANT_VERIFICATION
+            inspection.status = InspectionStatus.PENDING_CONSULTANT_VERIFICATION
             plan.approved_by_id = current_user.id
             plan.approved_at = datetime.utcnow()
+            
+            # Generate and Cache PDF
+            try:
+                from src.services.pdf_service import pdf_service
+                from src.services.storage_service import storage_service
+                import io
+                
+                pdf_data = _prepare_pdf_data(inspection)
+                pdf_bytes = pdf_service.generate_pdf_bytes(pdf_data)
+                
+                # Upload to 'approved_pdfs' folder (or similar)
+                filename = f"Plano_Aprovado_{inspection.id}.pdf"
+                pdf_url = storage_service.upload_file(
+                    io.BytesIO(pdf_bytes), 
+                    destination_folder="approved_pdfs", 
+                    filename=filename
+                )
+                plan.final_pdf_url = pdf_url
+                flash("PDF Final Gerado e Salvo!", "success")
+                
+            except Exception as pdf_err:
+                print(f"Failed to generate/cache PDF: {pdf_err}")
+                # Don't block approval but warn
+                
             
             # Generate WhatsApp Link
             if resp_phone:
@@ -995,14 +1136,17 @@ def save_plan(file_id):
                 clean_phone = "".join(filter(str.isdigit, resp_phone))
                 if len(clean_phone) <= 11: clean_phone = "55" + clean_phone # Assume BR if no DDI
                 
-                # Link Logic: Use download_revised_pdf specifically
-                # Note: json_id is file_id in this context
-                download_url = url_for('download_revised_pdf', file_id=file_id, _external=True)
+                # Link Logic: Use final_pdf_url if available, else download_revised_pdf
+                if plan.final_pdf_url:
+                     download_url = plan.final_pdf_url
+                else:
+                     download_url = url_for('download_revised_pdf', file_id=file_id, _external=True)
+                     
                 msg = f"Olá {resp_name or 'Responsável'}, seu Plano de Ação para {inspection.establishment.name} foi aprovado. Acesso: {download_url}"
                 import urllib.parse
                 whatsapp_link = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
             
-            flash('Plano aprovado com sucesso!', 'success')
+            flash('Plano aprovado e enviado para verificação do consultor!', 'success')
             
         db.commit()
         return jsonify({'success': True, 'whatsapp_link': whatsapp_link})
@@ -1038,6 +1182,10 @@ def approve_plan(file_id):
         return jsonify({'error': str(e)}), 500
     finally:
         db.close()
+
+
+@manager_bp.route('/manager/consultant/verify/<uuid:inspection_id>', methods=['GET'])
+
 
 
 @manager_bp.route('/api/status')

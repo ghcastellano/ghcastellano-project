@@ -17,6 +17,7 @@ from src import database # access to db_session
 from src.services.drive_service import drive_service
 from src.services.storage_service import storage_service
 from src.models_db import Inspection, ActionPlan, ActionPlanItem, ActionPlanItemStatus, SeverityLevel, InspectionStatus, Company, Establishment, Job, JobStatus
+from src.error_codes import ErrorCode
 
 # ... (rest of imports)
 
@@ -160,7 +161,7 @@ class ProcessorService:
             
             # Check for duplicate processing
             session = database.db_session()
-            existing_insp = session.query(Inspection).filter_by(file_hash=file_hash).filter(Inspection.status.in_([InspectionStatus.WAITING_APPROVAL, InspectionStatus.PENDING_MANAGER_REVIEW, InspectionStatus.APPROVED])).first()
+            existing_insp = session.query(Inspection).filter_by(file_hash=file_hash).filter(Inspection.status.in_([InspectionStatus.PENDING_MANAGER_REVIEW, InspectionStatus.APPROVED])).first()
             
             if existing_insp:
                 session.close()
@@ -174,12 +175,47 @@ class ProcessorService:
                 return {'status': 'skipped', 'reason': 'duplicate', 'existing_id': existing_insp.drive_file_id}
             session.close() # Close if not skipping
 
-            # 2. Analyze (OCR + OpenAI)
-            self._log_trace(file_id, "AI_ANALYSIS", "RUNNING", "Enviando para análise da IA (OpenAI)...")
-            result = self.analyze_with_openai(file_content)
-            data: ChecklistSanitario = result['data'] # Now Typed as ChecklistSanitario
-            usage = result['usage']
-            self._log_trace(file_id, "AI_ANALYSIS", "SUCCESS", "Análise de IA concluída", details=usage)
+            # 2. Update Job to PROCESSING status
+            if job_id:
+                self._update_job_status(job_id, JobStatus.PROCESSING)
+                self._log_trace(file_id, "JOB_STATUS", "UPDATED", "Job marcado como PROCESSING")
+
+            # 3. Extract text (OCR)
+            self._log_trace(file_id, "OCR", "RUNNING", "Extraindo texto do PDF...")
+            try:
+                pdf_text = self.extract_text_from_pdf_bytes(file_content)
+                char_count = len(pdf_text.strip())
+
+                if char_count == 0:
+                    raise ValueError("PDF vazio (sem texto extraível)")
+
+                self._log_trace(file_id, "OCR", "SUCCESS", f"Texto extraído com sucesso ({char_count} caracteres)")
+            except Exception as ocr_error:
+                error_obj = ErrorCode.get_error(ocr_error)
+                self._log_trace(file_id, "OCR", "FAILED", error_obj['user_msg'], details=error_obj)
+                if job_id:
+                    self._update_job_status(job_id, JobStatus.FAILED, error_data=error_obj)
+                raise
+
+            # 4. Analyze with OpenAI
+            self._log_trace(file_id, "AI_ANALYSIS", "RUNNING", f"Enviando para análise da IA ({self.model_name})...")
+            try:
+                result = self.analyze_with_openai(file_content)
+                data: ChecklistSanitario = result['data']
+                usage = result['usage']
+
+                areas_count = len(data.areas_inspecionadas) if hasattr(data, 'areas_inspecionadas') else 0
+                items_count = sum(len(area.itens) for area in data.areas_inspecionadas) if hasattr(data, 'areas_inspecionadas') else 0
+
+                self._log_trace(file_id, "AI_ANALYSIS", "SUCCESS",
+                              f"Análise concluída: {areas_count} áreas, {items_count} itens detectados",
+                              details={'areas': areas_count, 'items': items_count, **usage})
+            except Exception as ai_error:
+                error_obj = ErrorCode.get_error(ai_error)
+                self._log_trace(file_id, "AI_ANALYSIS", "FAILED", error_obj['user_msg'], details=error_obj)
+                if job_id:
+                    self._update_job_status(job_id, JobStatus.FAILED, error_data=error_obj)
+                raise
             
             # Update Job Metrics immediately (Persisted)
             if job_id:
@@ -188,17 +224,9 @@ class ProcessorService:
             # 3. Hash
             file_hash = self.calculate_hash(file_content)
             
-            # 4. Generate & Upload PDF
-            self._log_trace(file_id, "PDF_GEN", "SKIPPED", "Geração de PDF Adiada (On-Demand)")
+            # 4. Generate & Upload PDF (REMOVED as per V17 Flow - On Demand Only)
             output_link = None
-            # try:
-            #     output_link = self.generate_pdf(data, filename)
-            #     self._log_trace(file_id, "PDF_GEN", "SUCCESS", f"PDF gerado com sucesso: {output_link}")
-            #     logger.info("Plano gerado e salvo", link=output_link)
-            # except Exception as pdf_err:
-            #      msg = f"Falha na Geração do PDF (Ignorado): {pdf_err}"
-            #      logger.error(msg)
-            #      self._log_trace(file_id, "PDF_GEN", "WARNING", msg)
+
 
             # 5. Save to DB (Crucial Step: Mapping Nested Areas to Flat Items)
             self._log_trace(file_id, "DB_SAVE", "RUNNING", "Salvando dados no Banco de Dados...")
@@ -222,17 +250,26 @@ class ProcessorService:
             }
             
         except Exception as e:
-            msg = str(e)
-            logger.error("Erro processando arquivo", filename=filename, error=msg)
-            self._log_trace(file_id, "ERROR", "FAILED", msg)
+            # Get structured error code
+            error_obj = ErrorCode.get_error(e)
+
+            logger.error("Erro processando arquivo",
+                        filename=filename,
+                        error_code=error_obj['code'],
+                        error_msg=str(e))
+
+            self._log_trace(file_id, "ERROR", "FAILED", error_obj['user_msg'], details=error_obj)
+
             if job_id:
-                self._update_job_status(job_id, JobStatus.FAILED, {"error": msg})
+                self._update_job_status(job_id, JobStatus.FAILED, error_data=error_obj)
+
             try:
                 if not file_id.startswith('gcs:'):
                     self.drive_service.move_file(file_id, self.folder_error)
                     self._log_trace(file_id, "ERROR", "MOVED", "Arquivo movido para pasta de Erros")
             except:
                 pass
+
             raise # Re-raise to let caller (app.py) know it failed
 
     def _update_job_metrics(self, job_id, usage):

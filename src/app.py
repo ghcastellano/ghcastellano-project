@@ -319,7 +319,7 @@ def dashboard_consultant():
     for insp in inspections:
         existing_file_ids.add(insp.get('id'))
         # If status is Waiting Approval, prevent Consultant from thinking it's broken
-        if insp.get('status') in ['Aguardando Aprovação', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW']:
+        if insp.get('status') in ['Aguardando Aprovação', 'PENDING_MANAGER_REVIEW']:
              insp['review_link'] = "javascript:alert('Este relatório está em análise pelo Gestor. Você será notificado quando for aprovado.')"
 
     # Merge Jobs (Active or Orphaned)
@@ -353,14 +353,67 @@ def dashboard_consultant():
         })
     
     # [UX] Calculate Quick Stats for Dashboard
-    
-    # [UX] Calculate Quick Stats for Dashboard
     stats = {
         'total': len(inspections),
-        'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_VERIFICATION', 'WAITING_APPROVAL', 'PENDING_MANAGER_REVIEW', 'Processando', 'Pendente']),
+        'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_CONSULTANT_VERIFICATION', 'PENDING_MANAGER_REVIEW', 'Processando', 'Pendente']),
         'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED', 'Concluído']),
         'last_sync': datetime.utcnow().strftime('%H:%M')
     }
+
+    # [NEW] Buscar estabelecimentos com inspeções em análise
+    from src.models_db import Inspection
+    from sqlalchemy.orm import joinedload
+
+    pending_establishments = []
+    if my_est_ids:
+        db_session_insp = next(get_db())
+        try:
+            pending_inspections = db_session_insp.query(Inspection).filter(
+                Inspection.establishment_id.in_(my_est_ids),
+                Inspection.status.in_([InspectionStatus.PROCESSING, InspectionStatus.PENDING_MANAGER_REVIEW])
+            ).options(joinedload(Inspection.establishment)).all()
+
+            # Extrair estabelecimentos únicos
+            est_set = {insp.establishment for insp in pending_inspections if insp.establishment}
+            pending_establishments = sorted(list(est_set), key=lambda e: e.name)
+        finally:
+            db_session_insp.close()
+
+    # [NEW] Buscar jobs com falha para alertas
+    failed_jobs = []
+    if current_user.company_id:
+        db_session_jobs = next(get_db())
+        try:
+            from src.error_codes import ErrorCode
+
+            failed_job_records = db_session_jobs.query(Job).filter(
+                Job.company_id == current_user.company_id,
+                Job.status == JobStatus.FAILED
+            ).order_by(Job.created_at.desc()).limit(5).all()
+
+            for job in failed_job_records:
+                payload = job.input_payload or {}
+
+                # Parse error_log (pode ser JSON estruturado ou string)
+                error_obj = {'code': 'ERR_9001', 'user_msg': 'Erro desconhecido'}
+                if job.error_log:
+                    try:
+                        # Tentar parsear como JSON
+                        error_obj = json.loads(job.error_log.split('\n')[-1])
+                    except:
+                        # Fallback: usar como string
+                        error_obj = {'code': 'ERR_9001', 'user_msg': job.error_log[:200]}
+
+                failed_jobs.append({
+                    'filename': payload.get('filename', 'Arquivo'),
+                    'establishment': payload.get('establishment_name', 'N/A'),
+                    'establishment_id': payload.get('establishment_id'),
+                    'error_code': error_obj.get('code', 'ERR_UNKNOWN'),
+                    'error_message': error_obj.get('user_msg', 'Erro desconhecido. Contate o suporte.'),
+                    'created_at': job.created_at.strftime('%d/%m/%Y %H:%M') if job.created_at else 'N/A'
+                })
+        finally:
+            db_session_jobs.close()
 
     # [UX] Build Hierarchy for Upload Selectors
     user_hierarchy = {}
@@ -392,11 +445,13 @@ def dashboard_consultant():
                 'name': est.name
             })
     
-    return render_template('dashboard_consultant.html', 
+    return render_template('dashboard_consultant.html',
                          user_role='CONSULTANT',
                          inspections=inspections,
                          stats=stats,
-                         user_hierarchy=user_hierarchy)
+                         user_hierarchy=user_hierarchy,
+                         pending_establishments=pending_establishments,
+                         failed_jobs=failed_jobs)
 
 # Rota legado (redireciona para root para tratar auth)
 @app.route('/dashboard')
@@ -1454,7 +1509,7 @@ def download_revised_pdf(file_id):
         
         if status_val == 'COMPLETED':
             data['status_plano'] = 'CONCLUÍDO'
-        elif status_val == 'APPROVED' or status_val == 'PENDING_VERIFICATION' or status_val == 'WAITING_APPROVAL':
+        elif status_val == 'APPROVED' or status_val == 'PENDING_CONSULTANT_VERIFICATION':
             data['status_plano'] = 'AGUARDANDO VISITA'
         else:
              # PENDING_MANAGER_REVIEW, PROCESSING, REJECTED

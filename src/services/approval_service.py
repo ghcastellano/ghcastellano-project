@@ -225,7 +225,7 @@ class ApprovalService:
                     status_val = status_enum.value if hasattr(status_enum, 'value') else str(status_enum)
                     if status_val == 'COMPLETED':
                         json_data['status_plano'] = 'CONCLUÍDO'
-                    elif status_val in ['APPROVED', 'PENDING_VERIFICATION', 'WAITING_APPROVAL']:
+                    elif status_val in ['APPROVED', 'PENDING_CONSULTANT_VERIFICATION', 'PENDING_MANAGER_REVIEW']:
                         json_data['status_plano'] = 'AGUARDANDO VISITA'
                     else:
                         json_data['status_plano'] = 'EM APROVAÇÃO'

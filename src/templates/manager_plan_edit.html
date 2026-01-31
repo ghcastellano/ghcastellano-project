@@ -78,6 +78,47 @@
         <div class="card-body">
             <p class="text-muted mb-4">{{ report_data.resumo_geral }}</p>
 
+            <!-- General Score Summary -->
+            <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #0ea5e9; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;">
+                <h6 style="margin: 0 0 1rem 0; font-size: 1rem; color: #0c4a6e; font-weight: 700;">
+                    📊 Pontuação Geral da Inspeção
+                </h6>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; font-weight: 600;">
+                            Pontuação Obtida
+                        </div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #0ea5e9;">
+                            {{ report_data.pontuacao_geral|default(0)|round(2) }}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; font-weight: 600;">
+                            Pontuação Máxima
+                        </div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #475569;">
+                            {{ report_data.pontuacao_maxima_geral|default(0)|round(2) }}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; font-weight: 600;">
+                            Aproveitamento
+                        </div>
+                        <div style="font-size: 2rem; font-weight: 700; color: {% if report_data.aproveitamento_geral >= 70 %}#10b981{% elif report_data.aproveitamento_geral >= 50 %}#f59e0b{% else %}#ef4444{% endif %}">
+                            {{ report_data.aproveitamento_geral|default(0)|round(2) }}%
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #bae6fd;">
+                    <div style="font-size: 1.25rem; font-weight: 600; color: #0c4a6e;">
+                        Resultado: <span style="{% if report_data.aproveitamento_geral >= 70 %}color: #10b981{% elif report_data.aproveitamento_geral >= 50 %}color: #f59e0b{% else %}color: #ef4444{% endif %}">
+                            {{ report_data.aproveitamento_geral|default(0)|round(2) }}% - {{ report_data.pontuacao_geral|default(0)|round(2) }} / {{ report_data.pontuacao_maxima_geral|default(0)|round(2) }} pontos
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Areas Table -->
             <div class="table-responsive">
                 <table class="table table-bordered table-hover mb-0">
                     <thead class="bg-light">

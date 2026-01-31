@@ -275,6 +275,56 @@
     </div>
 
     <!-- KPI & Action Grid -->
+    <!-- Failed Jobs Alert Section -->
+    {% if failed_jobs %}
+    <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-left: 4px solid #dc2626; padding: 1.5rem; margin-bottom: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);">
+        <div style="display: flex; align-items: start; gap: 1rem;">
+            <div style="flex-shrink: 0;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #dc2626;"></i>
+            </div>
+            <div style="flex: 1;">
+                <h4 style="margin: 0 0 0.75rem 0; font-size: 1.1rem; color: #991b1b; font-weight: 700;">
+                    ⚠️ Atenção: Falhas no Processamento
+                </h4>
+                <p style="margin: 0 0 1rem 0; color: #7f1d1d; font-size: 0.875rem;">
+                    Os seguintes relatórios falharam no processamento. Por favor, tente enviar novamente.
+                </p>
+                {% for job in failed_jobs %}
+                <div style="background: white; border-left: 3px solid #dc2626; padding: 1rem; margin-bottom: 0.75rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="fas fa-file-pdf" style="color: #dc2626;"></i>
+                                {{ job.filename }}
+                            </div>
+                            <div style="font-size: 0.8rem; color: #6b7280; margin-bottom: 0.5rem;">
+                                <i class="fas fa-store-alt"></i> {{ job.establishment }} • <i class="far fa-clock"></i> {{ job.created_at }}
+                            </div>
+                        </div>
+                        <div style="flex-shrink: 0;">
+                            <button onclick="retryUpload('{{ job.establishment_id }}')"
+                                    style="padding: 0.5rem 1rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background 0.2s;"
+                                    onmouseover="this.style.background='#b91c1c'"
+                                    onmouseout="this.style.background='#dc2626'">
+                                <i class="fas fa-redo"></i> Enviar Novamente
+                            </button>
+                        </div>
+                    </div>
+                    <div style="background: #fef2f2; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                        <div style="color: #991b1b; font-size: 0.875rem; margin-bottom: 0.25rem;">
+                            {{ job.error_message }}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #7f1d1d; font-family: 'Courier New', monospace;">
+                            Código: <strong>{{ job.error_code }}</strong>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="stats-grid">
 
         <!-- 1. Primary Action: New Inspection -->
@@ -289,13 +339,33 @@
             </div>
         </div>
 
-        <!-- 2. Pending KPI -->
+        <!-- 2. Pending KPI (Enhanced with Store Names) -->
         <div class="stat-card">
             <div style="color: #D97706; margin-bottom: 1rem;">
                 <i class="fas fa-clock fa-2x"></i>
             </div>
             <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
             <div class="stat-label">Em Análise</div>
+
+            <!-- Show pending establishments -->
+            {% if pending_establishments %}
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;">
+                <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Lojas em Processamento:
+                </div>
+                {% for est in pending_establishments[:3] %}
+                <div style="font-size: 0.8rem; color: #374151; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-store-alt" style="color: #D97706; font-size: 0.7rem;"></i>
+                    <span>{{ est.name }}</span>
+                </div>
+                {% endfor %}
+                {% if pending_establishments|length > 3 %}
+                <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem; font-style: italic;">
+                    + {{ pending_establishments|length - 3 }} outra(s) loja(s)
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         <!-- 3. Approved KPI -->
@@ -335,7 +405,7 @@
         {% if inspections %}
         <div class="inspection-list" id="inspectionList">
             {% for insp in inspections %}
-            {% set is_pending = 'PENDING' in insp.status or 'WAITING' in insp.status or 'PROCESSING' in insp.status %}
+            {% set is_pending = 'PENDING' in insp.status or 'PROCESSING' in insp.status %}
             <div class="inspection-item {{ 'locked-item' if is_pending else '' }}"
                 onclick="{{ 'return false;' if is_pending else 'window.location.href=\'' + insp.review_link + '\'' }}"
                 style="cursor: {{ 'default' if is_pending else 'pointer' }}; opacity: {{ '0.6' if is_pending else '1' }}; pointer-events: {{ 'none' if is_pending else 'auto' }};"
@@ -360,8 +430,7 @@
                     <span class="status-badge status-approved">APROVADO</span>
                     {% elif is_pending %}
                     <span class="status-badge status-pending">EM ANÁLISE</span>
-                    {% elif 'WAITING_APPROVAL' in insp.status %}
-                    <span class="status-badge status-pending">AGUARDANDO APROVAÇÃO</span>
+
                     {% elif 'COMPLETED' in insp.status %}
                     <span class="status-badge status-approved">CONCLUÍDO</span>
                     {% elif 'REJECTED' in insp.status or 'ERROR' in insp.status or 'FAILED' in insp.status %}
@@ -652,6 +721,21 @@
 
     function closeUploadModal() {
         document.getElementById('uploadModal').style.display = 'none';
+    }
+
+    function retryUpload(establishmentId) {
+        // Open upload modal with pre-selected establishment
+        openUploadModal();
+
+        // Pre-select establishment if ID provided
+        if (establishmentId && establishmentId !== 'null') {
+            setTimeout(() => {
+                const estSelect = document.getElementById('estUploadSelect');
+                if (estSelect) {
+                    estSelect.value = establishmentId;
+                }
+            }, 100);
+        }
     }
 
     // Close on click outside
