@@ -53,11 +53,11 @@
     }
 
     .stat-card {
-        background: var(--glass-bg);
-        border-radius: 14px;
-        padding: 1.25rem;
-        box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.06);
-        border: var(--glass-border);
+        background: white;
+        border-radius: 16px;
+        padding: 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+        border: 1px solid #E2E8F0;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         position: relative;
         overflow: hidden;
@@ -67,21 +67,48 @@
 
     .stat-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     }
 
-    .stat-card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.75rem;
+    .stat-card-top {
+        height: 4px;
+        width: 100%;
     }
 
-    .stat-card-body {
-        flex: 1;
+    .stat-card-content {
+        padding: 1.25rem 1.5rem 1.5rem;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        flex: 1;
+    }
+
+    .stat-card-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #94A3B8;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .stat-card-label i {
+        font-size: 0.75rem;
+    }
+
+    .stat-card-number {
+        font-size: 2.75rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.03em;
+    }
+
+    .stat-card-footer {
+        margin-top: auto;
+        padding-top: 0.75rem;
+        border-top: 1px solid #F1F5F9;
     }
 
     /* Primary Action Card (Special Styling) */
@@ -90,38 +117,42 @@
         color: white;
         border: none;
         cursor: pointer;
-        justify-content: center;
-        align-items: flex-start;
     }
 
     .action-card:hover {
         opacity: 0.95;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3);
+    }
+
+    .action-card .stat-card-top {
+        display: none;
+    }
+
+    .action-card .stat-card-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 2rem 1.5rem;
     }
 
     .action-icon-circle {
-        width: 36px;
-        height: 36px;
+        width: 48px;
+        height: 48px;
         background: rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
         backdrop-filter: blur(4px);
-    }
-
-    .stat-icon-circle {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
+        margin-bottom: 1rem;
     }
 
     .stat-value {
-        font-size: 2rem;
+        font-size: 2.75rem;
         font-weight: 800;
         line-height: 1;
         color: inherit;
@@ -363,55 +394,52 @@
 
         <!-- 1. Primary Action: New Inspection -->
         <div class="stat-card action-card" onclick="openUploadModal()">
-            <div class="stat-card-header">
+            <div class="stat-card-top"></div>
+            <div class="stat-card-content">
                 <div class="action-icon-circle">
-                    <i class="fas fa-plus" style="font-size: 0.9rem;"></i>
+                    <i class="fas fa-plus" style="font-size: 1.1rem;"></i>
                 </div>
-            </div>
-            <div class="stat-card-body">
-                <div class="stat-value" style="font-size: 1.15rem; margin-bottom: 0.25rem;">Nova Inspeção</div>
-                <div class="stat-label" style="color: rgba(255,255,255,0.8); margin-top: 0;">Enviar relatório</div>
+                <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem;">Nova Inspeção</div>
+                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7); font-weight: 500;">Enviar relatório</div>
             </div>
         </div>
 
         <!-- 2. Pending KPI -->
         <div class="stat-card">
-            <div class="stat-card-header">
-                <div class="stat-icon-circle" style="background: #FEF3C7;">
-                    <i class="fas fa-clock" style="color: #D97706; font-size: 0.85rem;"></i>
+            <div class="stat-card-top" style="background: linear-gradient(90deg, #F59E0B, #D97706);"></div>
+            <div class="stat-card-content">
+                <div class="stat-card-label">
+                    <i class="fas fa-clock" style="color: #D97706;"></i>
+                    Em aprovação pelo gestor
                 </div>
-            </div>
-            <div class="stat-card-body">
-                <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
-                <div class="stat-label">Em aprovação pelo gestor</div>
-            </div>
-            {% if pending_establishments %}
-            <div style="margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid #f3f4f6;">
-                {% for est in pending_establishments[:3] %}
-                <div style="font-size: 0.75rem; color: #374151; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.4rem;">
-                    <i class="fas fa-store-alt" style="color: #D97706; font-size: 0.6rem;"></i>
-                    <span>{{ est.name }}</span>
-                </div>
-                {% endfor %}
-                {% if pending_establishments|length > 3 %}
-                <div style="font-size: 0.7rem; color: #9ca3af; margin-top: 0.25rem; font-style: italic;">
-                    + {{ pending_establishments|length - 3 }} outra(s)
+                <div class="stat-card-number" style="color: #B45309;">{{ stats.pending }}</div>
+                {% if pending_establishments %}
+                <div class="stat-card-footer">
+                    {% for est in pending_establishments[:3] %}
+                    <div style="font-size: 0.75rem; color: #64748B; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="fas fa-store-alt" style="color: #D97706; font-size: 0.55rem;"></i>
+                        <span>{{ est.name }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if pending_establishments|length > 3 %}
+                    <div style="font-size: 0.7rem; color: #9ca3af; margin-top: 0.25rem; font-style: italic;">
+                        + {{ pending_establishments|length - 3 }} outra(s)
+                    </div>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
-            {% endif %}
         </div>
 
         <!-- 3. Approved KPI -->
         <div class="stat-card">
-            <div class="stat-card-header">
-                <div class="stat-icon-circle" style="background: #DCFCE7;">
-                    <i class="fas fa-check-circle" style="color: #059669; font-size: 0.85rem;"></i>
+            <div class="stat-card-top" style="background: linear-gradient(90deg, #10B981, #059669);"></div>
+            <div class="stat-card-content">
+                <div class="stat-card-label">
+                    <i class="fas fa-check-circle" style="color: #059669;"></i>
+                    Visitas finalizadas
                 </div>
-            </div>
-            <div class="stat-card-body">
-                <div class="stat-value" style="color: #059669;">{{ stats.approved }}</div>
-                <div class="stat-label">Visitas finalizadas</div>
+                <div class="stat-card-number" style="color: #047857;">{{ stats.approved }}</div>
             </div>
         </div>
 
