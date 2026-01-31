@@ -937,11 +937,14 @@
                     progressBar.style.backgroundColor = '#10B981';
                 }
 
-                showProcessingState(); // Ensure view is active
-                showToast('Relatório enviado com sucesso! Processando...', 'success');
+                showToast('Relatório enviado com sucesso! Atualizando página...', 'success');
 
-                // Slightly longer delay to allow user to read the toast and processing message
-                setTimeout(() => { window.location.reload(); }, 4000);
+                // Close modal and reload page to show new data
+                setTimeout(() => {
+                    closeUploadModal();
+                    // Force immediate reload after modal closes
+                    window.location.reload(true);
+                }, 2000);
 
             } else if (xhr.status === 413) {
                 showError('Arquivo muito grande. O limite é 32MB.');
