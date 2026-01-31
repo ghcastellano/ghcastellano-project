@@ -1319,7 +1319,7 @@
             if (tbody && data.processed_raw && data.processed_raw.length > 0) {
                 // Filter for urgent items
                 const urgentItems = data.processed_raw.filter(item =>
-                    item.status === 'PENDING_MANAGER_REVIEW' || item.status === 'WAITING_APPROVAL'
+                    item.status === 'PENDING_MANAGER_REVIEW'
                 );
 
                 // Update Urgent Card
@@ -1360,7 +1360,7 @@
                 const homeList = document.getElementById('home-pendencies-list');
 
                 const pendingValidation = data.processed_raw.filter(i =>
-                    i.status === 'PENDING_MANAGER_REVIEW' || i.status === 'WAITING_APPROVAL'
+                    i.status === 'PENDING_MANAGER_REVIEW'
                 );
 
                 if (homePendencies && homeList) {
@@ -1398,21 +1398,21 @@
 
     // Helper: Button Style based on Status
     function getActionButtonStyle(status) {
-        if (status === 'PENDING_MANAGER_REVIEW' || status === 'WAITING_APPROVAL') return 'btn-danger text-white'; // Urgent
+        if (status === 'PENDING_MANAGER_REVIEW') return 'btn-danger text-white'; // Urgent
         if (status === 'PROCESSING') return 'btn-white border disabled';
         return 'btn-white border'; // Default
     }
 
     // Helper: Button Icon
     function getActionButtonIcon(status) {
-        if (status === 'PENDING_MANAGER_REVIEW' || status === 'WAITING_APPROVAL') return '<i class="ph-bold ph-warning-circle"></i>';
+        if (status === 'PENDING_MANAGER_REVIEW') return '<i class="ph-bold ph-warning-circle"></i>';
         if (status === 'APPROVED') return '<i class="ph-bold ph-pencil-simple"></i>';
         return '<i class="ph-bold ph-eye"></i>';
     }
 
     // Helper: Button Text
     function getActionButtonText(status) {
-        if (status === 'PENDING_MANAGER_REVIEW' || status === 'WAITING_APPROVAL') return 'Validar Agora';
+        if (status === 'PENDING_MANAGER_REVIEW') return 'Validar Agora';
         if (status === 'APPROVED') return 'Visualizar';
         return 'Detalhes';
     }
@@ -1423,9 +1423,9 @@
             'PROCESSING': { class: 'badge-primary', text: 'Processando AI' },
             'PENDING': { class: 'badge-secondary', text: 'Aguardando' },
             'PENDING_MANAGER_REVIEW': { class: 'badge-danger', text: 'Pendente Aprovação' }, // Red for Urgency
-            'WAITING_APPROVAL': { class: 'badge-danger', text: 'Pendente Aprovação' }, // Red for Urgency
+
             'APPROVED': { class: 'badge-success', text: 'Aprovado' },
-            'PENDING_VERIFICATION': { class: 'badge-info', text: 'Em Verificação' },
+            'PENDING_CONSULTANT_VERIFICATION': { class: 'badge-info', text: 'Em Verificação' },
             'COMPLETED': { class: 'badge-success', text: 'Concluído' },
             'REJECTED': { class: 'badge-dark', text: 'Rejeitado' },
             'FAILED': { class: 'badge-dark', text: 'Falha' }

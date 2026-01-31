@@ -57,9 +57,9 @@ def get_processed_inspections_raw(company_id=None, establishment_id=None):
         # Gestor vê: PENDING_MANAGER_REVIEW, WAITING_APPROVAL, APPROVED, PENDING_VERIFICATION, COMPLETED
         statuses = [
             InspectionStatus.PENDING_MANAGER_REVIEW,
-            InspectionStatus.WAITING_APPROVAL,
+            InspectionStatus.PENDING_MANAGER_REVIEW,
             InspectionStatus.APPROVED,
-            InspectionStatus.PENDING_VERIFICATION,
+            InspectionStatus.PENDING_CONSULTANT_VERIFICATION,
             InspectionStatus.COMPLETED
         ]
         
@@ -108,13 +108,13 @@ def get_consultant_inspections(company_id=None, establishment_id=None, allowed_e
     """Busca lista de inspeções para o CONSULTOR (Apenas aprovados/em verificação)."""
     try:
         session = database.db_session()
-        # Consultor vê: PROCESSING, APPROVED, PENDING_VERIFICATION, COMPLETED, WAITING_APPROVAL, PENDING_MANAGER_REVIEW
+        # Consultor vê: PROCESSING, APPROVED, PENDING_CONSULTANT_VERIFICATION, COMPLETED, PENDING_MANAGER_REVIEW
         statuses = [
             InspectionStatus.PROCESSING,
             InspectionStatus.APPROVED,
-            InspectionStatus.PENDING_VERIFICATION,
+            InspectionStatus.PENDING_CONSULTANT_VERIFICATION,
             InspectionStatus.COMPLETED,
-            InspectionStatus.WAITING_APPROVAL,
+            InspectionStatus.PENDING_CONSULTANT_VERIFICATION,
             InspectionStatus.PENDING_MANAGER_REVIEW,
             InspectionStatus.REJECTED
         ]
@@ -172,7 +172,7 @@ def get_consultant_pending_inspections(establishment_id=None, company_id=None, e
     """Busca inspeções com status WAITING_APPROVAL ou PENDING_MANAGER_REVIEW."""
     try:
         session = database.db_session()
-        statuses = [InspectionStatus.WAITING_APPROVAL, InspectionStatus.PENDING_MANAGER_REVIEW]
+        statuses = [InspectionStatus.PENDING_MANAGER_REVIEW]
         
         query = session.query(Inspection).filter(
             Inspection.status.in_(statuses)

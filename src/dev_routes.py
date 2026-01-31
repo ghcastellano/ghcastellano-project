@@ -79,7 +79,7 @@ def consultant_review():
     mock_inspection = {
         "id": "mock-uuid-5678",
         "drive_file_id": "mock-file-567",
-        "status": "PENDING_VERIFICATION",
+        "status": "PENDING_CONSULTANT_VERIFICATION",
         "establishment": {"name": data.get('nome_estabelecimento')},
         "created_at": "2024-01-05T14:30:00"
     }
