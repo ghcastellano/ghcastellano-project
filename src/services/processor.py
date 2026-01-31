@@ -406,6 +406,28 @@ class ProcessorService:
         Você é um Auditor Sanitário Sênior, especialista na legislação brasileira (RDC 216/2004, CVS-5/2013).
         Sua tarefa é analisar o texto do relatório de auditoria e transformá-lo em um CHECKLIST DE PLANO DE AÇÃO ESTRUTURADO.
 
+        FORMATO DO RELATÓRIO DE ENTRADA:
+        Os itens do relatório seguem este padrão:
+        - Número e pergunta do item, seguido de "(X.XX% - X.XX pontos)" que indica a pontuação OBTIDA naquele item
+        - "Resposta: Sim/Não/Parcial/N.A./Não Aplicável"
+        - Opcionalmente: "Fotos da questão X.X" (indica evidência fotográfica de problema)
+        - Opcionalmente: "Comentário: ..." (observação do auditor in-loco)
+
+        REGRAS DE CLASSIFICAÇÃO DOS ITENS:
+        - "Resposta: Parcial" = SEMPRE "Parcialmente Conforme" → INCLUIR OBRIGATORIAMENTE
+        - "Resposta: Não" com pontuação "(0.00% - 0.00 pontos)" = "Não Conforme" → INCLUIR OBRIGATORIAMENTE
+        - "Resposta: Não" em perguntas POSITIVAS (ex: "Está limpo?", "Está adequado?") = "Não Conforme" → INCLUIR
+        - "Resposta: Não" em perguntas NEGATIVAS (ex: "Foram encontrados produtos vencidos?") onde "Não" significa ausência de problema E a pontuação é > 0 = Conforme → NÃO INCLUIR
+        - "Resposta: Sim" com pontuação > 0 = "Conforme" → NÃO INCLUIR
+        - "Resposta: N.A." ou "Não Aplicável" = Não se aplica → NÃO INCLUIR
+        - Se o item possui "Fotos da questão" ou "Comentário:" = EVIDÊNCIA DE PROBLEMA → INCLUIR OBRIGATORIAMENTE como "Não Conforme" ou "Parcialmente Conforme"
+
+        REGRA DE COMPLETUDE (CRÍTICA):
+        Você DEVE capturar ABSOLUTAMENTE TODOS os itens não conformes e parcialmente conformes.
+        NÃO resuma. NÃO agrupe itens similares. NÃO pule nenhum item.
+        Cada item com problema no relatório deve aparecer como um ChecklistItem individual na lista de itens da área correspondente.
+        Se uma área possui 10 itens com problemas, a lista deve ter exatamente 10 itens.
+
         DIRETRIZES:
         1. Identifique o Estabelecimento e a DATA DA INSPEÇÃO (Checklist Base).
         2. Crie um Resumo Geral robusto indicando as principais áreas críticas.
@@ -413,10 +435,10 @@ class ProcessorService:
         4. Para cada ÁREA FÍSICA DE INSPEÇÃO (ex: 'Cozinha', 'Estoque Seco', 'Vestiários', 'Área de Manipulação', 'Câmaras Frigoríficas', 'Instalações sanitárias dos clientes'):
            - Crie um 'resumo_area' curto e informativo.
            - Extraia 'pontuacao_obtida', 'pontuacao_maxima' e calcule o 'aproveitamento' (%).
-           - Agrupe os itens não conformes.
-        5. Para cada Não Conformidade:
+           - Liste TODOS os itens não conformes e parcialmente conformes desta área.
+        5. Para cada item com problema:
            - Status deve ser 'Não Conforme' ou 'Parcialmente Conforme'.
-           - Observação: Descreva detalhadamente a evidência encontrada.
+           - Observação: Descreva detalhadamente a evidência encontrada. Se houver "Comentário:" do auditor no relatório, INCLUA esse comentário na observação.
            - Fundamento Legal: Cite a legislação específica.
            - Ação Corretiva Gerada: Como auditor, sugira a correção técnica IMEDIATA.
            - Prazo Sugerido: Estime o prazo baseado no risco (Imediato - risco iminente, 24 horas - prioridade alta, 7 dias - operacional, 15 dias - estrutural leve, 30 dias - melhoria). Escolha o mais adequado, não use apenas 'Imediato'.

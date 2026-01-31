@@ -49,17 +49,20 @@
         grid-template-columns: repeat(3, 1fr);
         gap: 1rem;
         margin-bottom: 2rem;
+        align-items: stretch;
     }
 
     .stat-card {
         background: var(--glass-bg);
         border-radius: 14px;
-        padding: 1rem 1.25rem;
+        padding: 1.25rem;
         box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.06);
         border: var(--glass-border);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         position: relative;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
     .stat-card:hover {
@@ -67,14 +70,18 @@
         box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.1);
     }
 
-    .stat-card-row {
+    .stat-card-header {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
     }
 
-    .stat-card > .stat-label {
-        margin-left: calc(40px + 0.75rem);
+    .stat-card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
     /* Primary Action Card (Special Styling) */
@@ -82,10 +89,9 @@
         background: var(--primary-gradient);
         color: white;
         border: none;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
         cursor: pointer;
+        justify-content: center;
+        align-items: flex-start;
     }
 
     .action-card:hover {
@@ -93,8 +99,8 @@
     }
 
     .action-icon-circle {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         background: rgba(255, 255, 255, 0.2);
         border-radius: 10px;
         display: flex;
@@ -105,8 +111,8 @@
     }
 
     .stat-icon-circle {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         border-radius: 10px;
         display: flex;
         align-items: center;
@@ -115,19 +121,17 @@
     }
 
     .stat-value {
-        font-size: 1.5rem;
+        font-size: 2rem;
         font-weight: 800;
         line-height: 1;
         color: inherit;
     }
 
     .stat-label {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        opacity: 0.7;
-        margin-top: 0.15rem;
+        color: #64748B;
+        margin-top: 0.35rem;
     }
 
     /* Animations */
@@ -359,26 +363,28 @@
 
         <!-- 1. Primary Action: New Inspection -->
         <div class="stat-card action-card" onclick="openUploadModal()">
-            <div class="stat-card-row">
+            <div class="stat-card-header">
                 <div class="action-icon-circle">
-                    <i class="fas fa-plus"></i>
+                    <i class="fas fa-plus" style="font-size: 0.9rem;"></i>
                 </div>
-                <div>
-                    <div class="stat-value" style="font-size: 1.1rem;">Nova Inspeção</div>
-                    <div class="stat-label" style="color: #fff; opacity: 0.9;">Começar agora</div>
-                </div>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value" style="font-size: 1.15rem; margin-bottom: 0.25rem;">Nova Inspeção</div>
+                <div class="stat-label" style="color: rgba(255,255,255,0.8); margin-top: 0;">Enviar relatório</div>
             </div>
         </div>
 
         <!-- 2. Pending KPI -->
         <div class="stat-card">
-            <div class="stat-card-row">
+            <div class="stat-card-header">
                 <div class="stat-icon-circle" style="background: #FEF3C7;">
-                    <i class="fas fa-clock" style="color: #D97706; font-size: 1rem;"></i>
+                    <i class="fas fa-clock" style="color: #D97706; font-size: 0.85rem;"></i>
                 </div>
-                <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
             </div>
-            <div class="stat-label">Em aprovação pelo gestor</div>
+            <div class="stat-card-body">
+                <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
+                <div class="stat-label">Em aprovação pelo gestor</div>
+            </div>
             {% if pending_establishments %}
             <div style="margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid #f3f4f6;">
                 {% for est in pending_establishments[:3] %}
@@ -398,13 +404,15 @@
 
         <!-- 3. Approved KPI -->
         <div class="stat-card">
-            <div class="stat-card-row">
+            <div class="stat-card-header">
                 <div class="stat-icon-circle" style="background: #DCFCE7;">
-                    <i class="fas fa-check-circle" style="color: #059669; font-size: 1rem;"></i>
+                    <i class="fas fa-check-circle" style="color: #059669; font-size: 0.85rem;"></i>
                 </div>
-                <div class="stat-value" style="color: #059669;">{{ stats.approved }}</div>
             </div>
-            <div class="stat-label">Visitas finalizadas</div>
+            <div class="stat-card-body">
+                <div class="stat-value" style="color: #059669;">{{ stats.approved }}</div>
+                <div class="stat-label">Visitas finalizadas</div>
+            </div>
         </div>
 
     </div>
@@ -569,15 +577,22 @@
 
             <!-- Error View (fora do form para ficar visível quando form está hidden) -->
             <div id="uploadErrorView"
-                style="display:none; text-align:center; padding: 2rem; animation: fadeIn 0.3s ease;">
-                <div style="color: #EF4444; font-size: 3rem; margin-bottom: 1rem;"><i
-                        class="fas fa-exclamation-circle"></i></div>
-                <h3 style="color: #1E293B; margin-bottom: 0.5rem; font-weight:600;">Falha no Envio</h3>
-                <p id="uploadErrorMessage" style="color: #64748B; line-height: 1.5;">Ocorreu um erro desconhecido.
+                style="display:none; text-align:center; padding: 2.5rem 2rem; animation: fadeIn 0.3s ease;">
+                <div style="width: 64px; height: 64px; background: #FEE2E2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;">
+                    <i class="fas fa-exclamation-triangle" style="color: #DC2626; font-size: 1.5rem;"></i>
+                </div>
+                <h3 style="color: #1E293B; margin-bottom: 1rem; font-weight: 700; font-size: 1.25rem;">Falha no Envio</h3>
+                <div style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; text-align: left;">
+                    <p id="uploadErrorMessage" style="color: #991B1B; line-height: 1.6; margin: 0; font-size: 0.9rem; word-break: break-word;">
+                        Ocorreu um erro desconhecido.
+                    </p>
+                </div>
+                <p style="color: #64748B; font-size: 0.85rem; margin-bottom: 1.5rem;">
+                    Tente enviar novamente. Se o erro persistir, contate o suporte.
                 </p>
                 <button type="button" onclick="openUploadModal()" class="btn btn-secondary"
-                    style="margin-top:1.5rem; padding: 0.5rem 1.5rem; border-radius: 50px; border: 1px solid #e2e8f0; background: white; color: #475569; cursor: pointer;">
-                    Tentar Novamente
+                    style="padding: 0.6rem 1.75rem; border-radius: 50px; border: 1px solid #e2e8f0; background: white; color: #475569; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;">
+                    <i class="fas fa-redo" style="margin-right: 6px;"></i> Tentar Novamente
                 </button>
             </div>
         </div>

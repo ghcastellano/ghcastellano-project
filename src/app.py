@@ -692,32 +692,49 @@ def upload_file():
                         file_meta = {'id': id_drive, 'name': file.filename}
                         
                         # Executa Processamento (Isso pode levar 30-60s)
-                        result = processor_service.process_single_file(
-                            file_meta, 
-                            company_id=job.company_id, 
-                            establishment_id=est_alvo.id if est_alvo else None,
-                            job_id=job.id
-                        )
-                        
-                        # Updates Job Status & Metrics (Explicit Save)
-                        # Job updates handled internally by processor_service
-                        # We just commit here to ensure the transaction is clean, though processor uses its own session.
-                        
-                        # Refresh job to show updated status in response if needed (optional) 
-                        db.refresh(job)
+                        # Salvar job_id antes - processor usa sessões próprias que desconectam objetos
+                        job_id_saved = job.id
+                        job_company_id = job.company_id
 
-                        db.commit()
-                        
+                        result = processor_service.process_single_file(
+                            file_meta,
+                            company_id=job_company_id,
+                            establishment_id=est_alvo.id if est_alvo else None,
+                            job_id=job_id_saved
+                        )
+
+                        # Re-fetch job in fresh session (processor closes/detaches our objects)
+                        db_fresh = next(get_db())
+                        try:
+                            fresh_job = db_fresh.query(Job).get(job_id_saved)
+                            if fresh_job:
+                                fresh_job.status = JobStatus.COMPLETED
+                                fresh_job.finished_at = datetime.utcnow()
+                                if fresh_job.created_at:
+                                    fresh_job.execution_time_seconds = (fresh_job.finished_at - fresh_job.created_at.replace(tzinfo=None)).total_seconds()
+                                fresh_job.attempts = (fresh_job.attempts or 0) + 1
+                                db_fresh.commit()
+
+                                total_cost = (fresh_job.cost_input_usd or 0) + (fresh_job.cost_output_usd or 0)
+                                logger.info(f"✅ [SYNC] Processamento concluído: {file.filename} (Cost: ${total_cost:.4f})")
+                        finally:
+                            db_fresh.close()
+
                         sucesso += 1
-                        total_cost = (job.cost_input_usd or 0) + (job.cost_output_usd or 0)
-                        logger.info(f"✅ [SYNC] Processamento concluído: {file.filename} (Cost: ${total_cost:.4f})")
-                        
+
                     except Exception as job_e:
                         logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")
                         if job:
-                            job.status = JobStatus.FAILED
-                            job.error_log = str(job_e)
-                            db.commit()
+                            try:
+                                db_err = next(get_db())
+                                err_job = db_err.query(Job).get(job.id)
+                                if err_job:
+                                    err_job.status = JobStatus.FAILED
+                                    err_job.error_log = str(job_e)
+                                    db_err.commit()
+                                db_err.close()
+                            except Exception:
+                                logger.error(f"Failed to update job status for {job.id}")
                         falha += 1
                         
                         # [NOTIFY] Avisar consultor sobre erro crítico

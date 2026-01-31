@@ -363,6 +363,7 @@ class JobStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELED = "CANCELED"
+    SKIPPED = "SKIPPED"
 
 class Job(Base):
     __tablename__ = "jobs"

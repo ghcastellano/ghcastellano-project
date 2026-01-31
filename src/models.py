@@ -16,7 +16,7 @@ class AreaInspecao(BaseModel):
     pontuacao_obtida: float = Field(description="Pontos obtidos nesta área.")
     pontuacao_maxima: float = Field(description="Pontuação máxima possível para esta área.")
     aproveitamento: float = Field(description="Percentual de aproveitamento da área (0-100).")
-    itens: List[ChecklistItem] = Field(description="Lista de itens verificados nesta área. Incluir APENAS itens com não conformidades.")
+    itens: List[ChecklistItem] = Field(description="Lista COMPLETA de TODOS os itens não conformes ou parcialmente conformes desta área. Cada item com problema deve aparecer individualmente - não resuma, não agrupe, não pule nenhum.")
 
 class ChecklistSanitario(BaseModel):
     nome_estabelecimento: str = Field(description="Nome do estabelecimento que foi auditado.")
