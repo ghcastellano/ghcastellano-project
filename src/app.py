@@ -1376,22 +1376,35 @@ def save_review(file_id):
         from src.models_db import ActionPlanItem, ActionPlanItemStatus
         db = database.db_session
         updates = request.json
-        
+
+        logger.info(f"[SAVE_REVIEW] Recebendo atualizações para {len(updates)} itens")
+
         for item_id_str, data in updates.items():
             item = db.query(ActionPlanItem).get(uuid.UUID(item_id_str))
             if item:
+                logger.info(f"[SAVE_REVIEW] Item {item_id_str[:8]}... - Dados: {data}")
+
                 if 'is_corrected' in data:
                     item.status = ActionPlanItemStatus.RESOLVED if data['is_corrected'] else ActionPlanItemStatus.OPEN
                     item.current_status = 'Corrigido' if data['is_corrected'] else 'Pendente'
+                    logger.info(f"[SAVE_REVIEW] Status atualizado para: {item.current_status}")
+
                 if 'correction_notes' in data:
                     item.manager_notes = data['correction_notes']
+
                 if 'evidence_image_url' in data:
-                    item.evidence_image_url = data['evidence_image_url']
-        
+                    evidence_url = data['evidence_image_url']
+                    logger.info(f"[SAVE_REVIEW] Evidence URL recebida: {evidence_url}")
+                    item.evidence_image_url = evidence_url if evidence_url else None
+                    logger.info(f"[SAVE_REVIEW] Evidence URL salva: {item.evidence_image_url}")
+            else:
+                logger.warning(f"[SAVE_REVIEW] Item {item_id_str} não encontrado")
+
         db.commit()
+        logger.info(f"[SAVE_REVIEW] Commit realizado com sucesso")
         return jsonify({'success': True})
     except Exception as e:
-        logger.error(f"Erro ao salvar revisão {file_id}: {e}")
+        logger.error(f"[SAVE_REVIEW] Erro ao salvar revisão {file_id}: {e}")
         db.rollback()
         return jsonify({'error': str(e)}), 500
 

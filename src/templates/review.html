@@ -684,6 +684,9 @@
             evidence_image_url: evidenceUrl
         };
 
+        console.log('[SAVE_ITEM] Payload being sent:', payload);
+        console.log('[SAVE_ITEM] Evidence URL:', evidenceUrl);
+
         try {
             // Mock Save in Dev Mode (if no backend endpoint)
             if (IS_DEV_MODE) {

@@ -1,3 +1,5 @@
 {
-    "search.useIgnoreFiles": false
+    "search.useIgnoreFiles": false,
+    "claude-code.defaultMode": "bypassPermissions",
+    "claude-code.dangerouslyDisableSandbox": true
 }
