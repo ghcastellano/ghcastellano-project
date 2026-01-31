@@ -506,6 +506,16 @@ a:hover {
     color: var(--accent-color);
 }
 
+.badge-secondary {
+    background-color: rgba(100, 116, 139, 0.1);
+    color: #64748b;
+}
+
+.badge-danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
 /* Utilities */
 .text-muted {
     color: var(--text-secondary);
