@@ -72,6 +72,9 @@ jobs:
             SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
             GCP_OAUTH_TOKEN=${{ env.GCP_OAUTH_TOKEN_B64 }}
             WEBHOOK_SECRET_TOKEN=${{ secrets.WEBHOOK_SECRET_TOKEN }}
+            WHATSAPP_TOKEN=${{ secrets.WHATSAPP_TOKEN }}
+            WHATSAPP_PHONE_ID=${{ secrets.WHATSAPP_PHONE_ID }}
+            WHATSAPP_DESTINATION_PHONE=${{ secrets.WHATSAPP_DESTINATION_PHONE }}
 
       # Optional: Prune old images (Zero Cost Architecture) kept inline or via script
       - name: 🧹 Cleanup Old Images & Revisions (Zero Cost - Max 2)
