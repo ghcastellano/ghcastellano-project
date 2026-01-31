@@ -1429,10 +1429,11 @@ def upload_evidence():
             # Use Storage Service (Abstração GCS/Local)
             from src.services.storage_service import storage_service
 
-            # Decide bucket folder based on environment or config
             folder = 'evidence'
+            logger.info(f"[EVIDENCE] Iniciando upload: {filename} | GCS Client: {storage_service.client is not None} | Bucket: {storage_service.bucket_name}")
 
             public_url = storage_service.upload_file(file, destination_folder=folder, filename=filename)
+            logger.info(f"[EVIDENCE] Upload concluido: {public_url}")
 
             # Always normalize to use the proxy route for resilience
             # This ensures evidence works even if GCS is not available or container restarts

@@ -362,7 +362,17 @@
     {% endif %}
     {% endfor %}
 
-    <!-- NEW EVIDENCE SECTION -->
+    <!-- EVIDENCE SECTION - Only show if there are actual evidence images -->
+    {% set all_evidence_items = [] %}
+    {% for area in relatorio.areas_inspecionadas %}
+        {% for item in area.itens %}
+            {% if item.evidence_image_url %}
+                {% if all_evidence_items.append(item) %}{% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+
+    {% if all_evidence_items|length > 0 %}
     <div style="page-break-before: always;"></div>
 
     <div class="header" style="text-align: center; margin-bottom: 30px;">
@@ -380,34 +390,35 @@
             Área: {{ area.nome_area }}
         </h3>
 
-        <!-- Grid Layoutish using inline-block div because float is safer for PDF engines -->
         <div style="width: 100%;">
             {% for item in area.itens %}
             {% if item.evidence_image_url %}
             <div
-                style="display: inline-block; width: 48%; vertical-align: top; margin-bottom: 20px; page-break-inside: avoid; margin-right: 1%; border: 1px solid #ddd; background: #fff; border-radius: 4px; overflow: hidden;">
-                <!-- Image Container -->
+                style="width: 100%; margin-bottom: 25px; page-break-inside: avoid; border: 1px solid #ddd; background: #fff; border-radius: 4px; overflow: hidden;">
+                <!-- Image Container - Full width, large height -->
                 <div
-                    style="width: 100%; height: 260px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; border-bottom: 1px solid #eee;">
+                    style="width: 100%; height: 400px; background-color: #f8f9fa; overflow: hidden; border-bottom: 1px solid #eee;">
                     <img src="{{ item.evidence_image_url | resolve_path }}"
-                        style="width: 100%; height: 100%; object-fit: cover; object-position: center;">
+                        style="width: 100%; height: 100%; object-fit: contain; object-position: center;">
                 </div>
                 <!-- Caption -->
-                <div style="padding: 10px;">
-                    <div style="font-size: 9pt; font-weight: bold; color: #0d47a1; margin-bottom: 4px;">
+                <div style="padding: 12px 15px;">
+                    <div style="font-size: 10pt; font-weight: bold; color: #0d47a1; margin-bottom: 5px;">
                         Ref #{{ loop.index }} - {{ item.item_verificado }}
                     </div>
-                    <div style="font-size: 8pt; margin-bottom: 5px;">
+                    <div style="font-size: 9pt; margin-bottom: 5px;">
                         {% if item.is_corrected %}
-                        <span style="color: #16a34a; font-weight: bold;">✅ CORRIGIDO</span>
+                        <span style="color: #16a34a; font-weight: bold;">CORRIGIDO</span>
                         {% else %}
-                        <span style="color: #d97706; font-weight: bold;">⚠️ PENDENTE</span>
+                        <span style="color: #d97706; font-weight: bold;">PENDENTE</span>
                         {% endif %}
                     </div>
+                    {% if item.correction_notes or item.manager_notes %}
                     <div
-                        style="font-size: 8pt; color: #555; background: #f8f9fc; padding: 5px; border-radius: 4px; font-style: italic;">
-                        "{{ item.correction_notes or item.manager_notes or 'Registro de evidência.' }}"
+                        style="font-size: 9pt; color: #555; background: #f8f9fc; padding: 8px; border-radius: 4px; font-style: italic;">
+                        "{{ item.correction_notes or item.manager_notes }}"
                     </div>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -416,6 +427,7 @@
     </div>
     {% endif %}
     {% endfor %}
+    {% endif %}
 
     <div style="margin-top: 50px; text-align: center; color: #666; font-size: 8pt;">
         Relatório gerado em {{ data_geracao }}

@@ -165,29 +165,71 @@ class PDFService:
 
     def resolve_path(self, url):
         """
-        Filtro Jinja para resolver caminhos relativos de URL (/static/...) para caminhos absolutos de arquivo.
-        Necessário para o WeasyPrint encontrar imagens locais.
+        Filtro Jinja para resolver caminhos relativos de URL para caminhos absolutos de arquivo.
+        Para /evidence/ URLs, busca do GCS e salva em temp para WeasyPrint.
         """
         if not url:
             return ""
-        
+
         # Se já for absoluto, retorna
         if url.startswith('http') or url.startswith('file://'):
             return url
-            
+
+        # Tratamento especial para /evidence/ URLs (proxy route)
+        if url.startswith('/evidence/'):
+            filename = url.replace('/evidence/', '')
+            return self._resolve_evidence_from_gcs(filename)
+
         # Se começar com /, assume que é relativo à raiz do projeto (src)
-        # O app Flask serve /static a partir da pasta static dentro de src
         if url.startswith('/'):
-            # Remove a barra inicial para o os.path.join funcionar
+            # Checar se é /static/uploads/evidence/ (formato antigo)
+            if '/static/uploads/evidence/' in url:
+                filename = url.split('/static/uploads/evidence/')[-1]
+                return self._resolve_evidence_from_gcs(filename)
+
             relative_path = url.lstrip('/')
-            # Caminho absoluto para a pasta src
             project_root = os.path.abspath(os.path.join(self.template_dir, '..'))
             absolute_path = os.path.join(project_root, relative_path)
-            
-            # Converte para URI file:// para o WeasyPrint
             return f"file://{absolute_path}"
-            
+
         return url
+
+    def _resolve_evidence_from_gcs(self, filename):
+        """Busca evidencia do GCS, salva em temp, retorna path para WeasyPrint."""
+        import tempfile
+
+        # 1. Tentar local primeiro (mais rapido)
+        project_root = os.path.abspath(os.path.join(self.template_dir, '..'))
+        local_paths = [
+            os.path.join(project_root, 'static', 'uploads', 'evidence', filename),
+            os.path.join(os.getcwd(), 'src', 'static', 'uploads', 'evidence', filename),
+        ]
+        for local_path in local_paths:
+            if os.path.exists(local_path):
+                return f"file://{local_path}"
+
+        # 2. Tentar GCS
+        try:
+            bucket_name = os.getenv('GCP_STORAGE_BUCKET')
+            if bucket_name:
+                from google.cloud import storage
+                client = storage.Client()
+                bucket = client.bucket(bucket_name)
+                blob = bucket.blob(f"evidence/{filename}")
+                if blob.exists():
+                    # Baixar para temp
+                    temp_dir = os.path.join(tempfile.gettempdir(), 'evidence_cache')
+                    os.makedirs(temp_dir, exist_ok=True)
+                    temp_path = os.path.join(temp_dir, filename)
+                    if not os.path.exists(temp_path):
+                        blob.download_to_filename(temp_path)
+                        logger.info(f"Evidencia baixada do GCS para PDF: {filename}")
+                    return f"file://{temp_path}"
+        except Exception as e:
+            logger.warning(f"Falha ao buscar evidencia do GCS: {filename} - {e}")
+
+        logger.warning(f"Evidencia nao encontrada para PDF: {filename}")
+        return ""
 
 # Singleton Instance
 pdf_service = PDFService()

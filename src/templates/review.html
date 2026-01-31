@@ -769,8 +769,8 @@
             const data = await res.json();
 
             if (res.ok) {
-                alert('Visita Finalizada com Sucesso!');
-                window.location.href = '/dashboard/consultant'; // Redirect to dashboard
+                alert('Visita Finalizada com Sucesso! Agora você pode compartilhar ou baixar o relatório.');
+                window.location.reload(); // Recarrega para habilitar botões de compartilhar/baixar
             } else {
                 alert('Erro ao finalizar: ' + (data.error || 'Erro desconhecido'));
                 btn.disabled = false;
