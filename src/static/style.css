@@ -516,6 +516,21 @@ a:hover {
     color: #ef4444;
 }
 
+.badge-primary {
+    background-color: rgba(79, 70, 229, 0.1);
+    color: #4F46E5;
+}
+
+.badge-info {
+    background-color: rgba(14, 165, 233, 0.1);
+    color: #0ea5e9;
+}
+
+.badge-dark {
+    background-color: rgba(51, 65, 85, 0.1);
+    color: #334155;
+}
+
 /* Utilities */
 .text-muted {
     color: var(--text-secondary);

@@ -952,6 +952,21 @@
                     row.style.background = '#fee2e2';
                     setTimeout(() => row.remove(), 500);
                 }
+
+                // Remover empresa dos dropdowns de gestor
+                document.querySelectorAll('select[name="company_id"]').forEach(sel => {
+                    const opt = sel.querySelector(`option[value="${id}"]`);
+                    if (opt) opt.remove();
+                });
+
+                // Remover gestores vinculados à empresa da tabela
+                document.querySelectorAll('#managersTable tbody tr').forEach(row => {
+                    const editBtn = row.querySelector(`.btn-icon-edit[data-company="${id}"]`);
+                    if (editBtn) {
+                        row.style.background = '#fee2e2';
+                        setTimeout(() => row.remove(), 500);
+                    }
+                });
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');
             }

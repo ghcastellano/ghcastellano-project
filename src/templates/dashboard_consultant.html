@@ -242,6 +242,11 @@
         color: #B91C1C;
     }
 
+    .status-verification {
+        background: #E0F2FE;
+        color: #0369A1;
+    }
+
     /* Mobile Responsive */
     @media (max-width: 768px) {
         .dashboard-container {
@@ -405,14 +410,15 @@
         {% if inspections %}
         <div class="inspection-list" id="inspectionList">
             {% for insp in inspections %}
-            {% set is_pending = 'PENDING' in insp.status or 'PROCESSING' in insp.status %}
+            {% set is_verification = insp.status == 'PENDING_CONSULTANT_VERIFICATION' %}
+            {% set is_pending = not is_verification and ('PENDING' in insp.status or 'PROCESSING' in insp.status) %}
             <div class="inspection-item {{ 'locked-item' if is_pending else '' }}"
                 onclick="{{ 'return false;' if is_pending else 'window.location.href=\'' + insp.review_link + '\'' }}"
                 style="cursor: {{ 'default' if is_pending else 'pointer' }}; opacity: {{ '0.6' if is_pending else '1' }}; pointer-events: {{ 'none' if is_pending else 'auto' }};"
                 data-name="{{ insp.name|lower }}" data-est="{{ insp.establishment|lower }}">
 
                 <div class="item-icon">
-                    <i class="fas {{ 'fa-hourglass-half' if is_pending else 'fa-file-alt' }}"></i>
+                    <i class="fas {{ 'fa-hourglass-half' if is_pending else ('fa-clipboard-check' if is_verification else 'fa-file-alt') }}"></i>
                 </div>
 
                 <div class="item-info">
@@ -426,11 +432,12 @@
                 </div>
 
                 <div style="text-align: right;">
-                    {% if 'APPROVED' in insp.status %}
+                    {% if is_verification %}
+                    <span class="status-badge status-verification">VERIFICAR</span>
+                    {% elif 'APPROVED' in insp.status %}
                     <span class="status-badge status-approved">APROVADO</span>
                     {% elif is_pending %}
                     <span class="status-badge status-pending">EM ANÁLISE</span>
-
                     {% elif 'COMPLETED' in insp.status %}
                     <span class="status-badge status-approved">CONCLUÍDO</span>
                     {% elif 'REJECTED' in insp.status or 'ERROR' in insp.status or 'FAILED' in insp.status %}
@@ -443,6 +450,8 @@
                     <div style="margin-top: 0.5rem; color: #94A3B8; font-size: 0.8rem;">
                         {% if is_pending %}
                         <i class="fas fa-lock"></i>
+                        {% elif is_verification %}
+                        <i class="fas fa-arrow-right" style="color: #0369A1;"></i>
                         {% else %}
                         <i class="fas fa-chevron-right"></i>
                         {% endif %}

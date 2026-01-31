@@ -1230,10 +1230,6 @@ def approve_plan(file_id):
         db.close()
 
 
-@manager_bp.route('/manager/consultant/verify/<uuid:inspection_id>', methods=['GET'])
-
-
-
 @manager_bp.route('/api/status')
 @login_required
 def api_status():
