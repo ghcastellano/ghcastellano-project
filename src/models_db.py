@@ -20,9 +20,8 @@ class UserRole(str, Enum):
 class InspectionStatus(str, Enum):
     PROCESSING = "PROCESSING"
     PENDING_MANAGER_REVIEW = "PENDING_MANAGER_REVIEW" # Aguardando Gestor
-    WAITING_APPROVAL = "WAITING_APPROVAL"             # Obsoleto (manter por compatibilidade)
-    APPROVED = "APPROVED"                             # Aprovado pelo Gestor, vai para Consultor
-    PENDING_VERIFICATION = "PENDING_VERIFICATION"     # Em verificação de campo (Consultor)
+    APPROVED = "APPROVED"                             # Aprovado pelo Gestor
+    PENDING_CONSULTANT_VERIFICATION = "PENDING_CONSULTANT_VERIFICATION"     # [NOVO] Em verificação de campo (Consultor)
     COMPLETED = "COMPLETED"                           # Finalizado
     REJECTED = "REJECTED"
 
@@ -271,7 +270,7 @@ class ActionPlan(Base):
     inspection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("inspections.id"), unique=True, nullable=False)
     
     # final_pdf_drive_id: Mapped[Optional[str]] = mapped_column(String)  # REMOVED
-    # final_pdf_public_link: Mapped[Optional[str]] = mapped_column(String) # REMOVED
+    final_pdf_url: Mapped[Optional[str]] = mapped_column(String) # [NOVO] Link para PDF final (Cloud Storage)
     
     approved_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     approved_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
@@ -316,6 +315,8 @@ class ActionPlanItem(Base):
     
     manager_notes: Mapped[Optional[str]] = mapped_column(Text) # Notas do gestor
     evidence_image_url: Mapped[Optional[str]] = mapped_column(String) # URL da evidência (Cloud Storage)
+    
+    current_status: Mapped[Optional[str]] = mapped_column(String) # [NOVO] Status flexível (Em Verificação, Corrigido, etc)
 
     # --- Propriedades para Compatibilidade Legada (PDF/Dashboard) ---
     @property
