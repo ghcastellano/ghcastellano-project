@@ -46,37 +46,41 @@
     /* Stats Grid */
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2.5rem;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
     }
 
     .stat-card {
         background: var(--glass-bg);
-        border-radius: 20px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-        /* Soft shadow */
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
+        box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.06);
         border: var(--glass-border);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
         position: relative;
         overflow: hidden;
     }
 
     .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card-row {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
     }
 
     /* Primary Action Card (Special Styling) */
     .action-card {
         background: var(--primary-gradient);
         color: white;
-        /* Ensure global white text for this card */
         border: none;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        justify-content: center;
         cursor: pointer;
     }
 
@@ -85,33 +89,41 @@
     }
 
     .action-icon-circle {
-        width: 48px;
-        height: 48px;
+        width: 40px;
+        height: 40px;
         background: rgba(255, 255, 255, 0.2);
-        /* Semi-transparent white */
-        border-radius: 12px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 1rem;
+        flex-shrink: 0;
         backdrop-filter: blur(4px);
     }
 
+    .stat-icon-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
     .stat-value {
-        font-size: 2.25rem;
+        font-size: 1.5rem;
         font-weight: 800;
-        margin-bottom: 0.25rem;
         line-height: 1;
         color: inherit;
-        /* Inherit from parent (white for action card, dark for others) */
     }
 
     .stat-label {
-        font-size: 0.875rem;
+        font-size: 0.7rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        opacity: 0.8;
+        letter-spacing: 0.04em;
+        opacity: 0.7;
+        margin-top: 0.15rem;
     }
 
     /* Animations */
@@ -267,6 +279,15 @@
             gap: 4px;
         }
     }
+
+    @media (max-width: 640px) {
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+        .stats-grid .action-card {
+            grid-column: 1 / -1;
+        }
+    }
 </style>
 
 <div class="dashboard-container">
@@ -333,40 +354,40 @@
     <div class="stats-grid">
 
         <!-- 1. Primary Action: New Inspection -->
-        <!-- Opens the existing Upload Modal/Page or triggers action -->
         <div class="stat-card action-card" onclick="openUploadModal()">
-            <div class="action-icon-circle">
-                <i class="fas fa-plus fa-lg"></i>
-            </div>
-            <div>
-                <div class="stat-value">Nova Inspeção</div>
-                <div class="stat-label" style="color: #ffffff; font-weight: 700; opacity: 1;">COMEÇAR AGORA</div>
+            <div class="stat-card-row">
+                <div class="action-icon-circle">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <div>
+                    <div class="stat-value" style="font-size: 1.1rem;">Nova Inspeção</div>
+                    <div class="stat-label" style="color: #fff; opacity: 0.9;">Começar agora</div>
+                </div>
             </div>
         </div>
 
-        <!-- 2. Pending KPI (Enhanced with Store Names) -->
+        <!-- 2. Pending KPI -->
         <div class="stat-card">
-            <div style="color: #D97706; margin-bottom: 1rem;">
-                <i class="fas fa-clock fa-2x"></i>
-            </div>
-            <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
-            <div class="stat-label">Em aprovação pelo gestor</div>
-
-            <!-- Show pending establishments -->
-            {% if pending_establishments %}
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;">
-                <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                    Planos de ação em aprovação pelo gestor:
+            <div class="stat-card-row">
+                <div class="stat-icon-circle" style="background: #FEF3C7;">
+                    <i class="fas fa-clock" style="color: #D97706; font-size: 1rem;"></i>
                 </div>
+                <div>
+                    <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
+                    <div class="stat-label">Em aprovação pelo gestor</div>
+                </div>
+            </div>
+            {% if pending_establishments %}
+            <div style="margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid #f3f4f6;">
                 {% for est in pending_establishments[:3] %}
-                <div style="font-size: 0.8rem; color: #374151; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fas fa-store-alt" style="color: #D97706; font-size: 0.7rem;"></i>
+                <div style="font-size: 0.75rem; color: #374151; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <i class="fas fa-store-alt" style="color: #D97706; font-size: 0.6rem;"></i>
                     <span>{{ est.name }}</span>
                 </div>
                 {% endfor %}
                 {% if pending_establishments|length > 3 %}
-                <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem; font-style: italic;">
-                    + {{ pending_establishments|length - 3 }} outra(s) loja(s)
+                <div style="font-size: 0.7rem; color: #9ca3af; margin-top: 0.25rem; font-style: italic;">
+                    + {{ pending_establishments|length - 3 }} outra(s)
                 </div>
                 {% endif %}
             </div>
@@ -375,11 +396,15 @@
 
         <!-- 3. Approved KPI -->
         <div class="stat-card">
-            <div style="color: #059669; margin-bottom: 1rem;">
-                <i class="fas fa-check-circle fa-2x"></i>
+            <div class="stat-card-row">
+                <div class="stat-icon-circle" style="background: #DCFCE7;">
+                    <i class="fas fa-check-circle" style="color: #059669; font-size: 1rem;"></i>
+                </div>
+                <div>
+                    <div class="stat-value" style="color: #059669;">{{ stats.approved }}</div>
+                    <div class="stat-label">Visitas finalizadas</div>
+                </div>
             </div>
-            <div class="stat-value" style="color: #059669;">{{ stats.approved }}</div>
-            <div class="stat-label">Visitas finalizadas</div>
         </div>
 
     </div>
