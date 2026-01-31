@@ -7,7 +7,15 @@ from src.models_db import Inspection, ActionPlan, ActionPlanItem, InspectionStat
 from src import database
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+BRAZIL_TZ = timezone(timedelta(hours=-3))
+
+def _to_br(dt):
+    """Converte datetime UTC para horário de Brasília."""
+    if dt is None: return None
+    if dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(BRAZIL_TZ)
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +221,7 @@ def get_consultant_pending_inspections(establishment_id=None, company_id=None, e
                 'id': insp.drive_file_id,
                 'name': ai_data.get('titulo', 'Relatório em Análise'),
                 'establishment': est_name,
-                'date': ai_data.get('data_inspecao', insp.created_at.strftime('%d/%m/%Y')),
+                'date': ai_data.get('data_inspecao', _to_br(insp.created_at).strftime('%d/%m/%Y')),
                 'status': 'Aguardando Aprovação'
             })
         
@@ -395,7 +403,7 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
                 'cost_usd': total_cost_usd,
                 
                 'duration': round(job.execution_time_seconds, 1) if job.execution_time_seconds else 0,
-                'created_at': job.created_at.strftime('%d/%m/%Y %H:%M')
+                'created_at': _to_br(job.created_at).strftime('%d/%m/%Y %H:%M')
             })
             
         session.close()

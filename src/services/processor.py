@@ -3,7 +3,8 @@ import os
 import json
 import logging
 import io
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+BRAZIL_TZ = timezone(timedelta(hours=-3))
 import uuid
 import structlog
 import pypdf
@@ -476,7 +477,7 @@ class ProcessorService:
             # Render HTML
             template = self.jinja_env.get_template('pdf_template.html') # Updated to Validated Template
             # Pass data as 'relatorio' to match template
-            html_out = template.render(relatorio=data, data_geracao=datetime.now().strftime("%d/%m/%Y"))
+            html_out = template.render(relatorio=data, data_geracao=datetime.now(tz=BRAZIL_TZ).strftime("%d/%m/%Y"))
             
             css = []
             if os.path.exists('src/templates/style.css'):
@@ -672,7 +673,7 @@ class ProcessorService:
                     db_item = ActionPlanItem(
                         id=uuid.uuid4(),
                         action_plan=action_plan,
-                        problem_description=f"{item.item_verificado}: {item.observacao}",
+                        problem_description=item.observacao,
                         sector=area.nome_area, # VITAL: Use Area Name as Sector
                         severity=severity,
                         status=status_db,

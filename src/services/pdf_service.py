@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from weasyprint import HTML, CSS
 from jinja2 import Environment, FileSystemLoader
 import logging
@@ -34,7 +34,7 @@ class PDFService:
 
             html_out = template.render(
                 relatorio=data,
-                data_geracao=datetime.now().strftime("%d/%m/%Y")
+                data_geracao=datetime.now(tz=timezone(timedelta(hours=-3))).strftime("%d/%m/%Y")
             )
             
             stylesheets = []

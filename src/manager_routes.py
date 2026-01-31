@@ -587,7 +587,8 @@ def edit_plan(file_id):
              report_data['nome_estabelecimento'] = report_data.get('company_name') or inspection.establishment.name if inspection.establishment else "Estabelecimento"
 
         if 'data_inspecao' not in report_data:
-             report_data['data_inspecao'] = report_data.get('inspection_date') or inspection.created_at.strftime('%d/%m/%Y')
+             from src.app import to_brazil_time
+             report_data['data_inspecao'] = report_data.get('inspection_date') or to_brazil_time(inspection.created_at).strftime('%d/%m/%Y')
 
         # Map 'areas' to 'areas_inspecionadas' if needed
         if 'areas_inspecionadas' not in report_data and 'areas' in report_data:
@@ -658,7 +659,9 @@ def edit_plan(file_id):
                          
                          data_payload = {
                              'pontuacao': float(score_v),
-                             'status': item.get('status')
+                             'status': item.get('status'),
+                             'item_verificado': item.get('item_verificado', ''),
+                             'observacao': item.get('observacao', ''),
                          }
                          
                          # Mapa 1: Por Índice (Mais Robusto)
@@ -735,6 +738,8 @@ def edit_plan(file_id):
 
                 recovered_score = raw_data.get('pontuacao', 0)
                 recovered_status = raw_data.get('status') # e.g. 'PARTIAL'
+                recovered_item_verificado = raw_data.get('item_verificado', '')
+                recovered_observacao = raw_data.get('observacao', '')
                 
                 # [FILTER] User Request: Only show NC or Partial items in the Action Plan View.
                 # If item is marked as COMPLIANT/RESOLVED or has max score, skip adding to the list.
@@ -782,11 +787,11 @@ def edit_plan(file_id):
                 
                 template_item = {
                     'id': str(item.id),
-                    'item_verificado': item.item_verificado,
-                    # [VITAL FIX] Use Recovered Status from JSON if available (e.g. 'PARTIAL') 
+                    'item_verificado': recovered_item_verificado or item.problem_description,
+                    # [VITAL FIX] Use Recovered Status from JSON if available (e.g. 'PARTIAL')
                     # This allows enrich_data to correctly translate and score it.
-                    'status': recovered_status or item.original_status or 'Não Conforme', 
-                    'observacao': item.problem_description,
+                    'status': recovered_status or item.original_status or 'Não Conforme',
+                    'observacao': recovered_observacao or item.problem_description,
                     'fundamento_legal': item.fundamento_legal,
                     'acao_corretiva_sugerida': item.corrective_action,
                     'prazo_sugerido': deadline_display, # Now reflects saved data
@@ -912,13 +917,24 @@ def _prepare_pdf_data(inspection):
     # 2. Rebuild Items from DB
     if plan.items:
         db_items = sorted(
-            plan.items, 
+            plan.items,
             key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
         )
-        
+
+        # Build lookup to recover original item_verificado/observacao from AI JSON
+        ai_item_map = {}  # (area_name, index) -> {item_verificado, observacao}
+        if 'areas_inspecionadas' in data:
+            for area in data['areas_inspecionadas']:
+                a_name = area.get('nome_area', 'Geral')
+                for idx, ai_item in enumerate(area.get('itens', [])):
+                    ai_item_map[(a_name, idx)] = {
+                        'item_verificado': ai_item.get('item_verificado', ''),
+                        'observacao': ai_item.get('observacao', ''),
+                    }
+
         rebuilt_areas = {}
         normalized_area_map = {}
-        
+
         if 'areas_inspecionadas' in data:
             for area in data['areas_inspecionadas']:
                 key = area.get('nome_area') or area.get('name')
@@ -967,11 +983,16 @@ def _prepare_pdf_data(inspection):
             # Determinar se item foi corrigido (apenas pelo consultor, não por ser originalmente conforme)
             is_corrected = (current_status == "Corrigido")
 
+            # Recuperar item_verificado/observacao originais do JSON da IA
+            ai_data = ai_item_map.get((area_name, item.order_index), {}) if item.order_index is not None else {}
+            recovered_item_name = ai_data.get('item_verificado', '')
+            recovered_obs = ai_data.get('observacao', '')
+
             rebuilt_areas[area_name]['itens'].append({
-                'item_verificado': item.problem_description, # DB Truth
+                'item_verificado': recovered_item_name or item.problem_description,
                 'status': status_val, # AI Original
                 'status_atual': current_status, # Current Workflow State
-                'observacao': item.problem_description,
+                'observacao': recovered_obs or item.problem_description,
                 'fundamento_legal': item.legal_basis,
                 'acao_corretiva_sugerida': item.corrective_action,
                 'prazo_sugerido': deadline_display,
@@ -1284,7 +1305,8 @@ def api_status():
                 pass # Skip strict inspection pending, use Jobs for source of truth on pending
             else:
                 # Format Date
-                date_str = insp.created_at.strftime('%d/%m/%Y %H:%M') if insp.created_at else ''
+                from src.app import to_brazil_time
+                date_str = to_brazil_time(insp.created_at).strftime('%d/%m/%Y %H:%M') if insp.created_at else ''
                 
                 # Link
                 link_id = insp.drive_file_id

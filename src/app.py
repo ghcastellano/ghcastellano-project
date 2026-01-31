@@ -192,6 +192,30 @@ except Exception as e:
 import unicodedata
 import re
 
+# Timezone Helper - Brasil (UTC-3, sem horário de verão desde 2019)
+from datetime import timezone, timedelta
+BRAZIL_TZ = timezone(timedelta(hours=-3))
+
+def to_brazil_time(dt):
+    """Converte datetime UTC para horário de Brasília (UTC-3)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(BRAZIL_TZ)
+
+def brazil_now():
+    """Retorna datetime atual no horário de Brasília."""
+    return datetime.now(BRAZIL_TZ)
+
+@app.template_filter('brdate')
+def brdate_filter(dt, fmt='%d/%m/%Y %H:%M'):
+    """Filtro Jinja2: converte datetime para horário de Brasília formatado."""
+    if dt is None:
+        return 'N/A'
+    br = to_brazil_time(dt)
+    return br.strftime(fmt)
+
 @app.template_filter('slugify')
 def slugify(value):
     """
@@ -397,7 +421,7 @@ def dashboard_consultant():
         'total': len(inspections),
         'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_CONSULTANT_VERIFICATION', 'PENDING_MANAGER_REVIEW', 'Processando', 'Pendente']),
         'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED', 'Concluído']),
-        'last_sync': datetime.utcnow().strftime('%H:%M'),
+        'last_sync': brazil_now().strftime('%H:%M'),
         'pontuacao_geral': total_score,
         'pontuacao_maxima': max_score,
         'aproveitamento_geral': avg_score
@@ -454,7 +478,7 @@ def dashboard_consultant():
                     'establishment_id': payload.get('establishment_id'),
                     'error_code': error_obj.get('code', 'ERR_UNKNOWN'),
                     'error_message': error_obj.get('user_msg', 'Erro desconhecido. Contate o suporte.'),
-                    'created_at': job.created_at.strftime('%d/%m/%Y %H:%M') if job.created_at else 'N/A'
+                    'created_at': to_brazil_time(job.created_at).strftime('%d/%m/%Y %H:%M') if job.created_at else 'N/A'
                 })
         finally:
             db_session_jobs.close()
