@@ -757,11 +757,7 @@
 
     window.handleFilterChange = function (select) {
         showLoading();
-        if (select.value === "") {
-            window.location.href = "{{ url_for('manager.dashboard_manager') }}";
-        } else {
-            select.form.submit();
-        }
+        select.form.submit();
     };
 
     // Validations & Logic
