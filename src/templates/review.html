@@ -15,7 +15,7 @@
                         <div class="position-absolute w-100"
                             style="top: 15px; left: 0; height: 2px; background: #e9ecef; z-index: 0;"></div>
 
-                        <!-- Step 1: Gestor (Completed) -->
+                        <!-- Step 1: Validação (always completed for consultant) -->
                         <div class="text-center position-relative bg-white px-2" style="z-index: 2;">
                             <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto mb-2 shadow-sm"
                                 style="width: 32px; height: 32px; font-weight: bold;"><i class="ph-bold ph-check"></i>
@@ -24,20 +24,34 @@
                                 style="font-size: 0.7rem;">Validação</span>
                         </div>
 
-                        <!-- Step 2: Consultor (Active) -->
+                        <!-- Step 2: Visita -->
                         <div class="text-center position-relative bg-white px-2" style="z-index: 2;">
+                            {% if is_finalized %}
+                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto mb-2 shadow-sm"
+                                style="width: 32px; height: 32px; font-weight: bold;"><i class="ph-bold ph-check"></i></div>
+                            <span class="d-block text-xs font-weight-bold text-success text-uppercase"
+                                style="font-size: 0.7rem;">Visita</span>
+                            {% else %}
                             <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-2 shadow-sm"
                                 style="width: 32px; height: 32px; font-weight: bold;">2</div>
                             <span class="d-block text-xs font-weight-bold text-primary text-uppercase"
                                 style="font-size: 0.7rem;">Visita</span>
+                            {% endif %}
                         </div>
 
-                        <!-- Step 3: Conclusão -->
+                        <!-- Step 3: Fim -->
                         <div class="text-center position-relative bg-white px-2" style="z-index: 2;">
+                            {% if is_finalized %}
+                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto mb-2 shadow-sm"
+                                style="width: 32px; height: 32px; font-weight: bold;"><i class="ph-bold ph-check"></i></div>
+                            <span class="d-block text-xs font-weight-bold text-success text-uppercase"
+                                style="font-size: 0.7rem;">Fim</span>
+                            {% else %}
                             <div class="rounded-circle bg-white border d-flex align-items-center justify-content-center mx-auto mb-2"
                                 style="width: 32px; height: 32px; color: #adb5bd;">3</div>
                             <span class="d-block text-xs font-weight-bold text-muted text-uppercase"
                                 style="font-size: 0.7rem;">Fim</span>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -56,47 +70,6 @@
                 <p class="text-muted mb-0">
                     {{ report_data.nome_estabelecimento }} • {{ report_data.data_inspecao }}
                 </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Summary Card (Same as Manager) -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white py-3">
-            <h5 class="m-0 font-weight-bold text-primary">Resumo Executivo</h5>
-        </div>
-        <div class="card-body">
-            <p class="text-muted mb-4">{{ report_data.resumo_geral }}</p>
-
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th>Área Auditada</th>
-                            <th class="text-center">Pontuação</th>
-                            <th class="text-center">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for area in report_data.areas_inspecionadas %}
-                        <tr>
-                            <td class="align-middle fw-bold text-dark">{{ area.nome_area }}</td>
-                            <td class="align-middle text-center">{{ area.pontuacao_obtida|default(0) }} / {{
-                                area.pontuacao_maxima|default(0) }}</td>
-                            <td class="align-middle text-center">
-                                {% if "parcial" in area.status|default('')|lower or (area.aproveitamento > 0 and
-                                area.aproveitamento < 100) %} <span class="badge bg-warning text-dark">Parcialmente
-                                    Conforme ({{ area.aproveitamento }}%)</span>
-                                    {% elif area.aproveitamento >= 100 %}
-                                    <span class="badge bg-success">Conforme ({{ area.aproveitamento }}%)</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">Não Conforme ({{ area.aproveitamento }}%)</span>
-                                    {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
@@ -134,6 +107,47 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo Executivo -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="m-0 font-weight-bold text-primary">Resumo Executivo</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">{{ report_data.resumo_geral }}</p>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Área Auditada</th>
+                            <th class="text-center">Pontuação</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for area in report_data.areas_inspecionadas %}
+                        <tr>
+                            <td class="align-middle fw-bold text-dark">{{ area.nome_area }}</td>
+                            <td class="align-middle text-center">{{ area.pontuacao_obtida|default(0) }} / {{
+                                area.pontuacao_maxima|default(0) }}</td>
+                            <td class="align-middle text-center">
+                                {% if "parcial" in area.status|default('')|lower or (area.aproveitamento > 0 and
+                                area.aproveitamento < 100) %} <span class="badge bg-warning text-dark">Parcialmente
+                                    Conforme ({{ area.aproveitamento }}%)</span>
+                                    {% elif area.aproveitamento >= 100 %}
+                                    <span class="badge bg-success">Conforme ({{ area.aproveitamento }}%)</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Não Conforme ({{ area.aproveitamento }}%)</span>
+                                    {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
