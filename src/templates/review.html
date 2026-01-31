@@ -46,14 +46,16 @@
 
     <!-- Standard Header -->
     <div class="row align-items-center mb-4">
-        <div class="col-md-8">
-            <a href="/dashboard/consultant" class="btn btn-sm btn-outline-secondary mb-2">
-                <i class="ph-bold ph-arrow-left me-1"></i> Voltar
+        <div class="col-md-8 d-flex align-items-center">
+            <a href="/dashboard/consultant" class="btn btn-link text-decoration-none text-muted p-0 me-3">
+                <i class="ph-bold ph-arrow-left fa-lg"></i>
             </a>
-            <h1 class="h3 mb-1 text-gray-800">Verificação Técnica</h1>
-            <p class="text-muted mb-0">
-                {{ report_data.nome_estabelecimento }} • {{ report_data.data_inspecao }}
-            </p>
+            <div>
+                <h1 class="h3 mb-1 text-gray-800">Verificação Técnica</h1>
+                <p class="text-muted mb-0">
+                    {{ report_data.nome_estabelecimento }} • {{ report_data.data_inspecao }}
+                </p>
+            </div>
         </div>
         <div class="col-md-4 text-end">
             <!-- Reuse same Stats Card -->
