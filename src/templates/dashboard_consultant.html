@@ -377,22 +377,6 @@
             <div class="stat-label">Aprovadas (Total)</div>
         </div>
 
-        <!-- 4. Pontuação Geral (NEW) -->
-        <div class="stat-card" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #0ea5e9;">
-            <div style="margin-bottom: 1rem;">
-                <i class="fas fa-chart-line" style="color: #0ea5e9; font-size: 2rem;"></i>
-            </div>
-            <div class="stat-value" style="color: #0ea5e9;">{{ stats.aproveitamento_geral|default(0)|round(2) }}%</div>
-            <div class="stat-label" style="color: #0c4a6e;">Pontuação Geral</div>
-
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(14, 165, 233, 0.2);">
-                <div style="font-size: 0.8rem; color: #64748b; display: flex; justify-content: space-between;">
-                    <span><strong>{{ stats.pontuacao_geral|default(0)|round(2) }}</strong> pts obtidos</span>
-                    <span><strong>{{ stats.pontuacao_maxima|default(0)|round(2) }}</strong> pts máximo</span>
-                </div>
-            </div>
-        </div>
-
     </div>
 
     <!-- Recent Activity Section -->
