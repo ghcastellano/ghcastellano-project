@@ -185,8 +185,8 @@
                                         <div class="d-flex gap-2 mb-3">
                                             <input type="radio" class="btn-check" name="status_{{ item.id }}"
                                                 id="status_ok_{{ loop.index }}_{{ item.id }}" autocomplete="off"
-                                                onchange="toggleEvidence('{{ item.id }}'); saveItem('{{ item.id }}')" {%
-                                                if item.status_atual=='Corrigido' %}checked{% endif %}>
+                                                onchange="toggleEvidence('{{ item.id }}'); saveItem('{{ item.id }}')"
+                                                {% if item.status_atual=='Corrigido' %}checked{% endif %}>
                                             <label class="btn btn-outline-success btn-sm flex-fill"
                                                 for="status_ok_{{ loop.index }}_{{ item.id }}">
                                                 <i class="ph-bold ph-check me-1"></i> Corrigido
@@ -194,8 +194,8 @@
 
                                             <input type="radio" class="btn-check" name="status_{{ item.id }}"
                                                 id="status_pend_{{ loop.index }}_{{ item.id }}" autocomplete="off"
-                                                onchange="toggleEvidence('{{ item.id }}'); saveItem('{{ item.id }}')" {%
-                                                if item.status_atual !='Corrigido' %}checked{% endif %}>
+                                                onchange="toggleEvidence('{{ item.id }}'); saveItem('{{ item.id }}')"
+                                                {% if item.status_atual=='Pendente' %}checked{% endif %}>
                                             <label class="btn btn-outline-warning btn-sm flex-fill"
                                                 for="status_pend_{{ loop.index }}_{{ item.id }}">
                                                 <i class="ph-bold ph-clock me-1"></i> Pendente
@@ -240,10 +240,11 @@
 
                                         <!-- Notes -->
                                         <textarea class="form-control text-sm" rows="2" id="notes_{{ item.id }}"
-                                            placeholder="Observações do consultor... (Opcional)"
+                                            placeholder="Observações do consultor... (OBRIGATÓRIO)"
                                             data-original="{{ item.manager_notes or '' }}"
                                             oninput="markAsModified(this)"
-                                            onblur="saveItem('{{ item.id }}')">{{ item.manager_notes or '' }}</textarea>
+                                            onblur="saveItem('{{ item.id }}')"
+                                            required>{{ item.manager_notes or '' }}</textarea>
                                     </div>
                                 </div>
                             </div>
@@ -263,21 +264,29 @@
     <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div class="d-flex gap-2">
+                {% set is_finalized = (inspection.status.value == 'COMPLETED') %}
                 <!-- Unified Share Button (Matches Manager View) -->
-                <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#shareModal">
+                <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#shareModal"
+                    {% if not is_finalized %}disabled{% endif %}>
                     <i class="ph-bold ph-share-network me-2"></i> Compartilhar
                 </button>
                 <!-- Download -->
-                <button class="btn btn-outline-primary" onclick="exportPDF()">
+                <button class="btn btn-outline-primary" onclick="exportPDF()"
+                    {% if not is_finalized %}disabled{% endif %}>
                     <i class="ph-bold ph-file-pdf me-2"></i> Baixar Relatório
                 </button>
             </div>
             <div>
-
+                {% if not is_finalized %}
                 <button class="btn btn-primary px-4 fw-bold" onclick="finishConsultantReview()"
                     id="btn-finish-consultant">
-                    <i class="ph-bold ph-paper-plane-right me-2"></i> Finalizar Verificação
+                    <i class="ph-bold ph-paper-plane-right me-2"></i> Finalizar Visita
                 </button>
+                {% else %}
+                <button class="btn btn-success px-4 fw-bold" disabled>
+                    <i class="ph-bold ph-check me-2"></i> Visita Finalizada
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -649,6 +658,34 @@
     }
 
     async function finishConsultantReview() {
+        // Validação: Verificar se todos os itens não conformes têm status selecionado e observações
+        const allItems = document.querySelectorAll('[id^="notes_"]');
+        const missingItems = [];
+
+        allItems.forEach(notesTextarea => {
+            const itemId = notesTextarea.id.replace('notes_', '');
+
+            // Verificar se há um status selecionado
+            const statusSelected = document.querySelector(`input[name="status_${itemId}"]:checked`);
+
+            // Verificar se há observações
+            const notes = notesTextarea.value.trim();
+
+            if (!statusSelected) {
+                missingItems.push(`Item sem status selecionado`);
+            } else if (!notes) {
+                missingItems.push(`Item sem observações`);
+            }
+        });
+
+        if (missingItems.length > 0) {
+            alert('Por favor, complete todos os campos obrigatórios:\n\n' +
+                  '• Todos os itens devem ter um status selecionado (Corrigido ou Pendente)\n' +
+                  '• Todos os itens devem ter observações preenchidas\n\n' +
+                  `Faltam ${missingItems.length} item(ns) para preencher.`);
+            return;
+        }
+
         const btn = document.getElementById('btn-finish-consultant');
         const originalText = btn.innerHTML;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
@@ -662,7 +699,7 @@
             const data = await res.json();
 
             if (res.ok) {
-                alert('Verificação Concluída com Sucesso!');
+                alert('Visita Finalizada com Sucesso!');
                 window.location.href = '/dashboard/consultant'; // Redirect to dashboard
             } else {
                 alert('Erro ao finalizar: ' + (data.error || 'Erro desconhecido'));

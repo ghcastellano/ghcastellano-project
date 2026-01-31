@@ -944,11 +944,14 @@ def _prepare_pdf_data(inspection):
             score_val = item.original_score if item.original_score is not None else 0
             status_val = item.original_status or "Não Conforme"
             current_status = item.current_status or ("Corrigido" if item.status == ActionPlanItemStatus.RESOLVED else "Pendente")
-            
+
             # Map DB Status to PDF Readable
             # Note: We keep original status unless it's strictly resolved?
             # Actually, for PDF we want to show the current state.
-            
+
+            # Determine if item is corrected
+            is_corrected = (current_status == "Corrigido" or item.status == ActionPlanItemStatus.RESOLVED)
+
             rebuilt_areas[area_name]['itens'].append({
                 'item_verificado': item.problem_description, # DB Truth
                 'status': status_val, # AI Original
@@ -958,7 +961,13 @@ def _prepare_pdf_data(inspection):
                 'acao_corretiva_sugerida': item.corrective_action,
                 'prazo_sugerido': deadline_display,
                 'pontuacao': float(score_val),
-                'manager_notes': item.manager_notes
+                'manager_notes': item.manager_notes,
+                # [NEW] Consultant verification fields for PDF
+                'evidence_image_url': item.evidence_image_url,
+                'correction_notes': item.correction_notes,
+                'is_corrected': is_corrected,
+                'original_status_label': status_val,
+                'old_score_display': str(score_val) if score_val else None
             })
 
         # Recalculate NC Counts
