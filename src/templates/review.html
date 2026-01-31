@@ -47,6 +47,9 @@
     <!-- Standard Header -->
     <div class="row align-items-center mb-4">
         <div class="col-md-8">
+            <a href="/dashboard/consultant" class="btn btn-sm btn-outline-secondary mb-2">
+                <i class="ph-bold ph-arrow-left me-1"></i> Voltar
+            </a>
             <h1 class="h3 mb-1 text-gray-800">Verificação Técnica</h1>
             <p class="text-muted mb-0">
                 {{ report_data.nome_estabelecimento }} • {{ report_data.data_inspecao }}
@@ -103,6 +106,43 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo Geral da Inspeção -->
+    {% set score_color = '#10b981' if report_data.aproveitamento_geral|default(0) >= 70 else ('#f59e0b' if report_data.aproveitamento_geral|default(0) >= 50 else '#ef4444') %}
+    <div class="card shadow-sm mb-4" style="border-left: 4px solid #0ea5e9;">
+        <div class="card-body p-4" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+            <h5 class="mb-3 font-weight-bold" style="color: #0c4a6e;">
+                <i class="fas fa-chart-line me-2" style="color: #0ea5e9;"></i>
+                Resumo Geral da Inspeção
+            </h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="text-center p-3 bg-white rounded shadow-sm">
+                        <div class="text-muted mb-1" style="font-size: 0.875rem;">Pontuação Obtida</div>
+                        <div class="h2 mb-0 font-weight-bold" style="color: #0ea5e9;">
+                            {{ report_data.pontuacao_geral|default(0)|round(2) }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center p-3 bg-white rounded shadow-sm">
+                        <div class="text-muted mb-1" style="font-size: 0.875rem;">Pontuação Máxima</div>
+                        <div class="h2 mb-0 font-weight-bold" style="color: #64748b;">
+                            {{ report_data.pontuacao_maxima_geral|default(0)|round(2) }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center p-3 bg-white rounded shadow-sm">
+                        <div class="text-muted mb-1" style="font-size: 0.875rem;">Aproveitamento</div>
+                        <div class="h2 mb-0 font-weight-bold" style="color: {{ score_color }}">
+                            {{ report_data.aproveitamento_geral|default(0)|round(2) }}%
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
