@@ -690,12 +690,12 @@
         logsEl.innerHTML = '<div style="color: #94a3b8;">Carregando...</div>';
 
         try {
-            const res = await fetch(`/ admin / api / tracker / ${inspId}`);
+            const res = await fetch(`/admin/api/tracker/${inspId}`);
             const data = await res.json();
 
             if (data.error) {
                 titleEl.innerText = "Erro ao carregar";
-                logsEl.innerHTML = `< div style = "color: red;" > ${data.error}</div > `;
+                logsEl.innerHTML = `<div style="color: red;">${data.error}</div>`;
                 return;
             }
 
@@ -703,7 +703,7 @@
 
             // Render Logs
             if (data.logs && data.logs.length > 0) {
-                logsEl.innerHTML = data.logs.map(l => `< div >• ${l}</div > `).join('');
+                logsEl.innerHTML = data.logs.map(l => `<div>• ${l}</div>`).join('');
             } else {
                 logsEl.innerHTML = '<div style="color: #94a3b8;">Nenhum log recente.</div>';
             }
@@ -740,19 +740,19 @@
                 }
 
                 html += `
-                    < div class= "step-item" style = "z-index: 1; text-align: center; flex:1; position: relative;" >
-                <div class="step-circle" style="width: 32px; height: 32px; background: ${color}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    ${icon}
-                </div>
-                <div class="step-label" style="font-size: 0.75rem; margin-top: 8px; font-weight: 600; color: ${labelColor};">
-                    ${s.label}
-                </div>
-            </div > `;
+                    <div class="step-item" style="z-index: 1; text-align: center; flex:1; position: relative;">
+                        <div class="step-circle" style="width: 32px; height: 32px; background: ${color}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            ${icon}
+                        </div>
+                        <div class="step-label" style="font-size: 0.75rem; margin-top: 8px; font-weight: 600; color: ${labelColor};">
+                            ${s.label}
+                        </div>
+                    </div>`;
             });
 
             // Progress Line
             const progressPct = (activeCount / (order.length - 1)) * 100;
-            html += `< div style = "position: absolute; top: 15px; left: 10px; width: ${progressPct}%; height: 3px; background: #10b981; z-index: 0; transition: width 0.5s;" ></div >`;
+            html += `<div style="position: absolute; top: 15px; left: 10px; width: ${progressPct}%; height: 3px; background: #10b981; z-index: 0; transition: width 0.5s;"></div>`;
 
             stepperEl.innerHTML = html;
 
@@ -765,6 +765,8 @@
     // --- Toggle Functions ---
     function toggleCreateCompany() {
         const card = document.getElementById('createCompanyCard');
+        const editCard = document.getElementById('editCompanyCard');
+        if (editCard) editCard.style.display = 'none';
         if (card.style.display === 'none' || card.style.display === '') {
             card.style.display = 'block';
             card.scrollIntoView({ behavior: 'smooth' });
@@ -775,11 +777,341 @@
 
     function toggleCreateManager() {
         const card = document.getElementById('createManagerCard');
+        const editCard = document.getElementById('editManagerCard');
+        if (editCard) editCard.style.display = 'none';
         if (card.style.display === 'none' || card.style.display === '') {
             card.style.display = 'block';
             card.scrollIntoView({ behavior: 'smooth' });
         } else {
             card.style.display = 'none';
+        }
+    }
+
+    // --- TOAST NOTIFICATION ---
+    function showToast(message, type = 'success') {
+        const toastId = 'toast-' + Math.random().toString(36).substr(2, 9);
+        const color = type === 'success' ? '#10b981' : '#ef4444';
+        const bg = type === 'success' ? '#ecfdf5' : '#fef2f2';
+        const icon = type === 'success' ? 'ph-check-circle' : 'ph-warning-circle';
+        const html = `
+            <div id="${toastId}" style="
+                position: fixed; top: 20px; right: 20px; z-index: 9999;
+                background: ${bg}; border-left: 4px solid ${color};
+                padding: 1rem 1.5rem; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                display: flex; align-items: center; gap: 12px;
+                transform: translateX(100%); transition: transform 0.3s ease-out;
+            ">
+                <i class="ph-bold ${icon}" style="color: ${color}; font-size: 1.2rem;"></i>
+                <div style="font-weight: 500; color: #1f2937;">${message}</div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', html);
+        setTimeout(() => { const el = document.getElementById(toastId); if (el) el.style.transform = 'translateX(0)'; }, 100);
+        setTimeout(() => { const el = document.getElementById(toastId); if (el) { el.style.transform = 'translateX(120%)'; setTimeout(() => el.remove(), 300); } }, 4000);
+    }
+
+    function getCsrfToken() {
+        const input = document.querySelector('input[name="csrf_token"]');
+        return input ? input.value : null;
+    }
+
+    // --- COMPANY CRUD ---
+    async function handleCreateCompany(e) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = document.getElementById('btnCreateCompany');
+        if (btn) { btn.disabled = true; btn.innerHTML = 'Criando...'; }
+
+        try {
+            const formData = new FormData(form);
+            const res = await fetch("{{ url_for('admin.create_company') }}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(data.message, 'success');
+                form.reset();
+                document.getElementById('createCompanyCard').style.display = 'none';
+
+                // Add row to table
+                const tbody = document.querySelector('#companiesTable tbody');
+                if (tbody && data.company) {
+                    const c = data.company;
+                    const newRow = `
+                        <tr id="row-company-${c.id}" style="animation: fadeIn 0.5s;">
+                            <td style="font-weight: 600;" class="col-name">${c.name}</td>
+                            <td class="text-sm text-muted col-cnpj">${c.cnpj || '--'}</td>
+                            <td><span class="badge badge-success">Ativo</span></td>
+                            <td class="text-right">
+                                <div class="btn-icon-group">
+                                    <button class="btn-icon btn-icon-edit" data-id="${c.id}" data-name="${c.name}" data-cnpj="${c.cnpj || ''}"
+                                        onclick="openEditCompany(this.dataset.id, this.dataset.name, this.dataset.cnpj)" title="Editar">
+                                        <i class="ph-bold ph-pencil-simple"></i>
+                                    </button>
+                                    <button class="btn-icon btn-icon-delete"
+                                        onclick="deleteCompany('${c.id}', '${c.name}')" title="Excluir">
+                                        <i class="ph-bold ph-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', newRow);
+
+                    // Also add to manager company dropdowns
+                    document.querySelectorAll('select[name="company_id"]').forEach(sel => {
+                        const opt = new Option(c.name, c.id);
+                        sel.add(opt);
+                    });
+                }
+            } else {
+                showToast(data.error || 'Erro ao criar empresa', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro de conexão: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Criar'; }
+        }
+    }
+
+    function openEditCompany(id, name, cnpj) {
+        document.getElementById('createCompanyCard').style.display = 'none';
+        const card = document.getElementById('editCompanyCard');
+        card.style.display = 'block';
+        document.getElementById('edit_company_id').value = id;
+        document.getElementById('edit_company_name').value = name;
+        document.getElementById('edit_company_cnpj').value = cnpj || '';
+        window.scrollTo({ top: card.offsetTop - 100, behavior: 'smooth' });
+    }
+
+    async function handleUpdateCompany(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit_company_id').value;
+        const btn = document.getElementById('btnUpdateCompany');
+        if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
+
+        try {
+            const formData = new FormData(e.target);
+            const res = await fetch(`/admin/company/${id}/update`, {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(data.message || 'Empresa atualizada!', 'success');
+                document.getElementById('editCompanyCard').style.display = 'none';
+
+                // Update row in table
+                const row = document.getElementById(`row-company-${id}`);
+                if (row) {
+                    const name = formData.get('name');
+                    const cnpj = formData.get('cnpj');
+                    const nameCell = row.querySelector('.col-name');
+                    const cnpjCell = row.querySelector('.col-cnpj');
+                    if (nameCell) nameCell.textContent = name;
+                    if (cnpjCell) cnpjCell.textContent = cnpj || '--';
+
+                    // Update edit button data
+                    const editBtn = row.querySelector('.btn-icon-edit');
+                    if (editBtn) {
+                        editBtn.dataset.name = name;
+                        editBtn.dataset.cnpj = cnpj || '';
+                    }
+                }
+            } else {
+                showToast(data.error || 'Erro ao atualizar', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro de conexão: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; }
+        }
+    }
+
+    async function deleteCompany(id, name) {
+        if (!confirm(`Remover empresa "${name}" e TODOS os dados vinculados (lojas, gestores, inspeções)? Esta ação é irreversível.`)) return;
+
+        try {
+            const res = await fetch(`/admin/company/${id}/delete`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(data.message || 'Empresa removida!', 'success');
+                const row = document.getElementById(`row-company-${id}`);
+                if (row) {
+                    row.style.background = '#fee2e2';
+                    setTimeout(() => row.remove(), 500);
+                }
+            } else {
+                showToast(data.error || 'Erro ao remover', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro de conexão: ' + err.message, 'error');
+        }
+    }
+
+    // --- MANAGER CRUD ---
+    async function handleCreateManager(e) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = document.getElementById('btnCreateManager');
+        if (btn) { btn.disabled = true; btn.innerHTML = 'Criando...'; }
+
+        try {
+            const formData = new FormData(form);
+            const res = await fetch("{{ url_for('admin.create_manager') }}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(data.message, 'success');
+                form.reset();
+                document.getElementById('createManagerCard').style.display = 'none';
+
+                // Add row to table
+                const tbody = document.querySelector('#managersTable tbody');
+                if (tbody && data.manager) {
+                    const m = data.manager;
+                    const newRow = `
+                        <tr id="row-manager-${m.id}" style="animation: fadeIn 0.5s;" data-company-name="${m.company_name}">
+                            <td style="font-weight: 500; padding-left: 2rem;" class="col-name">${m.name}</td>
+                            <td class="text-sm text-muted col-email">${m.email}</td>
+                            <td><span class="badge badge-blue col-comp">${m.company_name}</span></td>
+                            <td class="text-right">
+                                <div class="btn-icon-group">
+                                    <button class="btn-icon btn-icon-edit" data-id="${m.id}" data-name="${m.name}" data-email="${m.email}" data-company="${m.company_id}"
+                                        onclick="openEditManager(this.dataset.id, this.dataset.name, this.dataset.email, this.dataset.company)" title="Editar">
+                                        <i class="ph-bold ph-pencil-simple"></i>
+                                    </button>
+                                    <button class="btn-icon btn-icon-delete"
+                                        onclick="deleteManager('${m.id}', '${m.name}')" title="Excluir">
+                                        <i class="ph-bold ph-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', newRow);
+                }
+            } else {
+                showToast(data.error || 'Erro ao criar gestor', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro de conexão: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar'; }
+        }
+    }
+
+    function openEditManager(id, name, email, companyId) {
+        document.getElementById('createManagerCard').style.display = 'none';
+        const card = document.getElementById('editManagerCard');
+        card.style.display = 'block';
+        document.getElementById('edit_manager_id').value = id;
+        document.getElementById('edit_manager_name').value = name;
+        document.getElementById('edit_manager_email').value = email;
+
+        const companySelect = document.getElementById('edit_manager_company');
+        if (companySelect && companyId) {
+            Array.from(companySelect.options).forEach(opt => {
+                opt.selected = (opt.value === companyId);
+            });
+        }
+
+        window.scrollTo({ top: card.offsetTop - 100, behavior: 'smooth' });
+    }
+
+    async function handleUpdateManager(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit_manager_id').value;
+        const btn = document.getElementById('btnUpdateManager');
+        if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
+
+        try {
+            const formData = new FormData(e.target);
+            const res = await fetch(`/admin/manager/${id}/update`, {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(data.message || 'Gestor atualizado!', 'success');
+                document.getElementById('editManagerCard').style.display = 'none';
+
+                // Update row
+                const row = document.getElementById(`row-manager-${id}`);
+                if (row) {
+                    const name = formData.get('name');
+                    const email = formData.get('email');
+                    const companySelect = document.getElementById('edit_manager_company');
+                    const companyName = companySelect ? companySelect.options[companySelect.selectedIndex].text : '';
+                    const companyId = formData.get('company_id');
+
+                    const nameCell = row.querySelector('.col-name');
+                    const emailCell = row.querySelector('.col-email');
+                    const compCell = row.querySelector('.col-comp');
+                    if (nameCell) nameCell.textContent = name;
+                    if (emailCell) emailCell.textContent = email;
+                    if (compCell) compCell.textContent = companyName;
+
+                    const editBtn = row.querySelector('.btn-icon-edit');
+                    if (editBtn) {
+                        editBtn.dataset.name = name;
+                        editBtn.dataset.email = email;
+                        editBtn.dataset.company = companyId;
+                    }
+                }
+            } else {
+                showToast(data.error || 'Erro ao atualizar', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro de conexão: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'Atualizar'; }
+        }
+    }
+
+    async function deleteManager(id, name) {
+        if (!confirm(`Remover gestor "${name}"?`)) return;
+
+        try {
+            const res = await fetch(`/admin/manager/${id}/delete`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast(data.message || 'Gestor removido!', 'success');
+                const row = document.getElementById(`row-manager-${id}`);
+                if (row) {
+                    row.style.background = '#fee2e2';
+                    setTimeout(() => row.remove(), 500);
+                }
+            } else {
+                showToast(data.error || 'Erro ao remover', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro de conexão: ' + err.message, 'error');
         }
     }
 </script>
