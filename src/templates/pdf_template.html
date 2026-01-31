@@ -253,7 +253,7 @@
             Área: {{ area.nome_area }}
         </h3>
 
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 0; table-layout: fixed;">
             <thead>
                 <tr style="background-color: #ffffff;">
                     <th
@@ -278,7 +278,7 @@
                         style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center; font-weight: bold; color: #888;">
                         #{{ loop.index }}
                     </td>
-                    <td style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; color: #333;">
+                    <td style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; color: #333; word-wrap: break-word; overflow-wrap: break-word;">
                         <span style="font-weight: bold;">{{ item.item_verificado }}</span>
                     </td>
 
@@ -300,7 +300,7 @@
                         {% endif %}
                     </td>
 
-                    <td class="plan-cell" style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top;">
+                    <td class="plan-cell" style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word;">
                         <div style="margin-bottom: 6px;">
                             <span style="font-weight: bold; color: #555;">Lei/Norma:</span>
                             <span style="font-style: italic;">{{ item.fundamento_legal or 'Não citado' }}</span>
@@ -315,7 +315,7 @@
                         </div>
                     </td>
 
-                    <td class="followup-cell" style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top;">
+                    <td class="followup-cell" style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word;">
                         <!-- Mock de Visita/Correção -->
                         {% if item.correction_notes or item.is_corrected or item.evidence_image_url %}
                         <div
