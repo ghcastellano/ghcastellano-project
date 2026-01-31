@@ -821,23 +821,25 @@ def edit_plan(file_id):
         if 'aproveitamento_geral' not in report_data:
              report_data['aproveitamento_geral'] = 0
 
-        # 4b. Calculate general summary (total scores across all areas)
+        # 4b. Calculate general summary
+        # Fallback: use area sums if top-level scores are missing
         if 'areas_inspecionadas' in report_data and report_data['areas_inspecionadas']:
             total_obtido = sum(float(area.get('pontuacao_obtida', 0) or 0) for area in report_data['areas_inspecionadas'])
             total_maximo = sum(float(area.get('pontuacao_maxima', 0) or 0) for area in report_data['areas_inspecionadas'])
 
-            # Ensure fields exist (prefer AI values if present)
             if 'pontuacao_geral' not in report_data or report_data.get('pontuacao_geral') == 0:
                 report_data['pontuacao_geral'] = round(total_obtido, 2)
 
             if 'pontuacao_maxima_geral' not in report_data or report_data.get('pontuacao_maxima_geral') == 0:
                 report_data['pontuacao_maxima_geral'] = round(total_maximo, 2)
 
-            # Recalculate percentage
-            if total_maximo > 0:
-                report_data['aproveitamento_geral'] = round((total_obtido / total_maximo * 100), 2)
-            else:
-                report_data['aproveitamento_geral'] = 0
+        # ALWAYS recalculate percentage from top-level scores (never trust AI's aproveitamento)
+        pg = float(report_data.get('pontuacao_geral', 0) or 0)
+        pmg = float(report_data.get('pontuacao_maxima_geral', 0) or 0)
+        if pmg > 0:
+            report_data['aproveitamento_geral'] = round((pg / pmg * 100), 2)
+        else:
+            report_data['aproveitamento_geral'] = 0
 
         # [HOTFIX] Enrich Data via PDFService (Calculates Scores, Normalizes Status)
         try:

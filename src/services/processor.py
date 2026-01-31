@@ -720,13 +720,17 @@ class ProcessorService:
                     "aproveitamento": area.aproveitamento
                 }
             
-            # Save Stats to JSON
+            # Save Stats to JSON (recalculate percentage from actual scores)
+            score = report_data.pontuacao_geral
+            max_score = report_data.pontuacao_maxima_geral
+            pct = round((score / max_score * 100), 2) if max_score > 0 else 0
+
             action_plan.stats_json = {
                 "total_items": total_items,
                 "total_nc": total_nc,
-                "score": report_data.pontuacao_geral,
-                "max_score": report_data.pontuacao_maxima_geral,
-                "percentage": report_data.aproveitamento_geral,
+                "score": score,
+                "max_score": max_score,
+                "percentage": pct,
                 "by_sector": sector_stats
             }
             logger.info(f"📊 Stats generated: {total_items} items, {total_nc} NCs")

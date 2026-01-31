@@ -156,9 +156,14 @@ class PDFService:
                 total_maximo += area_maximo
 
         # Atualiza Total Geral
-        data['total_pontuacao_obtida'] = round(total_obtido, 2) # Útil para debug ou display
-        
-        if total_maximo > 0:
+        data['total_pontuacao_obtida'] = round(total_obtido, 2)
+
+        # Use top-level scores for percentage (more accurate than area sums)
+        pg = float(data.get('pontuacao_geral', 0) or 0)
+        pmg = float(data.get('pontuacao_maxima_geral', 0) or 0)
+        if pmg > 0:
+            data['aproveitamento_geral'] = round((pg / pmg * 100), 2)
+        elif total_maximo > 0:
             data['aproveitamento_geral'] = round((total_obtido / total_maximo) * 100, 2)
         else:
             data['aproveitamento_geral'] = 0
