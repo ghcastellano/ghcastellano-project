@@ -369,7 +369,8 @@ def dashboard_consultant():
     }
 
     # [NEW] Buscar estabelecimentos com inspeções em análise
-    from src.models_db import Inspection
+    from src.models_db import Inspection, InspectionStatus, Job, JobStatus
+    from src.database import get_db
     from sqlalchemy.orm import joinedload
 
     pending_establishments = []
