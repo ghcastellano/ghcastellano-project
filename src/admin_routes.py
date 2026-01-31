@@ -507,10 +507,27 @@ def api_monitor_stats():
                 try:
                     import json
                     error_data = json.loads(job.error_log) if isinstance(job.error_log, str) else job.error_log
-                    error_code = error_data.get('code', 'ERRO')
-                    error_details = error_data.get('user_msg') or error_data.get('message', 'Erro desconhecido')
-                except:
+
+                    # Handle array format (new) or single object (legacy)
+                    if isinstance(error_data, list) and len(error_data) > 0:
+                        # Get the most recent error (last in array)
+                        latest_error = error_data[-1]
+                        error_code = latest_error.get('code', 'ERRO')
+                        error_details = latest_error.get('admin_msg') or latest_error.get('user_msg') or latest_error.get('message', 'Erro desconhecido')
+
+                        # If multiple errors, add count
+                        if len(error_data) > 1:
+                            error_details = f"[{len(error_data)} erros] {error_details}"
+                    elif isinstance(error_data, dict):
+                        # Legacy single error object
+                        error_code = error_data.get('code', 'ERRO')
+                        error_details = error_data.get('admin_msg') or error_data.get('user_msg') or error_data.get('message', 'Erro desconhecido')
+                    else:
+                        error_details = str(error_data)[:100]
+                except Exception as parse_err:
+                    # If JSON parsing fails, show raw string
                     error_details = str(job.error_log)[:100]  # Limit to 100 chars
+                    error_code = 'PARSE_ERROR'
 
             # Infer type if not set (for legacy jobs)
             job_type = job.type

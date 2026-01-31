@@ -316,14 +316,52 @@ class ProcessorService:
                     except:
                         # Fallback try mapping
                         status = JobStatus[status] if status in JobStatus.__members__ else status
-                        
+
                 job.status = status
                 if status in [JobStatus.COMPLETED, JobStatus.FAILED]:
                     job.finished_at = datetime.utcnow()
-                
+
+                # [FIX] Robust error logging
                 if error_data:
-                    current_err = job.error_log or ""
-                    job.error_log = f"{current_err}\n{json.dumps(error_data)}"
+                    try:
+                        # Ensure error_data is a dict
+                        if not isinstance(error_data, dict):
+                            error_data = {"code": "ERR_9001", "admin_msg": str(error_data), "user_msg": "Erro desconhecido"}
+
+                        # Get existing errors (parse if JSON string, or start empty list)
+                        existing_errors = []
+                        if job.error_log:
+                            try:
+                                # Try to parse as JSON array first
+                                existing_errors = json.loads(job.error_log)
+                                if not isinstance(existing_errors, list):
+                                    # If it's a string or other type, convert to list
+                                    existing_errors = [existing_errors]
+                            except json.JSONDecodeError:
+                                # If parsing fails, treat as legacy string format
+                                existing_errors = [{"legacy_error": job.error_log}]
+
+                        # Append new error with timestamp
+                        error_entry = {
+                            "timestamp": datetime.utcnow().isoformat(),
+                            **error_data
+                        }
+                        existing_errors.append(error_entry)
+
+                        # Save as JSON array
+                        job.error_log = json.dumps(existing_errors, ensure_ascii=False)
+
+                        logger.info(f"Error logged for job {job_id}: {error_data.get('code', 'UNKNOWN')}")
+                    except Exception as error_log_exception:
+                        # If error logging fails, at least save something
+                        logger.error(f"Failed to log structured error for job {job_id}: {error_log_exception}")
+                        job.error_log = json.dumps([{
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "code": "ERR_9001",
+                            "admin_msg": f"Error logging failed: {str(error_log_exception)}",
+                            "user_msg": "Erro ao registrar erro (sistema instável)",
+                            "original_error": str(error_data)
+                        }], ensure_ascii=False)
 
                 if result:
                     # Merge with existing payload
@@ -332,7 +370,7 @@ class ProcessorService:
                     if not isinstance(current_payload, dict): current_payload = {}
                     current_payload.update(result)
                     job.result_payload = current_payload
-                
+
                 session.commit()
                 logger.info(f"Job {job_id} status updated to {status}.")
             else:
