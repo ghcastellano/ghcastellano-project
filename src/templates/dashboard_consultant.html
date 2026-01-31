@@ -469,7 +469,7 @@
             <button onclick="closeUploadModal()"
                 style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748B;">&times;</button>
 
-            <h2 style="margin-top: 0; margin-bottom: 1.5rem; color: #1E293B;">✨ Novo Relatório</h2>
+            <h2 style="margin-top: 0; margin-bottom: 1.5rem; color: #0f172a; font-weight: 700;">Novo Relatório</h2>
 
             <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
@@ -477,14 +477,14 @@
                 <!-- [UX] Location Selectors -->
                 <div style="margin-bottom: 1.5rem; text-align: left;">
                     <label
-                        style="display:block; font-size:0.85rem; font-weight:600; color:#475569; margin-bottom:0.5rem;">Empresa</label>
+                        style="display:block; font-size:0.85rem; font-weight:600; color:#1e293b; margin-bottom:0.5rem;">Empresa</label>
                     <select id="companyUploadSelect" onchange="updateEstablishmentOptions()"
                         style="width:100%; padding:0.75rem; border:1px solid #CBD5E1; border-radius:8px; background:white; margin-bottom: 1rem;">
                         <option value="">Selecione a Empresa...</option>
                     </select>
 
                     <label
-                        style="display:block; font-size:0.85rem; font-weight:600; color:#475569; margin-bottom:0.5rem;">Loja
+                        style="display:block; font-size:0.85rem; font-weight:600; color:#1e293b; margin-bottom:0.5rem;">Loja
                         / Unidade</label>
                     <select id="estUploadSelect" name="establishment_id"
                         style="width:100%; padding:0.75rem; border:1px solid #CBD5E1; border-radius:8px; background:white;"
@@ -719,8 +719,14 @@
         document.querySelector('#uploadModal h2').style.display = 'block';
     }
 
+    let uploadJustCompleted = false;
+
     function closeUploadModal() {
         document.getElementById('uploadModal').style.display = 'none';
+        if (uploadJustCompleted) {
+            uploadJustCompleted = false;
+            window.location.reload(true);
+        }
     }
 
     function retryUpload(establishmentId) {
@@ -931,20 +937,51 @@
         xhr.onload = function () {
             isProcessing = false; // Finished
             if (xhr.status === 200) {
-                // Success UI
-                if (progressBar) {
-                    progressBar.style.width = '100%';
-                    progressBar.style.backgroundColor = '#10B981';
+                uploadJustCompleted = true;
+
+                // Remove processing view and show success view
+                const modalWrapper = document.querySelector('#uploadModal .glass-panel');
+                const procView = document.getElementById('aiProcessingView');
+                if (procView) procView.remove();
+
+                // Hide form and title
+                const form = document.getElementById('uploadForm');
+                const title = document.querySelector('#uploadModal h2');
+                if (form) form.style.display = 'none';
+                if (title) title.style.display = 'none';
+
+                // Create success view
+                let successView = document.getElementById('uploadSuccessView');
+                if (!successView && modalWrapper) {
+                    successView = document.createElement('div');
+                    successView.id = 'uploadSuccessView';
+                    successView.style.cssText = 'text-align:center; padding:2.5rem 1.5rem;';
+                    successView.innerHTML = `
+                        <div style="width:64px; height:64px; background:#dcfce7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <h3 style="color:#0f172a; margin-bottom:0.75rem; font-size:1.25rem; font-weight:700;">Enviado com Sucesso!</h3>
+                        <p style="color:#475569; font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;">
+                            Seu relatório foi recebido e está sendo<br>analisado pela inteligência artificial.
+                        </p>
+                        <p style="color:#64748b; font-size:0.85rem; margin-bottom:1.5rem;">
+                            A página será atualizada automaticamente.
+                        </p>
+                        <div style="background:#f1f5f9; border-radius:8px; padding:0.75rem; display:inline-block;">
+                            <p style="font-size:0.85rem; color:#475569; margin:0; font-weight:500;">
+                                Aguarde o processamento na lista de inspeções.
+                            </p>
+                        </div>
+                    `;
+                    modalWrapper.appendChild(successView);
                 }
 
-                showToast('Relatório enviado com sucesso! Atualizando página...', 'success');
-
-                // Close modal and reload page to show new data
+                // Auto-reload after 3 seconds
                 setTimeout(() => {
-                    closeUploadModal();
-                    // Force immediate reload after modal closes
                     window.location.reload(true);
-                }, 2000);
+                }, 3000);
 
             } else if (xhr.status === 413) {
                 showError('Arquivo muito grande. O limite é 32MB.');
