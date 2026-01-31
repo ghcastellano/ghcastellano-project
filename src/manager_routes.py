@@ -1252,9 +1252,10 @@ def api_status():
                     review_link = "#" # Safety fallback
                 
                 processed_list.append({
+                    'id': str(insp.id),  # <-- ADICIONADO: ID para o tracker
                     'establishment': est_name,
                     'date': date_str,
-                    'status': insp.status.value,
+                    'status': insp.status.value if insp.status else 'PENDING',  # <-- FIX: fallback se status for None
                     'review_link': review_link
                 })
 
