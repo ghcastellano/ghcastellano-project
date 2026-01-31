@@ -538,7 +538,8 @@
         'manager_review': 'Revisão Gestor',
         'consultant_check': 'Visita Consultor',
         'finished': 'Finalizado',
-        'CANCELED': 'CANCELADO'
+        'CANCELED': 'CANCELADO',
+        'SKIPPED': 'PULADO (DUPLICATA)'
     };
 
     function translate(text) {
@@ -553,6 +554,7 @@
         if (status === 'REJECTED' || status === 'FAILED') return 'danger';
         if (status === 'PENDING_MANAGER_REVIEW') return 'warning';
         if (status === 'PENDING_CONSULTANT_VERIFICATION') return 'info';
+        if (status === 'SKIPPED') return 'secondary';
         return 'secondary';
     }
 
