@@ -978,6 +978,7 @@ def _prepare_pdf_data(inspection):
         
     return data
 
+@manager_bp.route('/manager/plan/<file_id>/save', methods=['POST'])
 @login_required
 def save_plan(file_id):
     # [CHANGED] Allow Consultants to Edit Plan (Requested by User)
