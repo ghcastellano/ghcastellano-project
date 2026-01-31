@@ -70,6 +70,12 @@ if not app.secret_key:
     
 app.config['SECRET_KEY'] = app.secret_key
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024 # 32MB Upload Limit
+
+# Session Configuration for Cloud Run (HTTPS)
+app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookies over HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access (XSS protection)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection while allowing navigation
+
 csrf = CSRFProtect(app)
 
 # Cloud Run Load Balancer Fix (HTTPS / CSRF)
