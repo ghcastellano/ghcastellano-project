@@ -259,13 +259,13 @@
                     <th
                         style="width: 5%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold; text-align: center;">
                         Ref.</th>
-                    <th style="width: 20%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
+                    <th style="width: 18%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
                         Item</th>
-                    <th style="width: 12%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
+                    <th style="width: 15%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
                         Status</th>
                     <th style="width: 25%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
                         Plano de Ação Inicial</th>
-                    <th style="width: 38%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
+                    <th style="width: 37%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
                         Acompanhamento</th>
                 </tr>
             </thead>
@@ -283,7 +283,7 @@
                     </td>
 
                     <td class="status-cell"
-                        style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center;">
+                        style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center; word-wrap: break-word; overflow-wrap: break-word;">
                         {% if 'Não Conforme' in item.status or 'OPEN' in item.status %}
                         <div style="color: #e74a3b; font-weight: bold; font-size: 9pt;">{{
                             item.status|upper|replace('OPEN', 'NÃO CONFORME') }}</div>

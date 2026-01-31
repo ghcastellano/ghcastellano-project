@@ -419,7 +419,7 @@ def dashboard_consultant():
 
     stats = {
         'total': len(inspections),
-        'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_CONSULTANT_VERIFICATION', 'PENDING_MANAGER_REVIEW', 'Processando', 'Pendente']),
+        'pending': sum(1 for i in inspections if i['status'] in ['PENDING_MANAGER_REVIEW', 'Pendente']),
         'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED', 'Concluído']),
         'last_sync': brazil_now().strftime('%H:%M'),
         'pontuacao_geral': total_score,

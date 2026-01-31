@@ -174,28 +174,31 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                     )
                     db.add(job)
                     db.commit() # Get Job ID
-                    
+
+                    # Save IDs before processor detaches objects from session
+                    job_id_saved = job.id
+
                     # Inspection (Pre-Create with Linked Est)
                     new_insp = Inspection(
-                        drive_file_id=file['id'], 
-                        drive_web_link=file.get('webViewLink'), 
+                        drive_file_id=file['id'],
+                        drive_web_link=file.get('webViewLink'),
                         status=InspectionStatus.PROCESSING,
-                        establishment_id=est_id 
+                        establishment_id=est_id
                     )
                     db.add(new_insp)
                     db.commit()
-    
+
                     # Process (processor uses its own sessions internally)
                     processor_service.process_single_file(
                         {'id': file['id'], 'name': file['name']},
-                        job=job,
+                        job_id=job_id_saved,
                         establishment_id=est_id
                     )
 
-                    # Re-fetch job in a fresh session (processor may have closed ours)
+                    # Re-fetch job in a fresh session (processor detaches our objects)
                     db_fresh = next(get_db())
                     try:
-                        fresh_job = db_fresh.query(Job).get(job.id)
+                        fresh_job = db_fresh.query(Job).get(job_id_saved)
                         if fresh_job:
                             fresh_job.status = JobStatus.COMPLETED
                             fresh_job.finished_at = datetime.utcnow()
@@ -210,17 +213,17 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                     msg = f"Error capturing {file['name']}: {str(e)}"
                     logger.error(msg)
                     errors.append(msg)
-                    if job:
+                    if job_id_saved:
                         try:
                             db_err = next(get_db())
-                            err_job = db_err.query(Job).get(job.id)
+                            err_job = db_err.query(Job).get(job_id_saved)
                             if err_job:
                                 err_job.status = JobStatus.FAILED
                                 err_job.result_details = {'error': msg}
                                 db_err.commit()
                             db_err.close()
                         except Exception:
-                            logger.error(f"Failed to update job status for {job.id}")
+                            logger.error(f"Failed to update job status for {job_id_saved}")
 
         return {'status': 'ok', 'processed': processed_count, 'errors': errors}
 
@@ -347,20 +350,23 @@ def process_global_changes(drive_service):
                 )
                 db.add(job)
                 db.commit()
-                
+
+                # Save job_id before processor detaches objects
+                job_id_saved = job.id
+
                 new_insp = Inspection(
-                    drive_file_id=file['id'], 
-                    drive_web_link=file.get('webViewLink'), 
+                    drive_file_id=file['id'],
+                    drive_web_link=file.get('webViewLink'),
                     status=InspectionStatus.PROCESSING,
                     establishment_id=establishment_id
                 )
                 db.add(new_insp)
                 db.commit()
-                
+
                 try:
                     processor_service.process_single_file(
-                        {'id': file['id'], 'name': file['name']}, 
-                        job=job,
+                        {'id': file['id'], 'name': file['name']},
+                        job_id=job_id_saved,
                         establishment_id=establishment_id
                     )
                     processed_count += 1
