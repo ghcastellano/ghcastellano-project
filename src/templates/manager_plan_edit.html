@@ -173,17 +173,28 @@
 
     <div class="accordion shadow-sm" id="accordionAreas">
         {% for area in report_data.areas_inspecionadas %}
-        {% if area.items_nc > 0 %}
         <div class="accordion-item mb-3 border rounded overflow-hidden">
             <h2 class="accordion-header" id="heading{{ loop.index }}">
+                {% if area.items_nc > 0 %}
                 <button class="accordion-button collapsed bg-white text-dark fw-bold" type="button"
                     data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
                     <div class="d-flex align-items-center w-100 me-3">
                         <span class="me-auto">{{ area.nome_area }}</span>
                         <span class="badge bg-light text-dark border me-2">{{ area.items_nc }} apontamentos</span>
+                        <span class="badge bg-light text-dark border me-2">{{ area.pontuacao_obtida|round(2) }} / {{ area.pontuacao_maxima|round(2) }}</span>
                     </div>
                 </button>
+                {% else %}
+                <div class="accordion-button collapsed bg-white text-dark fw-bold" style="cursor: default;">
+                    <div class="d-flex align-items-center w-100 me-3">
+                        <span class="me-auto">{{ area.nome_area }}</span>
+                        <span class="badge bg-success rounded-pill px-3 me-2">Conforme</span>
+                        <span class="badge bg-light text-dark border me-2">{{ area.pontuacao_obtida|round(2) }} / {{ area.pontuacao_maxima|round(2) }}</span>
+                    </div>
+                </div>
+                {% endif %}
             </h2>
+            {% if area.items_nc > 0 %}
             <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#accordionAreas">
                 <div class="accordion-body bg-light p-4">
                     {% for item in area.itens %}
@@ -256,8 +267,8 @@
                     {% endfor %}
                 </div>
             </div>
+            {% endif %}
         </div>
-        {% endif %}
         {% endfor %}
     </div>
 
@@ -305,6 +316,30 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <!-- Responsável da Loja -->
+                <div class="mb-3 p-3 bg-light rounded border">
+                    <h6 class="fw-bold text-muted text-uppercase mb-2" style="font-size: 0.75rem;">Responsável da Loja</h6>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <input type="text" id="shareRespName" class="form-control form-control-sm" placeholder="Nome do responsável"
+                                value="{{ recipients[0].name if recipients else '' }}">
+                        </div>
+                        <div class="col-6">
+                            <input type="tel" id="shareRespPhone" class="form-control form-control-sm" placeholder="Telefone (DDD + Número)"
+                                value="{{ recipients[0].phone if recipients and recipients[0].phone else '' }}">
+                        </div>
+                        <div class="col-6">
+                            <input type="email" id="shareRespEmail" class="form-control form-control-sm" placeholder="Email"
+                                value="{{ recipients[0].email if recipients and recipients[0].email else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-sm btn-outline-secondary w-100" onclick="saveResponsible()">
+                                <i class="ph-bold ph-floppy-disk me-1"></i> Salvar Dados do Responsável
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <ul class="nav nav-tabs mb-3" id="shareTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="whatsapp-tab" data-bs-toggle="tab"
@@ -323,65 +358,17 @@
                 <div class="tab-content" id="shareTabContent">
                     <!-- WhatsApp Tab -->
                     <div class="tab-pane fade show active" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
-                        <div class="list-group mb-3">
-                            <label class="list-group-item">
-                                <input class="form-check-input me-1" type="radio" name="waRecipient" value="custom"
-                                    checked onchange="toggleCustom('wa', true)">
-                                Outro número
-                            </label>
-                            {% for r in recipients %}
-                            {% if r.phone %}
-                            <label class="list-group-item">
-                                <input class="form-check-input me-1" type="radio" name="waRecipient"
-                                    value="{{ r.phone }}" data-name="{{ r.name }}" onchange="toggleCustom('wa', false)">
-                                <div class="d-inline-block align-middle ms-2">
-                                    <strong>{{ r.name }}</strong> <span class="badge bg-light text-dark ms-1">{{ r.role
-                                        }}</span><br>
-                                    <small class="text-muted">{{ r.phone }}</small>
-                                </div>
-                            </label>
-                            {% endif %}
-                            {% endfor %}
-                        </div>
-                        <div id="waCustomInput">
-                            <label class="form-label text-xs fw-bold text-uppercase">Número do WhatsApp (DDD +
-                                Número)</label>
-                            <input type="text" id="customPhone" class="form-control" placeholder="Ex: 11999999999">
-                        </div>
-                        <button class="btn btn-success w-100 mt-3" onclick="sendWhatsApp()">
-                            Enviar WhatsApp <i class="ph-bold ph-paper-plane-right ms-2"></i>
+                        <p class="text-muted mb-2" style="font-size: 0.85rem;">O WhatsApp será aberto com a mensagem e link do relatório.</p>
+                        <button class="btn btn-success w-100" onclick="sendWhatsApp()">
+                            <i class="ph-bold ph-whatsapp-logo me-2"></i> Enviar via WhatsApp
                         </button>
                     </div>
 
                     <!-- Email Tab -->
                     <div class="tab-pane fade" id="email" role="tabpanel" aria-labelledby="email-tab">
-                        <div class="list-group mb-3">
-                            <label class="list-group-item">
-                                <input class="form-check-input me-1" type="radio" name="emailRecipient" value="custom"
-                                    checked onchange="toggleCustom('email', true)">
-                                Outro email
-                            </label>
-                            {% for r in recipients %}
-                            {% if r.email %}
-                            <label class="list-group-item">
-                                <input class="form-check-input me-1" type="radio" name="emailRecipient"
-                                    value="{{ r.email }}" data-name="{{ r.name }}"
-                                    onchange="toggleCustom('email', false)">
-                                <div class="d-inline-block align-middle ms-2">
-                                    <strong>{{ r.name }}</strong> <span class="badge bg-light text-dark ms-1">{{ r.role
-                                        }}</span><br>
-                                    <small class="text-muted">{{ r.email }}</small>
-                                </div>
-                            </label>
-                            {% endif %}
-                            {% endfor %}
-                        </div>
-                        <div id="emailCustomInput">
-                            <label class="form-label text-xs fw-bold text-uppercase">Email do Destinatário</label>
-                            <input type="email" id="customEmail" class="form-control" placeholder="nome@exemplo.com">
-                        </div>
-                        <button class="btn btn-primary w-100 mt-3" onclick="sendEmail()">
-                            Enviar Email <i class="ph-bold ph-paper-plane-right ms-2"></i>
+                        <p class="text-muted mb-2" style="font-size: 0.85rem;">Um email será enviado com o link do relatório.</p>
+                        <button class="btn btn-primary w-100" onclick="sendEmail()">
+                            <i class="ph-bold ph-envelope-simple me-2"></i> Enviar via Email
                         </button>
                     </div>
                 </div>
@@ -402,6 +389,11 @@
     .accordion-button:focus {
         box-shadow: none;
         border-color: rgba(0, 0, 0, .125);
+    }
+
+    /* Hide arrow for non-expandable conforme areas */
+    .accordion-button[style*="cursor: default"]::after {
+        display: none;
     }
 
     /* High Contrast Warning Button for Consultant (and potentially Manager if used) */
@@ -570,54 +562,53 @@
         }
     }
     // --- Sharing Widget Logic ---
-    function toggleCustom(type, isCustom) {
-        const inputDiv = document.getElementById(type === 'wa' ? 'waCustomInput' : 'emailCustomInput');
-        inputDiv.style.display = isCustom ? 'block' : 'none';
+    async function saveResponsible() {
+        const name = document.getElementById('shareRespName').value;
+        const phone = document.getElementById('shareRespPhone').value;
+        const email = document.getElementById('shareRespEmail').value;
+
+        if (!name && !phone && !email) return alert('Preencha ao menos um campo.');
+
+        try {
+            const response = await fetch(`/manager/plan/${INSPECTION_FILE_ID}/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    responsible_name: name,
+                    responsible_phone: phone,
+                    responsible_email: email,
+                    items: []
+                })
+            });
+            if (response.ok) {
+                alert('Dados do responsável salvos!');
+            } else {
+                alert('Erro ao salvar dados do responsável.');
+            }
+        } catch (e) {
+            alert('Erro de conexão.');
+        }
     }
 
     function sendWhatsApp() {
-        const selected = document.querySelector('input[name="waRecipient"]:checked');
-        if (!selected) return alert('Selecione um destinatário.');
+        const phone = document.getElementById('shareRespPhone').value;
+        const name = document.getElementById('shareRespName').value || "Responsável";
 
-        let phone = selected.value;
-        let name = "Responsável";
-
-        if (phone === 'custom') {
-            phone = document.getElementById('customPhone').value;
-            name = "Responsável";
-        } else {
-            name = selected.dataset.name || "Responsável";
-        }
-
-        // Clean Phone
-        phone = phone.replace(/\D/g, '');
-        if (phone.length === 0) return alert('Telefone inválido.');
-        if (phone.length <= 11) phone = '55' + phone;
+        let cleanPhone = phone.replace(/\D/g, '');
+        if (cleanPhone.length === 0) return alert('Preencha o telefone do responsável.');
+        if (cleanPhone.length <= 11) cleanPhone = '55' + cleanPhone;
 
         const downloadUrl = "{{ url_for('download_revised_pdf', file_id=inspection.drive_file_id, _external=True) }}";
         const msg = `Olá ${name}, segue o link do seu Plano de Ação: ${downloadUrl}`;
 
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-
-        // Optional: Close modal
-        // const modal = bootstrap.Modal.getInstance(document.getElementById('shareModal'));
-        // modal.hide();
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     async function sendEmail() {
-        const selected = document.querySelector('input[name="emailRecipient"]:checked');
-        if (!selected) return alert('Selecione um destinatário.');
+        const email = document.getElementById('shareRespEmail').value;
+        const name = document.getElementById('shareRespName').value || "Responsável";
 
-        let email = selected.value;
-        let name = "Responsável";
-
-        if (email === 'custom') {
-            email = document.getElementById('customEmail').value;
-            name = "Responsável";
-            if (!email) return alert('Digite um email.');
-        } else {
-            name = selected.dataset.name || "Responsável";
-        }
+        if (!email) return alert('Preencha o email do responsável.');
 
         const originalText = event.target.innerHTML;
         event.target.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';

@@ -1146,11 +1146,13 @@ def save_plan(file_id):
         # Capture Responsible Info if provided
         resp_name = data.get('responsible_name')
         resp_phone = data.get('responsible_phone')
+        resp_email = data.get('responsible_email')
         whatsapp_link = None
-        
-        if inspection.establishment and (resp_name or resp_phone):
+
+        if inspection.establishment and (resp_name or resp_phone or resp_email):
             if resp_name: inspection.establishment.responsible_name = resp_name
             if resp_phone: inspection.establishment.responsible_phone = resp_phone
+            if resp_email: inspection.establishment.responsible_email = resp_email
             
         # Update Inspection Status to APPROVED if requested
         if data.get('approve'):

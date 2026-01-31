@@ -76,19 +76,33 @@ jobs:
             WHATSAPP_PHONE_ID=${{ secrets.WHATSAPP_PHONE_ID }}
             WHATSAPP_DESTINATION_PHONE=${{ secrets.WHATSAPP_DESTINATION_PHONE }}
 
-      # Optional: Prune old images (Zero Cost Architecture) kept inline or via script
+      # Aggressive Cleanup: Keep storage under free tier (0.5 GB)
       - name: 🧹 Cleanup Old Images & Revisions (Zero Cost - Max 2)
         run: |
-          echo "Starting Cleanup (keeping only 2 latest)..."
+          echo "=== Zero Cost Cleanup (keeping 2 latest) ==="
+
           # 1. Clean Cloud Run Revisions (Keep 2 newest)
-          echo "Cleaning Revisions..."
-          # tail -n +3 means: output starting from line 3 (deleting 3rd, 4th, etc.)
+          echo ">> Cleaning old revisions..."
           gcloud run revisions list --service ${{ env.SERVICE_NAME }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --sort-by=~createTime --format="value(name)" | tail -n +3 | xargs -I {} gcloud run revisions delete {} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --quiet || echo "No revisions to delete"
-          
-          # 2. Clean GCR Images (Keep 2 newest)
-          echo "Cleaning Registry Images..."
+
+          # 2. Clean GCR Images (Keep 2 newest tagged, delete ALL untagged)
+          echo ">> Cleaning old container images..."
           DIGESTS=$(gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} --project ${{ env.PROJECT_ID }} --sort-by=~TIMESTAMP --format="get(digest)" | tail -n +3)
           for DIGEST in $DIGESTS; do
               gcloud container images delete "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}@$DIGEST" --project ${{ env.PROJECT_ID }} --quiet --force-delete-tags || echo "Failed to delete $DIGEST"
           done
-          echo "Cleanup Complete."
+
+          # 3. Clean untagged images (orphan layers)
+          echo ">> Cleaning untagged/orphan images..."
+          UNTAGGED=$(gcloud container images list-tags gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} --project ${{ env.PROJECT_ID }} --filter="NOT tags:*" --format="get(digest)")
+          for DIGEST in $UNTAGGED; do
+              gcloud container images delete "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}@$DIGEST" --project ${{ env.PROJECT_ID }} --quiet --force-delete-tags || echo "Failed to delete untagged $DIGEST"
+          done
+
+          # 4. Clean Artifact Registry source-deploy repo (from gcloud run deploy --source)
+          echo ">> Cleaning cloud-run-source-deploy artifacts..."
+          gcloud artifacts docker images list us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/cloud-run-source-deploy --format="get(package)" 2>/dev/null | while read IMG; do
+              gcloud artifacts docker images delete "$IMG" --project ${{ env.PROJECT_ID }} --quiet --delete-tags 2>/dev/null || true
+          done
+
+          echo "=== Cleanup Complete ==="
