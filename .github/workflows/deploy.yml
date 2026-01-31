@@ -63,7 +63,7 @@ jobs:
             FOLDER_ID_02_PLANOS_GERADOS=15Cip-MIZS8zWaXZen4n0jN8NWPo0LedP
             FOLDER_ID_03_PROCESSADOS_BACKUP=1mGSz1GqyZRgninE8oC5LvBKfHptJ2qh1
             FOLDER_ID_99_ERROS=15B46XHBTGWWojwGHbMzp-Ic7kFJOwYYe
-            AWS_REGION=us-east-1
+            AWS_REGION=us-east-2
             AWS_SES_SENDER=ghcastellano@gmail.com
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
