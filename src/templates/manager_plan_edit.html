@@ -158,6 +158,7 @@
     {% set status_raw = inspection.status if inspection.status is defined else 'PENDING' %}
     {% set status_name = status_raw.name if status_raw.name is defined else status_raw|string %}
     {% set is_locked = (status_name == 'APPROVED' or status_name == 'COMPLETED') %}
+    {% set is_approved = (status_name == 'PENDING_CONSULTANT_VERIFICATION' or status_name == 'COMPLETED') %}
 
     <div class="accordion shadow-sm" id="accordionAreas">
         {% for area in report_data.areas_inspecionadas %}
@@ -254,7 +255,8 @@
         <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div class="d-flex gap-2">
-                    <!-- [UX] Updated Share Widget -->
+                    <!-- [UX] Updated Share Widget - Only show after approval -->
+                    {% if is_approved %}
                     <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#shareModal">
                         <i class="ph-bold ph-share-network me-2"></i> Compartilhar
                     </button>
@@ -263,6 +265,7 @@
                         onclick="window.open('/download_revised_pdf/{{ inspection.drive_file_id }}', '_blank')">
                         <i class="ph-bold ph-file-pdf me-2"></i> Baixar Relatório
                     </button>
+                    {% endif %}
                 </div>
                 <div>
                     {% if is_locked %}
