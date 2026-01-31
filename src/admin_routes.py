@@ -10,6 +10,7 @@ import uuid
 import os
 import logging
 from datetime import datetime
+from src.services.drive_service import drive_service
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -134,12 +135,18 @@ def delete_company(company_id):
                          db.query(ActionPlanItem).filter(ActionPlanItem.action_plan_id == insp.action_plan.id).delete()
                          db.delete(insp.action_plan)
                     db.delete(insp)
-                
-                # Delete Visits linked to Est (if any remained) - REMOVED
-                
+
+                # Delete Establishment's Drive folder
+                if est.drive_folder_id:
+                    drive_service.delete_folder(est.drive_folder_id)
+
                 db.delete(est)
 
-            # 4. Finally Delete Company
+            # 4. Delete Company's Drive folder
+            if company.drive_folder_id:
+                drive_service.delete_folder(company.drive_folder_id)
+
+            # 5. Finally Delete Company
             db.delete(company)
             db.commit()
             

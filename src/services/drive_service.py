@@ -277,6 +277,23 @@ class DriveService:
         except Exception as e:
             logger.error(f"Erro ao mover arquivo: {e}")
 
+    def delete_folder(self, folder_id):
+        """Deleta uma pasta (e todo seu conteúdo) do Google Drive."""
+        if not self.service or not folder_id:
+            return False
+        try:
+            logger.info(f"🗑️ Deletando pasta do Drive: {folder_id}")
+            with self.lock:
+                self.service.files().delete(
+                    fileId=folder_id,
+                    supportsAllDrives=True
+                ).execute()
+            logger.info(f"✅ Pasta {folder_id} deletada do Drive")
+            return True
+        except Exception as e:
+            logger.warning(f"⚠️ Falha ao deletar pasta {folder_id} do Drive: {e}")
+            return False
+
     def _share_file(self, file_id):
         if not self.service: return
         try:

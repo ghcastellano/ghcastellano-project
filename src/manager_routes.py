@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload, defer
 from sqlalchemy.exc import IntegrityError
 from src.services.email_service import EmailService # Mock verify first
 from src.services.pdf_service import pdf_service
+from src.services.drive_service import drive_service
 from werkzeug.security import generate_password_hash
 from flask import session
 import uuid
@@ -471,7 +472,11 @@ def delete_establishment(est_id):
             return jsonify({'error': 'Estabelecimento não encontrado'}), 404
         if est.company_id != current_user.company_id:
             return jsonify({'error': 'Acesso negado'}), 403
-            
+
+        # Deletar pasta do Google Drive
+        if est.drive_folder_id:
+            drive_service.delete_folder(est.drive_folder_id)
+
         db.delete(est)
         db.commit()
         return jsonify({'success': True, 'message': 'Estabelecimento removido!'}), 200
