@@ -350,13 +350,13 @@
                 <i class="fas fa-clock fa-2x"></i>
             </div>
             <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
-            <div class="stat-label">Em Análise</div>
+            <div class="stat-label">Em aprovação pelo gestor</div>
 
             <!-- Show pending establishments -->
             {% if pending_establishments %}
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;">
                 <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                    Lojas em Processamento:
+                    Lojas em aprovação:
                 </div>
                 {% for est in pending_establishments[:3] %}
                 <div style="font-size: 0.8rem; color: #374151; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -433,11 +433,11 @@
 
                 <div style="text-align: right;">
                     {% if is_verification %}
-                    <span class="status-badge status-verification">VERIFICAR</span>
+                    <span class="status-badge status-verification">AGUARDANDO PRÓXIMA VISITA</span>
                     {% elif 'APPROVED' in insp.status %}
                     <span class="status-badge status-approved">APROVADO</span>
                     {% elif is_pending %}
-                    <span class="status-badge status-pending">EM ANÁLISE</span>
+                    <span class="status-badge status-pending">EM APROVAÇÃO PELO GESTOR</span>
                     {% elif 'COMPLETED' in insp.status %}
                     <span class="status-badge status-approved">CONCLUÍDO</span>
                     {% elif 'REJECTED' in insp.status or 'ERROR' in insp.status or 'FAILED' in insp.status %}
