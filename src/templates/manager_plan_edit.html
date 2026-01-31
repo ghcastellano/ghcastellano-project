@@ -140,11 +140,10 @@
 
     <!-- Details Section -->
     <h4 class="mb-3 text-gray-800">Detalhamento e Ações</h4>
-    {# Safe access to status regardless of type (Enum/String/Dict) #}
-    {% set status_raw = inspection.status if inspection.status is defined else 'PENDING' %}
-    {% set status_name = status_raw.name if status_raw.name is defined else status_raw|string %}
-    {% set is_locked = (status_name == 'APPROVED' or status_name == 'COMPLETED') %}
-    {% set is_approved = (status_name == 'PENDING_CONSULTANT_VERIFICATION' or status_name == 'COMPLETED') %}
+    {# Safe access to status - use .value for Enum or fallback to string #}
+    {% set status_val = inspection.status.value if inspection.status is defined and inspection.status.value is defined else (inspection.status|string if inspection.status is defined else 'PENDING') %}
+    {% set is_locked = (status_val in ['APPROVED', 'COMPLETED', 'PENDING_CONSULTANT_VERIFICATION']) %}
+    {% set is_approved = (status_val in ['PENDING_CONSULTANT_VERIFICATION', 'COMPLETED']) %}
 
     <div class="accordion shadow-sm" id="accordionAreas">
         {% for area in report_data.areas_inspecionadas %}
