@@ -61,9 +61,9 @@ from src.services.email_service import EmailService
 from src.services.storage_service import storage_service
 
 # Configurações do App
-app.secret_key = os.getenv('SECRET_KEY')
+app.secret_key = config.SECRET_KEY
 if not app.secret_key:
-    # Fallback ONLY if ENV is missing (prevents 500 Error in Prod if Setup fails)
+    # Fallback ONLY if ENV is missing AND config default failed (unlikely)
     logger.warning("⚠️ SECRET_KEY não encontrada no ambiente. Gerando chave aleatória (Sessões serão invalidadas ao reiniciar).")
     import secrets
     app.secret_key = secrets.token_hex(32)
