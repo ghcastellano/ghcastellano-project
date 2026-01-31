@@ -871,11 +871,20 @@ def edit_plan(file_id):
              #                 'role': 'Consultor'
              #             })
 
-        return render_template('manager_plan_edit.html', 
-                             inspection=inspection, 
+        # Compute status flags in Python (avoids Jinja2 Enum resolution issues)
+        from src.models_db import InspectionStatus
+        current_status = inspection.status
+        status_value = current_status.value if hasattr(current_status, 'value') else str(current_status)
+        is_locked = status_value in ['APPROVED', 'COMPLETED', 'PENDING_CONSULTANT_VERIFICATION']
+        is_approved = status_value in ['APPROVED', 'PENDING_CONSULTANT_VERIFICATION', 'COMPLETED']
+
+        return render_template('manager_plan_edit.html',
+                             inspection=inspection,
                              plan=inspection.action_plan,
                              report_data=report_data,
-                             recipients=recipients)
+                             recipients=recipients,
+                             is_locked=is_locked,
+                             is_approved=is_approved)
         
     except Exception as e:
         flash(f'Erro ao carregar plano: {e}', 'error')

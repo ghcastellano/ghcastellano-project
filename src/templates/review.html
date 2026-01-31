@@ -240,9 +240,17 @@
                                             </label>
 
                                             <!-- Preview Area -->
+                                            {% set raw_evidence_url = item.evidence_image_url or '' %}
+                                            {% if raw_evidence_url and '/static/uploads/evidence/' in raw_evidence_url %}
+                                                {% set evidence_display_url = '/evidence/' + raw_evidence_url.split('/static/uploads/evidence/')[-1] %}
+                                            {% elif raw_evidence_url and 'storage.googleapis.com' in raw_evidence_url and '/evidence/' in raw_evidence_url %}
+                                                {% set evidence_display_url = '/evidence/' + raw_evidence_url.split('/evidence/')[-1] %}
+                                            {% else %}
+                                                {% set evidence_display_url = raw_evidence_url %}
+                                            {% endif %}
                                             <div id="preview_area_{{ item.id }}"
                                                 class="position-relative mb-2 {% if not item.evidence_image_url %}d-none{% endif %}">
-                                                <img src="{{ item.evidence_image_url or '' }}"
+                                                <img src="{{ evidence_display_url }}"
                                                     id="img_preview_{{ item.id }}"
                                                     class="img-fluid rounded border shadow-sm w-100"
                                                     style="max-height: 200px; object-fit: cover;">
@@ -265,7 +273,7 @@
                                             </div>
                                             <!-- Hidden Input for URL storage -->
                                             <input type="hidden" id="evidence_url_{{ item.id }}"
-                                                value="{{ item.evidence_image_url or '' }}">
+                                                value="{{ evidence_display_url }}">
                                         </div>
 
                                         <!-- Notes -->

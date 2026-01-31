@@ -680,8 +680,9 @@
         // formConsultant already has onsubmit in HTML
         // if (formConsultant) formConsultant.addEventListener('submit', handleCreateConsultant);
 
-        const formEst = document.getElementById('formCreateEst');
-        if (formEst) formEst.addEventListener('submit', handleCreateEstablishment);
+        // formCreateEst already has onsubmit in HTML - do NOT add duplicate listener
+        // const formEst = document.getElementById('formCreateEst');
+        // if (formEst) formEst.addEventListener('submit', handleCreateEstablishment);
 
         // Edit Forms are in modals
         const formEditConsultant = document.getElementById('editConsultantForm');
@@ -968,8 +969,6 @@
             if (res.ok) {
                 showToast(data.message, 'success');
                 form.reset();
-                showToast(data.message, 'success');
-                form.reset();
                 // Explicitly hide instead of toggle
                 const card = document.getElementById('createConsultantCard');
                 if (card) {
@@ -1044,8 +1043,6 @@
             const data = await res.json();
 
             if (res.ok) {
-                showToast(data.message, 'success');
-                form.reset();
                 showToast(data.message, 'success');
                 form.reset();
                 // Explicitly hide
@@ -1164,12 +1161,12 @@
 
                     if (row.cells[1]) row.cells[1].textContent = c.email;
 
-                    const editBtn = row.querySelector('.btn-edit-icon');
+                    const editBtn = row.querySelector('.btn-icon-edit');
                     if (editBtn) {
+                        editBtn.dataset.id = c.id;
                         editBtn.dataset.name = c.name;
                         editBtn.dataset.email = c.email;
                         editBtn.dataset.stores = JSON.stringify(c.establishment_ids || []);
-                        // Trigger attribute update if using MutationObserver or direct read
                     }
                 }
             }

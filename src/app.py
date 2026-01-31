@@ -1417,30 +1417,75 @@ def upload_evidence():
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
+
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     if '.' not in file.filename or file.filename.rsplit('.', 1)[1].lower() not in ALLOWED_EXTENSIONS:
         return jsonify({'error': 'Apenas imagens (PNG, JPG) são permitidas.'}), 400
-        
+
     if file:
         filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
-        
+
         try:
             # Use Storage Service (Abstração GCS/Local)
             from src.services.storage_service import storage_service
-            
+
             # Decide bucket folder based on environment or config
-            folder = 'evidence' 
-            
+            folder = 'evidence'
+
             public_url = storage_service.upload_file(file, destination_folder=folder, filename=filename)
-            
+
+            # Always normalize to use the proxy route for resilience
+            # This ensures evidence works even if GCS is not available or container restarts
+            if public_url and not public_url.startswith('http'):
+                # Local path like /static/uploads/evidence/filename.png
+                # Convert to proxy route: /evidence/filename.png
+                public_url = f"/evidence/{filename}"
+            elif public_url and 'storage.googleapis.com' in public_url:
+                # GCS URL - also use proxy route for consistency
+                public_url = f"/evidence/{filename}"
+
             return jsonify({'url': public_url}), 200
-            
+
         except Exception as e:
             logger.error(f"Upload falhou: {e}")
             return jsonify({'error': str(e)}), 500
-        
+
     return jsonify({'error': 'Upload failed'}), 500
+
+@app.route('/evidence/<path:filename>')
+def serve_evidence(filename):
+    """Proxy route for evidence images - tries GCS first, then local storage."""
+    import mimetypes
+    from flask import Response, send_from_directory
+    from src.services.storage_service import storage_service
+
+    # 1. Try GCS first (persistent storage)
+    if storage_service.client and storage_service.bucket_name:
+        try:
+            bucket = storage_service.client.bucket(storage_service.bucket_name)
+            blob = bucket.blob(f"evidence/{filename}")
+            if blob.exists():
+                data = blob.download_as_bytes()
+                content_type = mimetypes.guess_type(filename)[0] or 'image/png'
+                return Response(data, mimetype=content_type, headers={
+                    'Cache-Control': 'public, max-age=86400'
+                })
+        except Exception as e:
+            logger.warning(f"GCS evidence fetch failed for {filename}: {e}")
+
+    # 2. Try local storage as fallback
+    import os
+    local_paths = [
+        os.path.join('src', 'static', 'uploads', 'evidence'),
+        os.path.join('static', 'uploads', 'evidence'),
+    ]
+    for local_dir in local_paths:
+        full_path = os.path.join(local_dir, filename)
+        if os.path.exists(full_path):
+            return send_from_directory(os.path.abspath(local_dir), filename)
+
+    logger.warning(f"Evidence not found: {filename}")
+    return "Imagem não encontrada", 404
 
 # Duplicate Route REMOVED: @app.route('/admin/api/jobs') matches src/admin_routes.py
 # If you need this logic, ensure it does not conflict with admin_routes.py
