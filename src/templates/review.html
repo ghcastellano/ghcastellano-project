@@ -529,7 +529,28 @@
         document.querySelectorAll('[id^="status_ok_"]').forEach(radio => {
             if (radio.checked) {
                 const itemId = radio.name.replace('status_', '');
+                console.log('Initializing evidence for item:', itemId);
+
+                // Show evidence container
                 toggleEvidence(itemId);
+
+                // Check if there's an evidence URL
+                const evidenceUrl = document.getElementById(`evidence_url_${itemId}`)?.value;
+                console.log('Evidence URL for', itemId, ':', evidenceUrl);
+
+                if (evidenceUrl) {
+                    // Show preview area
+                    const previewArea = document.getElementById(`preview_area_${itemId}`);
+                    const uploadBtn = document.getElementById(`upload_btn_${itemId}`);
+
+                    if (previewArea) {
+                        previewArea.classList.remove('d-none');
+                        console.log('Showing preview area for', itemId);
+                    }
+                    if (uploadBtn) {
+                        uploadBtn.classList.add('d-none');
+                    }
+                }
             }
         });
     });
