@@ -442,41 +442,85 @@ def api_monitor_stats():
     """
     API JSON para alimentar o Monitoramento de Inspeções (Traceability Logs).
     Substitui o antigo Job Monitor.
-    Agora enriquecido com dados de Custo e Tokens.
+    Agora enriquecido com dados de Custo, Tokens, Logs e Estágios.
     """
     db = next(get_db())
     try:
-        from src.models_db import Job, JobStatus, Company
-        
-        # Fetch Top 50 recent jobs
-        jobs = db.query(Job).options(joinedload(Job.company)).order_by(Job.created_at.desc()).limit(50).all()
-        
+        from src.models_db import Job, JobStatus, Company, Inspection
+
+        # Fetch Top 50 recent jobs with related inspection data
+        jobs = db.query(Job).options(
+            joinedload(Job.company)
+        ).order_by(Job.created_at.desc()).limit(50).all()
+
         monitor_list = []
         for job in jobs:
             # Extract basic info
             payload = job.input_payload or {}
             filename = payload.get('filename', 'N/A')
             est_name = payload.get('establishment_name') or payload.get('establishment', 'N/A')
-            
+            file_id = payload.get('file_id')
+
             # Duration calculation
             duration = None
             if job.finished_at and job.created_at:
                 delta = job.finished_at - job.created_at
                 duration = round(delta.total_seconds(), 2)
-            
+
             # Cost & Tokens
             cost_usd = (job.cost_input_usd or 0) + (job.cost_output_usd or 0)
             cost_brl = (job.cost_input_brl or 0) + (job.cost_output_brl or 0)
             tokens_in = job.cost_tokens_input or 0
             tokens_out = job.cost_tokens_output or 0
-            
+
+            # Get inspection data for detailed status
+            current_stage = "Upload"
+            inspection_status = None
+            last_log_message = None
+
+            if file_id:
+                inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+                if inspection:
+                    inspection_status = inspection.status.value if inspection.status else None
+
+                    # Determine current stage from status
+                    if inspection_status == "PROCESSING":
+                        current_stage = "Processando IA"
+                    elif inspection_status == "PENDING_MANAGER_REVIEW":
+                        current_stage = "Aguardando Gestor"
+                    elif inspection_status == "PENDING_CONSULTANT_VERIFICATION":
+                        current_stage = "Aguardando Visita"
+                    elif inspection_status == "COMPLETED":
+                        current_stage = "Concluído"
+                    elif inspection_status == "REJECTED":
+                        current_stage = "Rejeitado"
+
+                    # Get last log message
+                    if inspection.processing_logs and len(inspection.processing_logs) > 0:
+                        last_log = inspection.processing_logs[-1]
+                        last_log_message = last_log.get('message', '')
+
+            # Parse error details
+            error_details = None
+            error_code = None
+            if job.error_log:
+                try:
+                    import json
+                    error_data = json.loads(job.error_log) if isinstance(job.error_log, str) else job.error_log
+                    error_code = error_data.get('code', 'ERRO')
+                    error_details = error_data.get('user_msg') or error_data.get('message', 'Erro desconhecido')
+                except:
+                    error_details = str(job.error_log)[:100]  # Limit to 100 chars
+
             monitor_list.append({
                 'id': str(job.id),
-                'type': job.type,
+                'type': job.type or 'N/A',  # Fallback para jobs antigos
                 'company_name': job.company.name if job.company else "Sem Empresa",
                 'filename': filename,
                 'establishment': est_name,
                 'status': job.status.value,
+                'inspection_status': inspection_status,
+                'current_stage': current_stage,
                 'created_at': job.created_at.isoformat() if job.created_at else None,
                 'finished_at': job.finished_at.isoformat() if job.finished_at else None,
                 'duration': duration,
@@ -485,9 +529,12 @@ def api_monitor_stats():
                 'tokens_total': tokens_in + tokens_out,
                 'cost_usd': round(cost_usd, 4),
                 'cost_brl': round(cost_brl, 4),
-                'error_log': job.error_log
+                'error_log': error_details,
+                'error_code': error_code,
+                'last_log_message': last_log_message,
+                'attempts': job.attempts or 0
             })
-            
+
         return jsonify({'items': monitor_list})
     except Exception as e:
         import traceback

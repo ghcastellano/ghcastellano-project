@@ -454,15 +454,19 @@
             if (res.ok) {
                 const data = await res.json();
                 if (data.items && data.items.length > 0) {
-                    tbody.innerHTML = data.items.map(item => `
-                       <tr style="animation: fadeIn 0.5s">
+                    tbody.innerHTML = data.items.map(item => {
+                        const hasError = item.status === 'FAILED';
+                        const errorBadge = hasError && item.error_code ? `<span class="badge badge-danger" style="font-size:0.65em; margin-left:4px;">${item.error_code}</span>` : '';
+
+                        return `
+                       <tr style="animation: fadeIn 0.5s; ${hasError ? 'background: #fef2f2;' : ''}">
                            <td>
                                 <span title="${item.id}" style="font-family: monospace; font-size: 0.8em; color: var(--text-muted); cursor: help;">
                                     ${item.id.substring(0, 8)}...
                                 </span>
                            </td>
                            <td style="font-size: 0.85em;">
-                                <span class="badge badge-secondary">${translate(item.type)}</span>
+                                <span class="badge badge-secondary">${translate(item.type || 'N/A')}</span>
                            </td>
                            <td style="font-size: 0.9em; font-weight: 500;">
                                 ${item.company_name}
@@ -474,12 +478,19 @@
                                 </div>
                            </td>
                             <td>
-                                <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Erros/Logs">${translate(item.status)}</span>
-                                ${item.status === 'FAILED' ? '<div style="font-size:0.7em; color:red; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + (item.error_log || '') + '</div>' : ''}
+                                <div style="display:flex; flex-direction:column; gap:4px;">
+                                    <div>
+                                        <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Detalhes">${translate(item.status)}</span>
+                                        ${errorBadge}
+                                    </div>
+                                    ${item.current_stage ? '<div style="font-size:0.75em; color:#64748b;">📍 ' + item.current_stage + '</div>' : ''}
+                                    ${hasError && item.error_log ? '<div style="font-size:0.7em; color:#dc2626; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.error_log + '">⚠️ ' + item.error_log + '</div>' : ''}
+                                    ${item.last_log_message && !hasError ? '<div style="font-size:0.7em; color:#059669; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.last_log_message + '">✓ ' + item.last_log_message + '</div>' : ''}
+                                </div>
                             </td>
                             <td class="text-sm">
                                 <div style="color: #475569;" title="Entrada / Saída">
-                                    <span style="color:#2563eb;">${(item.tokens_input || 0).toLocaleString()}</span> / 
+                                    <span style="color:#2563eb;">${(item.tokens_input || 0).toLocaleString()}</span> /
                                     <span style="color:#16a34a;">${(item.tokens_output || 0).toLocaleString()}</span>
                                 </div>
                                 <div style="font-size: 0.75em; color: #94a3b8;">Total: ${(item.tokens_total || 0).toLocaleString()}</div>
@@ -488,9 +499,12 @@
                                 <div style="font-weight: 600; color: #475569;">R$ ${(item.cost_brl || 0).toFixed(4)}</div>
                                 <div style="font-size: 0.8em; color: #64748b;">$ ${(item.cost_usd || 0).toFixed(4)}</div>
                             </td>
-                            <td class="text-sm text-muted">${item.duration ? item.duration + 's' : '-'}</td>
+                            <td class="text-sm text-muted">
+                                ${item.duration ? item.duration + 's' : '-'}
+                                ${item.attempts > 1 ? '<div style="font-size:0.7em; color:#f59e0b;">(' + item.attempts + ' tentativas)</div>' : ''}
+                            </td>
                         </tr>
-                    `).join('');
+                    `}).join('');
                 } else {
                     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Nenhum job recente encontrado.</td></tr>`;
                 }
@@ -505,13 +519,13 @@
 
     const TRANSLATIONS = {
         'APPROVED': 'APROVADO',
-        'WAITING_APPROVAL': 'AGUARDANDO APROVAÇÃO',
+
         'PENDING_MANAGER_REVIEW': 'PENDENTE REVISÃO',
         'PROCESSING': 'PROCESSANDO',
         'COMPLETED': 'CONCLUÍDO',
         'REJECTED': 'REJEITADO',
         'FAILED': 'FALHA',
-        'PENDING_VERIFICATION': 'EM VERIFICAÇÃO',
+        'PENDING_CONSULTANT_VERIFICATION': 'EM VERIFICAÇÃO',
         'PENDING': 'PENDENTE',
         'QUEUED': 'NA FILA',
         'SYNC_PROCESS': 'SINCRONIZAÇÃO',
@@ -537,8 +551,8 @@
         if (status === 'COMPLETED' || status === 'APPROVED') return 'success';
         if (status === 'PROCESSING') return 'primary';
         if (status === 'REJECTED' || status === 'FAILED') return 'danger';
-        if (status === 'PENDING_MANAGER_REVIEW' || status === 'WAITING_APPROVAL') return 'warning';
-        if (status === 'PENDING_VERIFICATION') return 'info';
+        if (status === 'PENDING_MANAGER_REVIEW') return 'warning';
+        if (status === 'PENDING_CONSULTANT_VERIFICATION') return 'info';
         return 'secondary';
     }
 
