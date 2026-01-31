@@ -524,6 +524,14 @@
     document.addEventListener('DOMContentLoaded', function () {
         // Init Modal
         contactModal = new bootstrap.Modal(document.getElementById('contactModal'));
+
+        // Initialize evidence containers based on current status
+        document.querySelectorAll('[id^="status_ok_"]').forEach(radio => {
+            if (radio.checked) {
+                const itemId = radio.name.replace('status_', '');
+                toggleEvidence(itemId);
+            }
+        });
     });
 
     // --- UI Helpers ---

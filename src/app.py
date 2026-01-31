@@ -1195,7 +1195,7 @@ def review_page(file_id):
                         'pontuacao': item.original_score if (item.original_score is not None and item.original_score > 0) else (recovered_score if recovered_score > 0 else (item.original_score or 0)),
                         'manager_notes': item.manager_notes,
                         'evidence_image_url': item.evidence_image_url,
-                        'status_atual': 'Corrigido' if item.status == ActionPlanItemStatus.RESOLVED else 'Pendente'
+                        'status_atual': item.current_status or ('Corrigido' if item.status == ActionPlanItemStatus.RESOLVED else None)
                     })
                     
                 # 4. Recalculate NC counts
@@ -1382,6 +1382,7 @@ def save_review(file_id):
             if item:
                 if 'is_corrected' in data:
                     item.status = ActionPlanItemStatus.RESOLVED if data['is_corrected'] else ActionPlanItemStatus.OPEN
+                    item.current_status = 'Corrigido' if data['is_corrected'] else 'Pendente'
                 if 'correction_notes' in data:
                     item.manager_notes = data['correction_notes']
                 if 'evidence_image_url' in data:
