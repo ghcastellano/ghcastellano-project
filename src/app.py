@@ -72,7 +72,9 @@ app.config['SECRET_KEY'] = app.secret_key
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024 # 32MB Upload Limit
 
 # Session Configuration for Cloud Run (HTTPS)
-app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookies over HTTPS
+# Only enforce secure cookies in production (Cloud Run sets K_SERVICE env var)
+is_production = os.getenv('K_SERVICE') is not None
+app.config['SESSION_COOKIE_SECURE'] = is_production
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access (XSS protection)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection while allowing navigation
 
