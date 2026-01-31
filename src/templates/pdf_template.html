@@ -285,12 +285,11 @@
                     <td class="status-cell"
                         style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center; word-wrap: break-word; overflow-wrap: break-word;">
                         {% if 'Não Conforme' in item.status or 'OPEN' in item.status %}
-                        <div style="color: #e74a3b; font-weight: bold; font-size: 9pt;">{{
-                            item.status|upper|replace('OPEN', 'NÃO CONFORME') }}</div>
+                        <div style="color: #e74a3b; font-weight: bold; font-size: 8pt; line-height: 1.3;">NÃO<br>CONFORME</div>
                         {% elif 'Parcial' in item.status %}
-                        <div style="color: #d97706; font-weight: bold; font-size: 9pt;">{{ item.status|upper }}</div>
+                        <div style="color: #d97706; font-weight: bold; font-size: 8pt; line-height: 1.3;">PARCIALM.<br>CONFORME</div>
                         {% else %}
-                        <div style="color: #4e73df; font-weight: bold; font-size: 9pt;">{{ item.status|upper }}</div>
+                        <div style="color: #4e73df; font-weight: bold; font-size: 8pt; line-height: 1.3;">{{ item.status|upper }}</div>
                         {% endif %}
 
                         {% if item.pontuacao is defined and item.pontuacao is not none %}
