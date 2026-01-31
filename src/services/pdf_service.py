@@ -84,42 +84,44 @@ class PDFService:
                 # Tradução de Status de Item
                 status_raw = item.get('status', 'OPEN')
                 status = str(status_raw).upper() if status_raw else 'OPEN'
-                
+
                 if status == 'OPEN':
-                    item['status'] = 'Não Conforme' # Default fallback
-                elif status == 'COMPLIANT' or status == 'RESOLVED' or status == 'CONFORME':
-                    item['status'] = 'Conforme'
-                elif status == 'PARTIAL' or 'PARCIAL' in status:
+                    item['status'] = 'Não Conforme'
+                elif 'PARCIAL' in status:
                     item['status'] = 'Parcialmente Conforme'
-                
+                elif 'NÃO' in status or 'NAO' in status:
+                    item['status'] = 'Não Conforme'
+                elif status == 'COMPLIANT' or status == 'CONFORME':
+                    item['status'] = 'Conforme'
+                elif status == 'PARTIAL':
+                    item['status'] = 'Parcialmente Conforme'
+                elif status == 'RESOLVED':
+                    item['status'] = 'Conforme'
+
                 # Cálculo de Pontuação
                 try:
                     score = float(item.get('pontuacao', 0))
-                    max_score = float(area.get('pontuacao_maxima_item', 10)) # Default 10 se não definido
-                    
-                    # [FIX] Lógica de Correção de Pontuação e Status
+                    max_score = float(area.get('pontuacao_maxima_item', 10))
+
                     item_status_lower = str(item.get('status', '')).lower()
-                    
+
                     if 'conforme' in item_status_lower and 'não' not in item_status_lower and 'parcial' not in item_status_lower:
-                         # Se status == Conforme, deve ter nota máxima
+                         # Se status == Conforme mas nota < max, é na verdade Parcial
                          if score == 0:
                              score = max_score
                              item['pontuacao'] = score
-                    
+                         elif 0 < score < max_score:
+                             item['status'] = 'Parcialmente Conforme'
+
                     elif 'parcial' in item_status_lower:
-                        # Se status == Parcialmente Conforme, deve ter alguma nota positiva
                         if score == 0:
-                            score = 5.0 # Fallback para parcial sem nota (metade do padrão)
+                            score = 5.0
                             if max_score > 0 and max_score != 10:
                                  score = max_score / 2
                             item['pontuacao'] = score
-                    
-                    # [SAFETY NET] Se status for "Não Conforme" mas tiver nota válida (>0 e <max), forçar Parcial
-                    # Isso corrige casos onde o status se perdeu mas a nota foi recuperada.
+
                     elif 'não' in item_status_lower and score > 0 and score < max_score:
                          item['status'] = 'Parcialmente Conforme'
-                         # Atualiza status lower para logs subsequentes se necessário
-                         item_status_lower = 'parcialmente conforme'
 
                     area_obtido += score
                     area_maximo += max_score

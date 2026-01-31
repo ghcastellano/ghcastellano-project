@@ -1568,26 +1568,35 @@ def download_revised_pdf(file_id):
                 # Correct Score Logic (Prefer Original if valid, else 0)
                 score_val = item.original_score if item.original_score is not None else 0
                 
-                # Normalize Status for PDF Filter safely
+                # Normalize Status for PDF - use original_status from AI as source of truth
                 status_val = item.original_status or "Não Conforme"
-                # Use str() ensures no AttributeError if item.status is string or Enum
-                current_status_str = str(item.status)
-                if hasattr(item.status, 'name'):
-                    current_status_str = item.status.name
-                
-                if current_status_str == 'COMPLIANT' or current_status_str == 'RESOLVED' or status_val == 'Conforme':
-                    status_val = 'Conforme'
-                elif current_status_str == 'PARTIAL' or 'Parcial' in status_val:
+
+                # Normalize to standard Portuguese labels
+                status_lower = status_val.lower()
+                if 'parcial' in status_lower:
                     status_val = 'Parcialmente Conforme'
+                elif 'não' in status_lower or 'nao' in status_lower:
+                    status_val = 'Não Conforme'
+                elif 'conforme' in status_lower:
+                    status_val = 'Conforme'
+
+                # Determine if item was corrected by consultant
+                current_status = item.current_status or ''
+                is_corrected = (current_status == 'Corrigido')
 
                 rebuilt_areas[area_name]['itens'].append({
                     'item_verificado': item.item_verificado,
                     'status': status_val,
+                    'original_status_label': status_val,
                     'observacao': item.problem_description,
                     'fundamento_legal': item.fundamento_legal,
                     'acao_corretiva_sugerida': item.corrective_action,
                     'prazo_sugerido': deadline_display,
-                    'pontuacao': float(score_val)
+                    'pontuacao': float(score_val),
+                    'manager_notes': item.manager_notes,
+                    'evidence_image_url': item.evidence_image_url,
+                    'correction_notes': item.manager_notes,
+                    'is_corrected': is_corrected,
                 })
 
             # Recalculate NC Counts

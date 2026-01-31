@@ -952,14 +952,20 @@ def _prepare_pdf_data(inspection):
             
             score_val = item.original_score if item.original_score is not None else 0
             status_val = item.original_status or "Não Conforme"
-            current_status = item.current_status or ("Corrigido" if item.status == ActionPlanItemStatus.RESOLVED else "Pendente")
 
-            # Map DB Status to PDF Readable
-            # Note: We keep original status unless it's strictly resolved?
-            # Actually, for PDF we want to show the current state.
+            # Normalizar status para labels padrão em português
+            status_lower = status_val.lower()
+            if 'parcial' in status_lower:
+                status_val = 'Parcialmente Conforme'
+            elif 'não' in status_lower or 'nao' in status_lower:
+                status_val = 'Não Conforme'
+            elif 'conforme' in status_lower:
+                status_val = 'Conforme'
 
-            # Determine if item is corrected
-            is_corrected = (current_status == "Corrigido" or item.status == ActionPlanItemStatus.RESOLVED)
+            current_status = item.current_status or ("Pendente" if item.status == ActionPlanItemStatus.OPEN else "Pendente")
+
+            # Determinar se item foi corrigido (apenas pelo consultor, não por ser originalmente conforme)
+            is_corrected = (current_status == "Corrigido")
 
             rebuilt_areas[area_name]['itens'].append({
                 'item_verificado': item.problem_description, # DB Truth
@@ -979,9 +985,9 @@ def _prepare_pdf_data(inspection):
                 'old_score_display': str(score_val) if score_val else None
             })
 
-        # Recalculate NC Counts
+        # Recalculate NC Counts (inclui Não Conforme e Parcialmente Conforme)
         for area in rebuilt_areas.values():
-            area['items_nc'] = sum(1 for i in area.get('itens', []) if 'não' in str(i.get('status','')).lower())
+            area['items_nc'] = sum(1 for i in area.get('itens', []) if i.get('status') != 'Conforme')
 
         data['areas_inspecionadas'] = list(rebuilt_areas.values())
 

@@ -244,17 +244,18 @@
     </div>
 
     {% for area in relatorio.areas_inspecionadas %}
-    {# Mostrar cabeçalho da área sempre #}
+    {# Contar itens não-conformes na área para decidir se mostra #}
+    {% set nc_items = area.itens|selectattr('status', 'ne', 'Conforme')|list %}
+    {% if nc_items|length > 0 %}
     <div class="area-block">
         <h3 class="area-header"
             style="color: #0d47a1; border-bottom: 2px solid #0d47a1; font-size: 14pt; margin-top: 25px; margin-bottom: 10px; padding-bottom: 5px;">
             Área: {{ area.nome_area }}
         </h3>
 
-        {% if area.itens|length > 0 %}
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
             <thead>
-                <tr style="background-color: #ffffff;"> <!-- White for Main Table -->
+                <tr style="background-color: #ffffff;">
                     <th
                         style="width: 5%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold; text-align: center;">
                         Ref.</th>
@@ -270,11 +271,8 @@
             </thead>
             <tbody>
                 {% for item in area.itens %}
-                {# Show item if: 1. It is NOT corrected (Open Issue) OR 2. It IS corrected but was originally
-                Non-Conform/Partial #}
-                {% if (not item.is_corrected) or (item.original_status_label and ('Não' in item.original_status_label or
-                'Parcial' in item.original_status_label)) or (not item.original_status_label and 'Não' in item.status)
-                %}
+                {# Mostrar apenas itens NÃO CONFORME e PARCIALMENTE CONFORME #}
+                {% if item.status != 'Conforme' %}
                 <tr>
                     <td
                         style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center; font-weight: bold; color: #888;">
@@ -360,14 +358,8 @@
                 {% endfor %}
             </tbody>
         </table>
-        {% else %}
-        <div
-            style="padding: 15px; border: 1px solid #16a34a; background-color: #dcfce7; color: #166534; border-radius: 4px; margin-bottom: 20px;">
-            <strong>✅ Área em Conformidade</strong><br>
-            Nenhum item não conforme identificado nesta área.
-        </div>
-        {% endif %}
     </div>
+    {% endif %}
     {% endfor %}
 
     <!-- NEW EVIDENCE SECTION -->
