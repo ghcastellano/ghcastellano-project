@@ -404,22 +404,35 @@ class ProcessorService:
         prompt = f"""
         Você é um Auditor Sanitário Sênior, especialista na legislação brasileira (RDC 216/2004, CVS-5/2013).
         Sua tarefa é analisar o texto do relatório de auditoria e transformá-lo em um CHECKLIST DE PLANO DE AÇÃO ESTRUTURADO.
-        
+
         DIRETRIZES:
         1. Identifique o Estabelecimento e a DATA DA INSPEÇÃO (Checklist Base).
         2. Crie um Resumo Geral robusto indicando as principais áreas críticas.
         3. Calcule ou extraia a PONTUAÇÃO GERAL e o APROVEITAMENTO GERAL do estabelecimento do relatório.
-        3. Para cada ÁREA FÍSICA (ex: 'Cozinha', 'Estoque Seco', 'Vestiários'):
+        4. Para cada ÁREA FÍSICA DE INSPEÇÃO (ex: 'Cozinha', 'Estoque Seco', 'Vestiários', 'Área de Manipulação', 'Câmaras Frigoríficas', 'Instalações sanitárias dos clientes'):
            - Crie um 'resumo_area' curto e informativo.
            - Extraia 'pontuacao_obtida', 'pontuacao_maxima' e calcule o 'aproveitamento' (%).
            - Agrupe os itens não conformes.
-        4. Para cada Não Conformidade:
+        5. Para cada Não Conformidade:
            - Status deve ser 'Não Conforme' ou 'Parcialmente Conforme'.
            - Observação: Descreva detalhadamente a evidência encontrada.
            - Fundamento Legal: Cite a legislação específica.
            - Ação Corretiva Gerada: Como auditor, sugira a correção técnica IMEDIATA.
            - Prazo Sugerido: Estime o prazo baseado no risco (Imediato - risco iminente, 24 horas - prioridade alta, 7 dias - operacional, 15 dias - estrutural leve, 30 dias - melhoria). Escolha o mais adequado, não use apenas 'Imediato'.
-        
+
+        REGRA CRÍTICA - O QUE NÃO É ÁREA:
+        Inclua SOMENTE áreas físicas/setores reais do estabelecimento que possuem itens de inspeção com pontuação.
+        NÃO inclua como área as seguintes seções do relatório, que são metadados ou texto auxiliar:
+        - "Inconformidades resolvidas" ou "Não conformidades resolvidas"
+        - "Observações e comentários gerais" ou "Observações gerais"
+        - "Acompanhante de visita" ou "Acompanhante"
+        - "Responsável técnico" ou "Dados do responsável"
+        - "Conclusão" ou "Parecer final"
+        - "Resumo geral" ou "Resultado geral"
+        - Qualquer seção que não represente um local/setor físico inspecionado
+        - Qualquer seção sem itens de verificação ou sem pontuação numérica real
+        Se uma seção do relatório não possui pontuação numérica (pontuacao_obtida e pontuacao_maxima) ou contém apenas texto descritivo/notas, ela NÃO é uma área de inspeção.
+
         Sua resposta deve ser APENAS o objeto JSON compatível com o schema abaixo.
         IMPORTANTE: Os valores dentro do JSON devem ser texto puro (sem markdown).
 
@@ -581,7 +594,30 @@ class ProcessorService:
             
             est_id = target_est.id if target_est else None
             logger.info(f"📍 Target Establishment: {target_est.name if target_est else 'None'} (ID: {est_id})")
-            
+
+            # Filter out non-area sections BEFORE saving ai_raw_response
+            EXCLUDED_AREA_KEYWORDS = [
+                'inconformidade', 'observaç', 'comentário', 'acompanhante',
+                'responsável técnico', 'conclus', 'parecer', 'resumo geral',
+                'resultado geral', 'não conformidades resolvidas', 'dados do responsável',
+                'informações gerais', 'dados gerais', 'assinatura',
+            ]
+            original_count = len(report_data.areas_inspecionadas)
+            filtered_areas = []
+            for area in report_data.areas_inspecionadas:
+                area_name_lower = area.nome_area.lower().strip()
+                is_excluded = any(kw in area_name_lower for kw in EXCLUDED_AREA_KEYWORDS)
+                if is_excluded:
+                    logger.info(f"  ⚠️ Filtering non-area section: '{area.nome_area}'")
+                    continue
+                if area.pontuacao_maxima == 0 and len(area.itens) == 0:
+                    logger.info(f"  ⚠️ Filtering empty area (0 max score, 0 items): '{area.nome_area}'")
+                    continue
+                filtered_areas.append(area)
+            report_data.areas_inspecionadas = filtered_areas
+            if original_count != len(filtered_areas):
+                logger.info(f"🔍 Areas filtered: {original_count} → {len(filtered_areas)}")
+
             # Update Inspection
             inspection.establishment_id = est_id
             inspection.file_hash = file_hash
