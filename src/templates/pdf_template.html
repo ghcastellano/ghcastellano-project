@@ -322,8 +322,7 @@
                             style="padding: 8px; border-left: 4px solid {% if item.is_corrected %}#1cc88a{% else %}#f6c23e{% endif %}; background-color: {% if item.is_corrected %}#e8fcf5{% else %}#fef9c3{% endif %}; border-radius: 2px;">
                             <span
                                 style="font-weight: bold; color: {% if item.is_corrected %}#13855c{% else %}#856404{% endif %}; display: block; margin-bottom: 5px;">
-                                Visita:
-                                [{% if item.is_corrected %}Corrigido{% else %}Pendente{% endif %}]
+                                {% if item.is_corrected %}Corrigido{% else %}Pendente{% endif %}
                             </span>
                             {% if item.is_corrected %}
                             <div
@@ -347,7 +346,7 @@
                         {% else %}
                         <div
                             style="padding: 8px; border-left: 4px solid #f6c23e; background-color: #fef9c3; border-radius: 2px;">
-                            <span style="font-weight: bold; color: #856404; display: block;">Visita Pendente</span>
+                            <span style="font-weight: bold; color: #856404; display: block;">Pendente</span>
                             <span style="font-style: italic; font-size: 9pt; color: #333;">Aguardando
                                 verificação.</span>
                         </div>

@@ -3,6 +3,7 @@
 {% block title %}Verificação Técnica (Consultor){% endblock %}
 
 {% block content %}
+{% set is_finalized = (inspection.status.value == 'COMPLETED') %}
 <div class="container py-4">
     <!-- Process Status Stepper -->
     <div class="row mb-4">
@@ -216,7 +217,8 @@
                                             <input type="radio" class="btn-check" name="status_{{ item.id }}"
                                                 id="status_ok_{{ loop.index }}_{{ item.id }}" autocomplete="off"
                                                 onchange="toggleEvidence('{{ item.id }}'); saveItem('{{ item.id }}')"
-                                                {% if item.status_atual=='Corrigido' %}checked{% endif %}>
+                                                {% if item.status_atual=='Corrigido' %}checked{% endif %}
+                                                {% if is_finalized %}disabled{% endif %}>
                                             <label class="btn btn-outline-success btn-sm flex-fill"
                                                 for="status_ok_{{ loop.index }}_{{ item.id }}">
                                                 <i class="ph-bold ph-check me-1"></i> Corrigido
@@ -225,7 +227,8 @@
                                             <input type="radio" class="btn-check" name="status_{{ item.id }}"
                                                 id="status_pend_{{ loop.index }}_{{ item.id }}" autocomplete="off"
                                                 onchange="toggleEvidence('{{ item.id }}'); saveItem('{{ item.id }}')"
-                                                {% if item.status_atual=='Pendente' %}checked{% endif %}>
+                                                {% if item.status_atual=='Pendente' %}checked{% endif %}
+                                                {% if is_finalized %}disabled{% endif %}>
                                             <label class="btn btn-outline-warning btn-sm flex-fill"
                                                 for="status_pend_{{ loop.index }}_{{ item.id }}">
                                                 <i class="ph-bold ph-clock me-1"></i> Pendente
@@ -254,14 +257,17 @@
                                                     id="img_preview_{{ item.id }}"
                                                     class="img-fluid rounded border shadow-sm w-100"
                                                     style="max-height: 200px; object-fit: cover;">
+                                                {% if not is_finalized %}
                                                 <button
                                                     class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle hover-scale"
                                                     onclick="removeEvidence('{{ item.id }}')">
                                                     <i class="ph-bold ph-trash"></i>
                                                 </button>
+                                                {% endif %}
                                             </div>
 
                                             <!-- Upload Button -->
+                                            {% if not is_finalized %}
                                             <div id="upload_btn_{{ item.id }}"
                                                 class="{% if item.evidence_image_url %}d-none{% endif %}">
                                                 <input type="file" id="file_input_{{ item.id }}" class="d-none"
@@ -271,6 +277,7 @@
                                                     <i class="ph-bold ph-camera me-1"></i> Adicionar Foto
                                                 </button>
                                             </div>
+                                            {% endif %}
                                             <!-- Hidden Input for URL storage -->
                                             <input type="hidden" id="evidence_url_{{ item.id }}"
                                                 value="{{ evidence_display_url }}">
@@ -282,6 +289,7 @@
                                             data-original="{{ item.manager_notes or '' }}"
                                             oninput="markAsModified(this)"
                                             onblur="saveItem('{{ item.id }}')"
+                                            {% if is_finalized %}readonly disabled{% endif %}
                                             required>{{ item.manager_notes or '' }}</textarea>
                                     </div>
                                 </div>
@@ -302,7 +310,6 @@
     <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div class="d-flex gap-2">
-                {% set is_finalized = (inspection.status.value == 'COMPLETED') %}
                 <!-- Unified Share Button (Matches Manager View) -->
                 <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#shareModal"
                     {% if not is_finalized %}disabled{% endif %}>

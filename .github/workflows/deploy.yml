@@ -64,7 +64,7 @@ jobs:
             FOLDER_ID_03_PROCESSADOS_BACKUP=1mGSz1GqyZRgninE8oC5LvBKfHptJ2qh1
             FOLDER_ID_99_ERROS=15B46XHBTGWWojwGHbMzp-Ic7kFJOwYYe
             AWS_REGION=us-east-1
-            AWS_SES_SENDER=noreply@seudominio.com
+            AWS_SES_SENDER=ghcastellano@gmail.com
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
