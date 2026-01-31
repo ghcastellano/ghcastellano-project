@@ -360,12 +360,47 @@ def dashboard_consultant():
             'review_link': f"javascript:alert('{msg}')"
         })
     
-    # [UX] Calculate Quick Stats for Dashboard
+    # [UX] Calculate Quick Stats for Dashboard + Pontuação Geral
+    # Calculate average score from all completed inspections
+    from src.database import get_db
+    from src.models_db import Inspection, InspectionStatus
+
+    avg_score = 0
+    total_score = 0
+    max_score = 0
+
+    if my_est_ids:
+        db_session_score = next(get_db())
+        try:
+            completed_inspections = db_session_score.query(Inspection).filter(
+                Inspection.establishment_id.in_(my_est_ids),
+                Inspection.status.in_([InspectionStatus.COMPLETED, InspectionStatus.PENDING_CONSULTANT_VERIFICATION, InspectionStatus.APPROVED])
+            ).all()
+
+            scores = []
+            for insp in completed_inspections:
+                if insp.ai_raw_response:
+                    ai_data = insp.ai_raw_response
+                    if isinstance(ai_data, dict):
+                        score = ai_data.get('pontuacao_geral', 0)
+                        max_s = ai_data.get('pontuacao_maxima_geral', 100)
+                        if score and max_s:
+                            total_score += float(score)
+                            max_score += float(max_s)
+
+            if max_score > 0:
+                avg_score = round((total_score / max_score * 100), 2)
+        finally:
+            db_session_score.close()
+
     stats = {
         'total': len(inspections),
         'pending': sum(1 for i in inspections if i['status'] in ['PROCESSING', 'PENDING_CONSULTANT_VERIFICATION', 'PENDING_MANAGER_REVIEW', 'Processando', 'Pendente']),
         'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED', 'Concluído']),
-        'last_sync': datetime.utcnow().strftime('%H:%M')
+        'last_sync': datetime.utcnow().strftime('%H:%M'),
+        'pontuacao_geral': total_score,
+        'pontuacao_maxima': max_score,
+        'aproveitamento_geral': avg_score
     }
 
     # [NEW] Buscar estabelecimentos com inspeções em análise
