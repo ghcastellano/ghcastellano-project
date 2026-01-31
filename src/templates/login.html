@@ -86,7 +86,11 @@
                             class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
                         <span class="text-sm text-slate-600">Lembrar de mim</span>
                     </label>
-                    <a href="#" class="text-sm font-medium text-blue-600 hover:text-blue-500">Esqueceu a senha?</a>
+                    <a href="#" onclick="event.preventDefault(); document.getElementById('forgot-msg').classList.toggle('hidden');" class="text-sm font-medium text-blue-600 hover:text-blue-500">Esqueceu a senha?</a>
+                </div>
+
+                <div id="forgot-msg" class="hidden p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
+                    Entre em contato com seu gestor ou administrador para redefinir sua senha.
                 </div>
 
                 <button type="submit"
@@ -94,11 +98,6 @@
                     Entrar
                 </button>
             </form>
-
-            <p class="mt-8 text-center text-sm text-slate-500">
-                Não tem uma conta? <a href="#" class="font-medium text-blue-600 hover:text-blue-500">Fale com o
-                    admin</a>
-            </p>
         </div>
     </div>
 
