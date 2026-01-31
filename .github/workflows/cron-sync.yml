@@ -1,0 +1,126 @@
+name: Drive Sync & Webhook Renewal
+
+on:
+  schedule:
+    # Sync do Drive a cada 30 minutos (backup do webhook)
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to run'
+        required: true
+        default: 'sync'
+        type: choice
+        options:
+          - sync
+          - renew-webhook
+          - both
+
+env:
+  PROJECT_ID: projeto-poc-ap
+  REGION: us-central1
+  SERVICE_NAME: mvp-web
+
+jobs:
+  sync:
+    name: Drive Sync
+    runs-on: ubuntu-latest
+    # Runs on schedule OR when manually triggered with sync/both
+    if: github.event_name == 'schedule' || github.event.inputs.action == 'sync' || github.event.inputs.action == 'both'
+
+    steps:
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Cloud Run URL
+        id: get-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --format 'value(status.url)')
+          echo "service_url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Trigger Drive Sync
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "${{ steps.get-url.outputs.service_url }}/api/cron/sync_drive?secret=${{ secrets.WEBHOOK_SECRET_TOKEN }}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "Response ($HTTP_CODE): $BODY"
+
+          if [ "$HTTP_CODE" -ge 500 ]; then
+            echo "::error::Sync failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+  renew-webhook:
+    name: Renew Drive Webhook
+    runs-on: ubuntu-latest
+    # Runs every 5 days (check day-of-month modulo) OR when manually triggered
+    if: >-
+      github.event.inputs.action == 'renew-webhook' ||
+      github.event.inputs.action == 'both' ||
+      (github.event_name == 'schedule' &&
+       github.event.schedule == '*/30 * * * *')
+
+    steps:
+      - name: Check if renewal needed (every 5 days)
+        id: check-day
+        run: |
+          DAY=$(date +%d)
+          REMAINDER=$((DAY % 5))
+          HOUR=$(date +%H)
+          MINUTE=$(date +%M)
+          # Only renew at 00:00 or 00:30 on days divisible by 5
+          if [ "$REMAINDER" -eq 0 ] && [ "$HOUR" -eq 0 ] && [ "$MINUTE" -lt 31 ]; then
+            echo "should_renew=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "should_renew=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_renew=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Google Auth
+        if: steps.check-day.outputs.should_renew == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        if: steps.check-day.outputs.should_renew == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Cloud Run URL
+        if: steps.check-day.outputs.should_renew == 'true'
+        id: get-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --format 'value(status.url)')
+          echo "service_url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Renew Webhook
+        if: steps.check-day.outputs.should_renew == 'true'
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ steps.get-url.outputs.service_url }}/api/webhook/renew")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "Response ($HTTP_CODE): $BODY"
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::warning::Webhook renewal failed with HTTP $HTTP_CODE"
+          else
+            echo "Webhook renewed successfully!"
+          fi

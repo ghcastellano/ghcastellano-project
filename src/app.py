@@ -1852,9 +1852,11 @@ def renew_webhook():
             logger.warning(f"⚠️ Migration Check Failed: {mig_err}")
             return jsonify({'error': f'Migration Failed: {mig_err}'}), 500
 
-        callback_url = os.getenv("APP_PUBLIC_URL") 
+        callback_url = os.getenv("APP_PUBLIC_URL")
         if not callback_url:
-            return jsonify({'error': 'APP_PUBLIC_URL environment variable not set'}), 500
+            # Auto-detect from request (Cloud Run sets correct Host header)
+            callback_url = request.url_root.rstrip('/')
+            logger.info(f"APP_PUBLIC_URL not set, auto-detected: {callback_url}")
             
         full_url = f"{callback_url}/api/webhook/drive"
         channel_id = str(uuid.uuid4())
