@@ -189,11 +189,24 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                     db.commit()
 
                     # Process (processor uses its own sessions internally)
-                    processor_service.process_single_file(
+                    result = processor_service.process_single_file(
                         {'id': file['id'], 'name': file['name']},
                         job_id=job_id_saved,
                         establishment_id=est_id
                     )
+
+                    # Cleanup: If processor skipped (duplicate), remove orphan Inspection
+                    if result and result.get('status') == 'skipped':
+                        logger.info(f"      🧹 Processor skipped {file['name']}, cleaning orphan Inspection.")
+                        db_clean = next(get_db())
+                        try:
+                            orphan = db_clean.query(Inspection).filter_by(drive_file_id=file['id'], status=InspectionStatus.PROCESSING).first()
+                            if orphan:
+                                db_clean.delete(orphan)
+                                db_clean.commit()
+                        finally:
+                            db_clean.close()
+                        continue  # Skip job update, already handled by processor
 
                     # Re-fetch job in a fresh session (processor detaches our objects)
                     db_fresh = next(get_db())
@@ -364,12 +377,21 @@ def process_global_changes(drive_service):
                 db.commit()
 
                 try:
-                    processor_service.process_single_file(
+                    result = processor_service.process_single_file(
                         {'id': file['id'], 'name': file['name']},
                         job_id=job_id_saved,
                         establishment_id=establishment_id
                     )
-                    processed_count += 1
+
+                    # Cleanup: If processor skipped (duplicate), remove orphan Inspection
+                    if result and result.get('status') == 'skipped':
+                        logger.info(f"🧹 Webhook processor skipped {file['id']}, cleaning orphan Inspection.")
+                        orphan = db.query(Inspection).filter_by(drive_file_id=file['id'], status=InspectionStatus.PROCESSING).first()
+                        if orphan:
+                            db.delete(orphan)
+                            db.commit()
+                    else:
+                        processed_count += 1
                 except Exception as e:
                     logger.error(f"Error processing file {file['id']}: {e}")
         

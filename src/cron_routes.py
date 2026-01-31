@@ -26,7 +26,7 @@ def cron_sync_drive():
     drive = current_app.drive_service
     
     from src.services.sync_service import perform_drive_sync
-    result = perform_drive_sync(drive, limit=2, user_trigger=False)
+    result = perform_drive_sync(drive, limit=5, user_trigger=False)
     
     status_code = 500 if 'error' in result and result.get('status') != 'ok' else 200
     return jsonify(result), status_code
