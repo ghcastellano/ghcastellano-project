@@ -512,9 +512,20 @@ def api_monitor_stats():
                 except:
                     error_details = str(job.error_log)[:100]  # Limit to 100 chars
 
+            # Infer type if not set (for legacy jobs)
+            job_type = job.type
+            if not job_type:
+                # Try to infer from payload or context
+                if 'file_id' in payload or 'filename' in payload:
+                    job_type = 'PROCESS_REPORT'
+                elif 'sync' in str(payload).lower():
+                    job_type = 'SYNC_PROCESS'
+                else:
+                    job_type = 'PROCESS_REPORT'  # Default
+
             monitor_list.append({
                 'id': str(job.id),
-                'type': job.type or 'N/A',  # Fallback para jobs antigos
+                'type': job_type,
                 'company_name': job.company.name if job.company else "Sem Empresa",
                 'filename': filename,
                 'establishment': est_name,

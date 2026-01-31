@@ -570,6 +570,12 @@
 </div>`;
     }
 
+    // Auto-load monitoring data when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateMonitoring();
+        // Auto-refresh every 30 seconds
+        setInterval(updateMonitoring, 30000);
+    });
 
 </script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
