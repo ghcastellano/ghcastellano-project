@@ -73,10 +73,8 @@
         gap: 0.75rem;
     }
 
-    .stat-card-row .stat-value {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+    .stat-card > .stat-label {
+        margin-left: calc(40px + 0.75rem);
     }
 
     /* Primary Action Card (Special Styling) */
@@ -378,11 +376,9 @@
                 <div class="stat-icon-circle" style="background: #FEF3C7;">
                     <i class="fas fa-clock" style="color: #D97706; font-size: 1rem;"></i>
                 </div>
-                <div>
-                    <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
-                    <div class="stat-label">Em aprovação pelo gestor</div>
-                </div>
+                <div class="stat-value" style="color: #D97706;">{{ stats.pending }}</div>
             </div>
+            <div class="stat-label">Em aprovação pelo gestor</div>
             {% if pending_establishments %}
             <div style="margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid #f3f4f6;">
                 {% for est in pending_establishments[:3] %}
@@ -406,11 +402,9 @@
                 <div class="stat-icon-circle" style="background: #DCFCE7;">
                     <i class="fas fa-check-circle" style="color: #059669; font-size: 1rem;"></i>
                 </div>
-                <div>
-                    <div class="stat-value" style="color: #059669;">{{ stats.approved }}</div>
-                    <div class="stat-label">Visitas finalizadas</div>
-                </div>
+                <div class="stat-value" style="color: #059669;">{{ stats.approved }}</div>
             </div>
+            <div class="stat-label">Visitas finalizadas</div>
         </div>
 
     </div>

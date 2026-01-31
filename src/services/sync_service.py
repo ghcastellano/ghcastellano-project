@@ -60,7 +60,7 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
             if stuck_inspections:
                  logger.warning(f"🧟 [ZOMBIE KILLER] Found {len(stuck_inspections)} stuck INSPECTIONS. Marking as FAILED.")
                  for z_insp in stuck_inspections:
-                     z_insp.status = InspectionStatus.FAILED # Or REJECTED if FAILED not in Enum
+                     z_insp.status = InspectionStatus.REJECTED # Or REJECTED if FAILED not in Enum
                      # z_insp.status_details = "Timeout/Crash" # If field exists
             
             db.commit()
@@ -94,7 +94,7 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                 should_process = False
                 if current_status is None:
                     should_process = True
-                elif current_status in [InspectionStatus.FAILED, InspectionStatus.REJECTED]:
+                elif current_status in [InspectionStatus.REJECTED, InspectionStatus.REJECTED]:
                     logger.info(f"      ♻️ Retrying FAILED file: {f['name']}")
                     should_process = True
                 
@@ -122,7 +122,7 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                      should_process = False
                      if current_status is None:
                          should_process = True
-                     elif current_status in [InspectionStatus.FAILED, InspectionStatus.REJECTED]:
+                     elif current_status in [InspectionStatus.REJECTED, InspectionStatus.REJECTED]:
                          logger.info(f"      ♻️ Retrying FAILED legacy file: {f['name']}")
                          should_process = True
 
@@ -185,27 +185,42 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                     db.add(new_insp)
                     db.commit()
     
-                    # Process
+                    # Process (processor uses its own sessions internally)
                     processor_service.process_single_file(
-                        {'id': file['id'], 'name': file['name']}, 
+                        {'id': file['id'], 'name': file['name']},
                         job=job,
-                        establishment_id=est_id 
+                        establishment_id=est_id
                     )
-                    
-                    job.status = JobStatus.COMPLETED
-                    job.finished_at = datetime.utcnow()
-                    job.execution_time_seconds = (job.finished_at - job.created_at.replace(tzinfo=None)).total_seconds()
-                    job.attempts += 1
-                    db.commit()
+
+                    # Re-fetch job in a fresh session (processor may have closed ours)
+                    db_fresh = next(get_db())
+                    try:
+                        fresh_job = db_fresh.query(Job).get(job.id)
+                        if fresh_job:
+                            fresh_job.status = JobStatus.COMPLETED
+                            fresh_job.finished_at = datetime.utcnow()
+                            fresh_job.execution_time_seconds = (fresh_job.finished_at - fresh_job.created_at.replace(tzinfo=None)).total_seconds()
+                            fresh_job.attempts = (fresh_job.attempts or 0) + 1
+                            db_fresh.commit()
+                    finally:
+                        db_fresh.close()
+
                     processed_count += 1
                 except Exception as e:
                     msg = f"Error capturing {file['name']}: {str(e)}"
                     logger.error(msg)
                     errors.append(msg)
-                    if job: 
-                        job.status = JobStatus.FAILED
-                        job.result_details = {'error': msg}
-                        db.commit()
+                    if job:
+                        try:
+                            db_err = next(get_db())
+                            err_job = db_err.query(Job).get(job.id)
+                            if err_job:
+                                err_job.status = JobStatus.FAILED
+                                err_job.result_details = {'error': msg}
+                                db_err.commit()
+                            db_err.close()
+                        except Exception:
+                            logger.error(f"Failed to update job status for {job.id}")
 
         return {'status': 'ok', 'processed': processed_count, 'errors': errors}
 
