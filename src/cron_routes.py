@@ -5,6 +5,7 @@ from src.database import get_db
 from src.models_db import Inspection, Job, JobStatus, InspectionStatus
 from datetime import datetime
 import os
+from src.config_helper import get_config
 
 cron_bp = Blueprint('cron', __name__)
 
@@ -18,7 +19,7 @@ def cron_sync_drive():
     # Check Auth
     is_cron = request.headers.get('X-Appengine-Cron') == 'true'
     secret = request.args.get('secret')
-    valid_secret = os.getenv('WEBHOOK_SECRET_TOKEN')
+    valid_secret = get_config('WEBHOOK_SECRET_TOKEN')
     
     if not is_cron and (not secret or secret != valid_secret):
         return jsonify({'error': 'Unauthorized'}), 401

@@ -3,6 +3,7 @@ import boto3
 from botocore.exceptions import ClientError
 from flask import current_app
 import logging
+from src.config_helper import get_config
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
@@ -13,15 +14,15 @@ class EmailService:
     def __init__(self, provider='mock'):
         self.provider = provider
         self.ses_client = None
-        self.sender = os.getenv('AWS_SES_SENDER', 'noreply@inspetorai.com')
-        
+        self.sender = get_config('AWS_SES_SENDER', 'noreply@inspetorai.com')
+
         if provider == 'ses':
             try:
                 self.ses_client = boto3.client(
                     'ses',
-                    region_name=os.getenv('AWS_REGION', 'us-east-1'),
-                    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+                    region_name=get_config('AWS_REGION', 'us-east-1'),
+                    aws_access_key_id=get_config('AWS_ACCESS_KEY_ID'),
+                    aws_secret_access_key=get_config('AWS_SECRET_ACCESS_KEY')
                 )
                 logger.info("AWS SES Client initialized.")
             except Exception as e:

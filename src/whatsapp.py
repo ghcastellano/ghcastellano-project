@@ -1,14 +1,15 @@
 import os
 import httpx
 import logging
+from src.config_helper import get_config
 
 logger = logging.getLogger(__name__)
 
 class WhatsAppService:
     def __init__(self):
-        self.token = os.getenv("WHATSAPP_TOKEN")
-        self.phone_id = os.getenv("WHATSAPP_PHONE_ID")
-        self.dest_phone = os.getenv("WHATSAPP_DESTINATION_PHONE") # Fallback
+        self.token = get_config("WHATSAPP_TOKEN")
+        self.phone_id = get_config("WHATSAPP_PHONE_ID")
+        self.dest_phone = get_config("WHATSAPP_DESTINATION_PHONE") # Fallback
         self.base_url = f"https://graph.facebook.com/v21.0/{self.phone_id}"
         self.headers = {
             "Authorization": f"Bearer {self.token}"

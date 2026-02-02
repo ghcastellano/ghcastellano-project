@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 # Local Imports
 from src.config import config
+from src.config_helper import get_config
 from src.database import get_db, SessionLocal
 from src import database # access to db_session
 from src.services.drive_service import drive_service
@@ -30,15 +31,15 @@ logger = structlog.get_logger()
 
 class ProcessorService:
     def __init__(self):
-        # Configurações GCP
-        self.project_id = os.getenv("GCP_PROJECT_ID")
-        self.location = os.getenv("GCP_LOCATION", "us-central1")
-        
-        # Load Folder IDs from .env (Safe Defaults to avoid NoneType error)
-        self.folder_in = os.getenv("FOLDER_ID_01_ENTRADA_RELATORIOS", "")
-        self.folder_out = os.getenv("FOLDER_ID_02_PLANOS_GERADOS", "")
-        self.folder_backup = os.getenv("FOLDER_ID_03_PROCESSADOS_BACKUP", "")
-        self.folder_error = os.getenv("FOLDER_ID_99_ERROS", "")
+        # Configuracoes GCP
+        self.project_id = get_config("GCP_PROJECT_ID")
+        self.location = get_config("GCP_LOCATION", "us-central1")
+
+        # Load Folder IDs (DB > env > empty string)
+        self.folder_in = get_config("FOLDER_ID_01_ENTRADA_RELATORIOS", "")
+        self.folder_out = get_config("FOLDER_ID_02_PLANOS_GERADOS", "")
+        self.folder_backup = get_config("FOLDER_ID_03_PROCESSADOS_BACKUP", "")
+        self.folder_error = get_config("FOLDER_ID_99_ERROS", "")
         
         logger.info("Initializing ProcessorService (OpenAI Mode)", 
                     folder_in=self.folder_in, 
@@ -51,7 +52,7 @@ class ProcessorService:
 
         # Inicializa OpenAI
         try:
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = get_config("OPENAI_API_KEY")
             if api_key:
                 # Security Log: Only show prefix and suffix
                 prefix = api_key[:10] if len(api_key) > 10 else "SHORT"

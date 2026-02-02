@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from src.database import get_db
 from datetime import datetime
-from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus, Inspection, InspectionStatus, ActionPlan, ActionPlanItem
+from src.models_db import User, UserRole, Company, Establishment, Job, JobStatus, Inspection, InspectionStatus, ActionPlan, ActionPlanItem, AppConfig
 from sqlalchemy.orm import joinedload
 from functools import wraps
 import uuid
@@ -630,6 +630,144 @@ def tracker_details(inspection_id):
             'logs': [l.get('message') for l in logs[-5:]]
         })
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+# --- Settings / Configuracoes ---
+
+SENSITIVE_KEYS = {
+    'GCP_OAUTH_TOKEN', 'WHATSAPP_TOKEN', 'AWS_SECRET_ACCESS_KEY',
+    'OPENAI_API_KEY', 'WEBHOOK_SECRET_TOKEN'
+}
+
+CONFIG_GROUPS = {
+    'google_drive': {
+        'label': 'Google Drive',
+        'icon': 'fa-google-drive',
+        'keys': [
+            {'key': 'GCP_OAUTH_TOKEN', 'label': 'OAuth Token (Base64 JSON)', 'type': 'textarea'},
+            {'key': 'GDRIVE_ROOT_FOLDER_ID', 'label': 'ID da Pasta Raiz', 'type': 'text'},
+            {'key': 'FOLDER_ID_01_ENTRADA_RELATORIOS', 'label': 'Pasta Entrada Relatorios', 'type': 'text'},
+            {'key': 'FOLDER_ID_02_PLANOS_GERADOS', 'label': 'Pasta Planos Gerados', 'type': 'text'},
+            {'key': 'FOLDER_ID_03_PROCESSADOS_BACKUP', 'label': 'Pasta Backup Processados', 'type': 'text'},
+            {'key': 'FOLDER_ID_99_ERROS', 'label': 'Pasta Erros', 'type': 'text'},
+        ]
+    },
+    'whatsapp': {
+        'label': 'WhatsApp Business API',
+        'icon': 'fa-whatsapp',
+        'keys': [
+            {'key': 'WHATSAPP_TOKEN', 'label': 'Bearer Token (Meta)', 'type': 'password'},
+            {'key': 'WHATSAPP_PHONE_ID', 'label': 'Phone ID', 'type': 'text'},
+            {'key': 'WHATSAPP_DESTINATION_PHONE', 'label': 'Telefone Padrao', 'type': 'text'},
+        ]
+    },
+    'email_ses': {
+        'label': 'Email (AWS SES)',
+        'icon': 'fa-envelope',
+        'keys': [
+            {'key': 'AWS_ACCESS_KEY_ID', 'label': 'Access Key ID', 'type': 'text'},
+            {'key': 'AWS_SECRET_ACCESS_KEY', 'label': 'Secret Access Key', 'type': 'password'},
+            {'key': 'AWS_SES_SENDER', 'label': 'Email do Remetente', 'type': 'text'},
+            {'key': 'AWS_REGION', 'label': 'Regiao AWS', 'type': 'text'},
+        ]
+    },
+    'openai': {
+        'label': 'OpenAI',
+        'icon': 'fa-brain',
+        'keys': [
+            {'key': 'OPENAI_API_KEY', 'label': 'API Key', 'type': 'password'},
+        ]
+    },
+    'security': {
+        'label': 'Seguranca',
+        'icon': 'fa-shield-alt',
+        'keys': [
+            {'key': 'WEBHOOK_SECRET_TOKEN', 'label': 'Webhook Secret Token', 'type': 'password'},
+        ]
+    }
+}
+
+def _mask_value(key, value):
+    if not value:
+        return None
+    if key in SENSITIVE_KEYS:
+        if len(value) <= 8:
+            return '****'
+        return '****' + value[-4:]
+    return value
+
+@admin_bp.route('/api/settings')
+@login_required
+@admin_required
+def get_settings():
+    db = next(get_db())
+    try:
+        db_configs = {c.key: c.value for c in db.query(AppConfig).all()}
+
+        result = {}
+        for group_id, group_def in CONFIG_GROUPS.items():
+            group_data = {
+                'label': group_def['label'],
+                'icon': group_def['icon'],
+                'fields': []
+            }
+            for field in group_def['keys']:
+                key = field['key']
+                db_val = db_configs.get(key)
+                env_val = os.getenv(key)
+                effective = db_val if (db_val is not None and str(db_val).strip()) else env_val
+
+                group_data['fields'].append({
+                    'key': key,
+                    'label': field['label'],
+                    'type': field['type'],
+                    'value_masked': _mask_value(key, effective),
+                    'is_configured': bool(effective),
+                    'source': 'db' if (db_val and str(db_val).strip()) else ('env' if env_val else None)
+                })
+            result[group_id] = group_data
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        db.close()
+
+@admin_bp.route('/api/settings', methods=['POST'])
+@login_required
+@admin_required
+def save_settings():
+    db = next(get_db())
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Dados invalidos.'}), 400
+
+        all_valid_keys = set()
+        for group in CONFIG_GROUPS.values():
+            for field in group['keys']:
+                all_valid_keys.add(field['key'])
+
+        saved_count = 0
+        for key, value in data.items():
+            if key not in all_valid_keys:
+                continue
+            if value and str(value).startswith('****'):
+                continue
+
+            entry = db.query(AppConfig).get(key)
+            if entry:
+                entry.value = value if value else None
+            else:
+                db.add(AppConfig(key=key, value=value if value else None))
+            saved_count += 1
+
+        db.commit()
+        return jsonify({'success': True, 'message': f'{saved_count} configuracao(oes) salva(s).'})
+    except Exception as e:
+        db.rollback()
         return jsonify({'error': str(e)}), 500
     finally:
         db.close()

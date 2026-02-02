@@ -59,6 +59,7 @@ from datetime import datetime
 from src.auth import role_required, admin_required, login_manager, auth_bp
 from src.services.email_service import EmailService
 from src.services.storage_service import storage_service
+from src.config_helper import get_config
 
 # Configurações do App
 app.secret_key = config.SECRET_KEY
@@ -254,7 +255,7 @@ try:
     logger.info("✅ Serviço do Drive Inicializado")
 
     # [IMPROVEMENT] Validar ROOT_FOLDER_ID se configurado
-    root_folder_id = os.getenv('GDRIVE_ROOT_FOLDER_ID')
+    root_folder_id = get_config('GDRIVE_ROOT_FOLDER_ID')
     if root_folder_id and app.drive_service.service:
         try:
             folder_info = app.drive_service.service.files().get(
@@ -275,7 +276,7 @@ except Exception as e:
 # Email Service
 try:
     from src.services.email_service import EmailService
-    provider = 'ses' if os.getenv('AWS_ACCESS_KEY_ID') else 'mock'
+    provider = 'ses' if get_config('AWS_ACCESS_KEY_ID') else 'mock'
     app.email_service = EmailService(provider=provider)
     logger.info(f"✅ Serviço de Email Inicializado ({provider.upper()})")
 except Exception as e:
@@ -1804,7 +1805,7 @@ def drive_webhook():
     """
     # 1. Verifica Token de Segurança (Evitar Spam)
     token = request.headers.get('X-Goog-Channel-Token')
-    expected_token = os.getenv('WEBHOOK_SECRET_TOKEN')
+    expected_token = get_config('WEBHOOK_SECRET_TOKEN')
     
     if token != expected_token:
         logger.warning(f"Webhook Unauthorized: {token}")
@@ -1879,7 +1880,7 @@ def renew_webhook():
             
         full_url = f"{callback_url}/api/webhook/drive"
         channel_id = str(uuid.uuid4())
-        token = os.getenv("DRIVE_WEBHOOK_TOKEN", "global-webhook-token")
+        token = get_config("DRIVE_WEBHOOK_TOKEN", "global-webhook-token")
         
         # 1. Fetch Start Token
         start_token = drive_service.get_start_page_token()

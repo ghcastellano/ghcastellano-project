@@ -4,6 +4,7 @@ import json
 import logging
 import threading
 import google.auth
+from src.config_helper import get_config
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload, MediaIoBaseUpload
@@ -34,13 +35,13 @@ class DriveService:
                     self.credentials_file, scopes=self.scopes)
             
             # 2. [NEW] Authenticate as User (OAuth) via Env Var - Fixes Storage Quota
-            elif os.getenv('GCP_OAUTH_TOKEN'):
+            elif get_config('GCP_OAUTH_TOKEN'):
                 # import json (Removed to avoid UnboundLocalError)
                 import base64
                 from google.oauth2.credentials import Credentials as UserCredentials
                 logger.info("🔑 Autenticando usando OAuth User Token (GCP_OAUTH_TOKEN)...")
-                
-                token_str = os.getenv('GCP_OAUTH_TOKEN')
+
+                token_str = get_config('GCP_OAUTH_TOKEN')
                 # Auto-Detect Base64: If it doesn't look like JSON (starts with {), try decoding
                 if token_str and not token_str.strip().startswith('{'):
                     try:
@@ -64,9 +65,9 @@ class DriveService:
                 self.creds = UserCredentials.from_authorized_user_info(info, self.scopes)
 
             # 3. Tenta carregar da Env Var GCP_SA_KEY (Prod / GitHub Actions)
-            elif os.getenv('GCP_SA_KEY'):
+            elif get_config('GCP_SA_KEY'):
                 logger.info("🔑 Autenticando usando JSON em Env Var (GCP_SA_KEY)...")
-                info = json.loads(os.getenv('GCP_SA_KEY'))
+                info = json.loads(get_config('GCP_SA_KEY'))
                 self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
                 
             # 4. Fallback para Default Credentials (Cloud Run Identity)
@@ -75,7 +76,7 @@ class DriveService:
                 self.creds, _ = google.auth.default(scopes=self.scopes)
             
             # --- IMPERSONATION FIX FOR STORAGE QUOTA ---
-            impersonate_email = os.getenv("GOOGLE_DRIVE_IMPERSONATE_EMAIL")
+            impersonate_email = get_config("GOOGLE_DRIVE_IMPERSONATE_EMAIL")
             if impersonate_email and hasattr(self.creds, 'with_subject'):
                 logger.info(f"🕶️ Impersonating user: {impersonate_email}")
                 self.creds = self.creds.with_subject(impersonate_email)

@@ -26,13 +26,20 @@
             </li>
         </ul>
 
-        <div class="sidebar-header">Técnico</div>
+        <div class="sidebar-header">Tecnico</div>
         <ul class="sidebar-menu">
             <li class="sidebar-item" id="menu-monitoring" onclick="showSection('monitoring', this)">
                 <div class="sidebar-dot"></div> Monitoramento Jobs
             </li>
             <li class="sidebar-item" id="menu-system" onclick="showSection('system', this)">
                 <div class="sidebar-dot"></div> Logs & Sistema
+            </li>
+        </ul>
+
+        <div class="sidebar-header">Sistema</div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item" id="menu-settings" onclick="showSection('settings', this); loadSettings();">
+                <div class="sidebar-dot"></div> Configuracoes
             </li>
         </ul>
 
@@ -415,17 +422,33 @@
 
             <!-- 5. System Logs -->
             <div id="system" class="section-view">
-                <!-- Same as before -->
                 <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Logs do Sistema</h1>
                 <div class="card">
                     <div class="card-body">
-                        <p>Log Stream disponível no Google Cloud Console.</p>
-                        <a href="https://console.cloud.google.com/run" target="_blank" class="btn btn-secondary">Abrir
-                            Cloud
-                            Console</a>
+                        <p>Log Stream disponivel no Google Cloud Console.</p>
+                        <a href="https://console.cloud.google.com/run" target="_blank" class="btn btn-secondary">Abrir Cloud Console</a>
                     </div>
                 </div>
             </div>
+
+            <!-- 6. Settings Section -->
+            <div id="settings" class="section-view">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+                    <h1 style="font-size: 1.8rem; margin: 0;">
+                        <i class="fas fa-cog" style="color: var(--accent-color);"></i> Configuracoes
+                    </h1>
+                </div>
+                <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 1.5rem;">
+                    <i class="fas fa-info-circle"></i>
+                    Valores salvos aqui tem prioridade sobre variaveis de ambiente. Alteracoes em credenciais de servicos (Drive, Email, OpenAI) requerem restart do servidor.
+                </p>
+                <div id="settingsContainer" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div class="card"><div class="card-body" style="text-align:center; color:#94a3b8;">
+                        <i class="fas fa-spinner fa-spin"></i> Carregando configuracoes...
+                    </div></div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -575,9 +598,116 @@
     // Auto-load monitoring data when page loads
     document.addEventListener('DOMContentLoaded', function() {
         updateMonitoring();
-        // Auto-refresh every 30 seconds
         setInterval(updateMonitoring, 30000);
     });
+
+    // --- SETTINGS ---
+    let settingsLoaded = false;
+
+    async function loadSettings() {
+        if (settingsLoaded) return;
+        const container = document.getElementById('settingsContainer');
+        try {
+            const res = await fetch('/admin/api/settings', { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            if (data.error) {
+                container.innerHTML = `<div class="card"><div class="card-body" style="color:#ef4444;">${data.error}</div></div>`;
+                return;
+            }
+            renderSettingsCards(data);
+            settingsLoaded = true;
+        } catch (err) {
+            container.innerHTML = `<div class="card"><div class="card-body" style="color:#ef4444;">Erro: ${err.message}</div></div>`;
+        }
+    }
+
+    function renderSettingsCards(groups) {
+        const container = document.getElementById('settingsContainer');
+        let html = '';
+        for (const [groupId, group] of Object.entries(groups)) {
+            const configured = group.fields.filter(f => f.is_configured).length;
+            const total = group.fields.length;
+            let badgeClass = 'badge-danger', badgeText = `0/${total}`;
+            if (configured === total) { badgeClass = 'badge-success'; badgeText = `${configured}/${total}`; }
+            else if (configured > 0) { badgeClass = 'badge-warning'; badgeText = `${configured}/${total}`; }
+
+            html += `
+            <div class="card">
+                <div class="card-header" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
+                     onclick="document.getElementById('sb-${groupId}').style.display = document.getElementById('sb-${groupId}').style.display === 'none' ? 'block' : 'none'">
+                    <h3 class="card-title" style="margin:0; font-size:1rem; display:flex; align-items:center; gap:0.5rem;">
+                        <i class="fas ${group.icon}" style="color:var(--accent-color);"></i> ${group.label}
+                    </h3>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <span class="badge ${badgeClass}" style="font-size:0.75rem;">${badgeText}</span>
+                        <button class="btn btn-accent" style="padding:0.25rem 0.75rem; font-size:0.8rem;"
+                            onclick="event.stopPropagation(); saveGroupSettings('${groupId}')">
+                            <i class="fas fa-save"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" id="sb-${groupId}" style="display:none;">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:1rem;">
+                        ${group.fields.map(f => renderField(f)).join('')}
+                    </div>
+                </div>
+            </div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function renderField(f) {
+        const badge = f.is_configured
+            ? `<span class="badge badge-success" style="font-size:0.65rem;">Configurado${f.source === 'env' ? ' (env)' : ''}</span>`
+            : '<span class="badge badge-warning" style="font-size:0.65rem;">Nao configurado</span>';
+        const inputType = f.type === 'password' ? 'password' : 'text';
+        let inputHtml;
+        if (f.type === 'textarea') {
+            inputHtml = `<textarea class="form-control settings-input" data-key="${f.key}" rows="3" placeholder="${f.label}">${f.value_masked || ''}</textarea>`;
+        } else {
+            inputHtml = `<input type="${inputType}" class="form-control settings-input" data-key="${f.key}" placeholder="${f.label}" value="${f.value_masked || ''}">`;
+        }
+        return `
+        <div class="form-group" style="margin:0;">
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>${f.label}</span> ${badge}
+            </label>
+            ${inputHtml}
+            <small style="color:#94a3b8; font-size:0.7rem;">${f.key}</small>
+        </div>`;
+    }
+
+    async function saveGroupSettings(groupId) {
+        const container = document.getElementById('sb-' + groupId);
+        if (!container) return;
+        const inputs = container.querySelectorAll('.settings-input');
+        const payload = {};
+        inputs.forEach(input => {
+            const val = (input.value || '').trim();
+            if (val && !val.startsWith('****')) {
+                payload[input.dataset.key] = val;
+            } else if (!val) {
+                payload[input.dataset.key] = '';
+            }
+        });
+        try {
+            const res = await fetch('/admin/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message || 'Salvo!', 'success');
+                settingsLoaded = false;
+                loadSettings();
+            } else {
+                showToast(data.error || 'Erro ao salvar', 'error');
+            }
+        } catch (err) {
+            showToast('Erro de conexao: ' + err.message, 'error');
+        }
+    }
 
 </script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
