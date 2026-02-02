@@ -1314,6 +1314,55 @@ def share_plan(file_id):
 
     return _handle_service_call(file_id, is_approval=False)
 
+@app.route('/api/whatsapp_plan/<file_id>', methods=['POST'])
+@login_required
+def whatsapp_plan(file_id):
+    """Envia link do plano via WhatsApp Business API."""
+    try:
+        from src.whatsapp import WhatsAppService
+        from src.models_db import Inspection
+
+        data = request.get_json() or {}
+        target_phone = data.get('phone', '').strip()
+        target_name = data.get('name', 'Responsavel')
+
+        if not target_phone:
+            return jsonify({'error': 'Telefone nao informado.'}), 400
+
+        # Limpar telefone (somente digitos, adicionar DDI BR se necessario)
+        clean_phone = ''.join(filter(str.isdigit, target_phone))
+        if len(clean_phone) <= 11:
+            clean_phone = '55' + clean_phone
+
+        wa = WhatsAppService()
+        if not wa.is_configured():
+            return jsonify({'error': 'WhatsApp Business API nao configurada.'}), 503
+
+        # Buscar dados da inspecao
+        db = database.db_session
+        insp = db.query(Inspection).filter_by(drive_file_id=file_id).first()
+        est_name = insp.establishment.name if insp and insp.establishment else 'Estabelecimento'
+
+        download_url = url_for('download_revised_pdf', file_id=file_id, _external=True)
+
+        message = (
+            f"Ola {target_name}, segue o Plano de Acao de Inspecao Sanitaria.\n\n"
+            f"*Local:* {est_name}\n"
+            f"*Acesse o relatorio:* {download_url}\n\n"
+            f"Em caso de duvidas, entre em contato com seu consultor."
+        )
+
+        success = wa.send_text(message, dest_phone=clean_phone)
+
+        if success:
+            return jsonify({'success': True, 'message': 'Mensagem enviada via WhatsApp.'})
+        else:
+            return jsonify({'error': 'Falha ao enviar mensagem. Verifique os logs.'}), 500
+
+    except Exception as e:
+        logger.error(f"Erro ao enviar WhatsApp para {file_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/email_plan/<file_id>', methods=['POST'])
 @login_required
 def email_plan(file_id):

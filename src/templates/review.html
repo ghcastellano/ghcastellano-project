@@ -793,18 +793,44 @@
     }
 
     // --- Unified Sharing Logic ---
-    function sendWhatsApp() {
+    async function sendWhatsApp() {
         const phone = document.getElementById('shareRespPhone').value;
         const name = document.getElementById('shareRespName').value || "Responsável";
 
-        let cleanPhone = phone.replace(/\D/g, '');
-        if (cleanPhone.length === 0) return alert('Preencha o telefone do responsável.');
-        if (cleanPhone.length <= 11) cleanPhone = '55' + cleanPhone;
+        if (!phone || phone.replace(/\D/g, '').length === 0) return alert('Preencha o telefone do responsável.');
 
-        const downloadUrl = "{{ url_for('download_revised_pdf', file_id=inspection.drive_file_id, _external=True) }}";
-        const msg = `Olá ${name}, segue o link do seu Plano de Ação: ${downloadUrl}`;
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+        btn.disabled = true;
 
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+        try {
+            const fileId = "{{ inspection.drive_file_id }}";
+            const response = await fetch(`/api/whatsapp_plan/${fileId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone: phone, name: name})
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                btn.innerHTML = '<i class="ph-bold ph-check me-2"></i>Enviado!';
+                btn.classList.replace('btn-success', 'btn-outline-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.replace('btn-outline-success', 'btn-success');
+                    btn.disabled = false;
+                }, 3000);
+            } else {
+                alert(result.error || 'Erro ao enviar WhatsApp.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert('Erro de conexão ao enviar WhatsApp.');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 
     async function sendEmail() {
