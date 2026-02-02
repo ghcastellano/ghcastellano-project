@@ -162,22 +162,26 @@ class ProcessorService:
                 self._log_trace(file_id, "DOWNLOAD", "SUCCESS", "Download concluído")
             
             file_hash = self.calculate_hash(file_content)
-            
-            # Check for duplicate processing
+
+            # Check for duplicate processing (skip only REJECTED - allows retry)
             session = database.db_session()
-            existing_insp = session.query(Inspection).filter_by(file_hash=file_hash).filter(Inspection.status.in_([InspectionStatus.PENDING_MANAGER_REVIEW, InspectionStatus.APPROVED])).first()
-            
+            existing_insp = session.query(Inspection).filter_by(file_hash=file_hash).filter(
+                Inspection.status.notin_([InspectionStatus.REJECTED])
+            ).filter(
+                Inspection.drive_file_id != file_id  # Nao bloquear a si mesmo
+            ).first()
+
             if existing_insp:
                 session.close()
-                logger.info(f"♻️ Skipping duplicate file (Hash: {file_hash})")
-                self._log_trace(file_id, "SKIPPED", "SUCCESS", "Arquivo duplicado detectado. Pulando análise de IA.")
-                
+                logger.info(f"♻️ Skipping duplicate file (Hash: {file_hash}) - existing: {existing_insp.drive_file_id} ({existing_insp.status.value})")
+                self._log_trace(file_id, "SKIPPED", "SUCCESS", f"Arquivo duplicado detectado (existe como {existing_insp.drive_file_id}). Pulando.")
+
                 # Update Job as Skipped
                 if job_id:
                     self._update_job_status(job_id, "SKIPPED", {"reason": "duplicate", "existing_id": existing_insp.drive_file_id})
-                    
+
                 return {'status': 'skipped', 'reason': 'duplicate', 'existing_id': existing_insp.drive_file_id}
-            session.close() # Close if not skipping
+            session.close()
 
             # 2. Update Job to PROCESSING status
             if job_id:
