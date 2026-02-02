@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from src.database import get_db
 from src.models_db import Job, JobStatus, Inspection, InspectionStatus
+from src import config
 
 logger = logging.getLogger('sync_service')
 
@@ -221,6 +222,15 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                     finally:
                         db_fresh.close()
 
+                    # Mover arquivo processado para pasta de backup (evita reprocessamento)
+                    backup_folder = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+                    if backup_folder:
+                        try:
+                            drive_service.move_file(file['id'], backup_folder)
+                            logger.info(f"      📦 Arquivo movido para backup: {file['name']}")
+                        except Exception as move_e:
+                            logger.warning(f"      ⚠️ Falha ao mover {file['name']} para backup: {move_e}")
+
                     processed_count += 1
                 except Exception as e:
                     msg = f"Error capturing {file['name']}: {str(e)}"
@@ -391,6 +401,27 @@ def process_global_changes(drive_service):
                             db.delete(orphan)
                             db.commit()
                     else:
+                        # Update job status to COMPLETED
+                        try:
+                            fresh_job = db.query(Job).get(job_id_saved)
+                            if fresh_job:
+                                fresh_job.status = JobStatus.COMPLETED
+                                fresh_job.finished_at = datetime.utcnow()
+                                fresh_job.execution_time_seconds = (fresh_job.finished_at - fresh_job.created_at.replace(tzinfo=None)).total_seconds()
+                                fresh_job.attempts = (fresh_job.attempts or 0) + 1
+                                db.commit()
+                        except Exception as job_err:
+                            logger.warning(f"⚠️ Falha ao atualizar job {job_id_saved}: {job_err}")
+
+                        # Mover arquivo processado para pasta de backup (evita reprocessamento)
+                        backup_folder = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+                        if backup_folder:
+                            try:
+                                drive_service.move_file(file['id'], backup_folder)
+                                logger.info(f"      📦 Arquivo movido para backup: {file.get('name')}")
+                            except Exception as move_e:
+                                logger.warning(f"      ⚠️ Falha ao mover {file.get('name')} para backup: {move_e}")
+
                         processed_count += 1
                 except Exception as e:
                     logger.error(f"Error processing file {file['id']}: {e}")

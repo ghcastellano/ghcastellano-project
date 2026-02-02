@@ -621,147 +621,117 @@ def upload_file():
                             est_alvo = est
                             break
                 
-                # 3. Pasta do Drive (Input padrão se não identificado)
-                pasta_id = est_alvo.drive_folder_id if est_alvo and est_alvo.drive_folder_id else FOLDER_IN
-                if not pasta_id or pasta_id == "None":
-                    pasta_id = FOLDER_IN
-                
-                # 4. Upload para o Drive
-                # 4. Upload para o Drive (com Fallback para Storage/GCS)
-                id_drive = None
-                link_drive = None
-                
-                if drive_service:
+                # 3. Gerar ID único para o upload (sem salvar no Drive)
+                upload_id = f"upload:{uuid.uuid4()}"
+                logger.info(f"📄 Upload direto (sem Drive): {file.filename} -> {upload_id}")
+
+                # 4. Ler bytes do arquivo para processamento direto
+                with open(caminho_temp, 'rb') as f_temp:
+                    file_bytes = f_temp.read()
+
+                # 5. Criar Job e Inspection
+                db = next(get_db())
+                job = None
+                try:
+                    from src.models_db import Inspection, InspectionStatus
+
+                    new_insp = Inspection(
+                        drive_file_id=upload_id,
+                        drive_web_link=None,
+                        status=InspectionStatus.PROCESSING,
+                        establishment_id=est_alvo.id if est_alvo else None
+                    )
+                    db.add(new_insp)
+                    db.flush()
+                    logger.info(f"✅ Registro de Inspeção {new_insp.id} pré-criado para visibilidade na UI.")
+
+                    job = Job(
+                        company_id=current_user.company_id or (est_alvo.company_id if est_alvo else None),
+                        type="PROCESS_REPORT",
+                        status=JobStatus.PENDING,
+                        input_payload={
+                            'file_id': upload_id,
+                            'filename': file.filename,
+                            'establishment_id': str(est_alvo.id) if est_alvo else None,
+                            'establishment_name': est_alvo.name if est_alvo else "N/A"
+                        }
+                    )
+                    db.add(job)
+                    db.commit()
+
+                    # [SYNC-MVP] Processar Imediatamente (Sem Worker)
+                    logger.info(f"⏳ [SYNC] Iniciando processamento imediato: {file.filename}")
+
+                    from src.services.processor import processor_service
+
+                    file_meta = {'id': upload_id, 'name': file.filename}
+
+                    job_id_saved = job.id
+                    job_company_id = job.company_id
+
+                    result = processor_service.process_single_file(
+                        file_meta,
+                        company_id=job_company_id,
+                        establishment_id=est_alvo.id if est_alvo else None,
+                        job_id=job_id_saved,
+                        file_content=file_bytes
+                    )
+
+                    # Re-fetch job in fresh session (processor closes/detaches our objects)
+                    db_fresh = next(get_db())
                     try:
-                        id_drive, link_drive = drive_service.upload_file(caminho_temp, pasta_id, file.filename)
-                    except Exception as e:
-                        if "quota" in str(e).lower() or "403" in str(e) or "storage" in str(e).lower():
-                            logger.warning(f"⚠️ Erro de Cota do Drive via API. Usando Armazenamento Alternativo para {file.filename}")
-                            # Fallback to GCS / Local
-                            try:
-                                link_drive = storage_service.upload_file(file, "evidence", file.filename)
-                                # Generate a "Fake" ID that indicates GCS/Local source
-                                # Processor will see "gcs:" prefix and use storage_service.download_file
-                                id_drive = f"gcs:{file.filename}"
-                                logger.info(f"✅ Sucesso no Upload Alternativo: {id_drive}")
-                            except Exception as store_e:
-                                logger.error(f"❌ Falha no Upload Alternativo: {store_e}")
-                                raise e # Raise original error if fallback also fails
-                        else:
-                            raise e
-                    
-                    # 5. Criar Job
-                    db = next(get_db())
-                    job = None # [FIX] Initialize variable for error handling safety
-                    try:
-                        # [FIX] Create Inspection Record Immediately for UI Visibility
-                        from src.models_db import Inspection, InspectionStatus
-                        
-                        new_insp = Inspection(
-                            drive_file_id=id_drive,
-                            drive_web_link=link_drive,
-                            status=InspectionStatus.PROCESSING,
-                            establishment_id=est_alvo.id if est_alvo else None
-                            # client_id removed
-                        )
-                        db.add(new_insp)
-                        db.flush() 
-                        logger.info(f"✅ Registro de Inspeção {new_insp.id} pré-criado para visibilidade na UI.")
+                        fresh_job = db_fresh.query(Job).get(job_id_saved)
+                        if fresh_job:
+                            fresh_job.status = JobStatus.COMPLETED
+                            fresh_job.finished_at = datetime.utcnow()
+                            if fresh_job.created_at:
+                                fresh_job.execution_time_seconds = (fresh_job.finished_at - fresh_job.created_at.replace(tzinfo=None)).total_seconds()
+                            fresh_job.attempts = (fresh_job.attempts or 0) + 1
+                            db_fresh.commit()
 
-                        job = Job(
-                            company_id=current_user.company_id or (est_alvo.company_id if est_alvo else None),
-                            type="PROCESS_REPORT",
-                            status=JobStatus.PENDING,
-                            input_payload={
-                                'file_id': id_drive, 
-                                'filename': file.filename, 
-                                'establishment_id': str(est_alvo.id) if est_alvo else None,
-                                'establishment_name': est_alvo.name if est_alvo else "N/A"
-                            } 
-                        )
-                        db.add(job)
-                        db.commit()
-                        
-                        # [SYNC-MVP] Processar Imediatamente (Sem Worker)
-                        logger.info(f"⏳ [SYNC] Iniciando processamento imediato: {file.filename}")
-                        
-                        # Instancia Processador (Import tardio para evitar circularidade)
-                        from src.services.processor import processor_service
-                        
-                        # Prepara metadados simplificados
-                        file_meta = {'id': id_drive, 'name': file.filename}
-                        
-                        # Executa Processamento (Isso pode levar 30-60s)
-                        # Salvar job_id antes - processor usa sessões próprias que desconectam objetos
-                        job_id_saved = job.id
-                        job_company_id = job.company_id
+                            total_cost = (fresh_job.cost_input_usd or 0) + (fresh_job.cost_output_usd or 0)
+                            logger.info(f"✅ [SYNC] Processamento concluído: {file.filename} (Cost: ${total_cost:.4f})")
+                    finally:
+                        db_fresh.close()
 
-                        result = processor_service.process_single_file(
-                            file_meta,
-                            company_id=job_company_id,
-                            establishment_id=est_alvo.id if est_alvo else None,
-                            job_id=job_id_saved
-                        )
+                    sucesso += 1
 
-                        # Re-fetch job in fresh session (processor closes/detaches our objects)
-                        db_fresh = next(get_db())
+                except Exception as job_e:
+                    logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")
+                    if job:
                         try:
-                            fresh_job = db_fresh.query(Job).get(job_id_saved)
-                            if fresh_job:
-                                fresh_job.status = JobStatus.COMPLETED
-                                fresh_job.finished_at = datetime.utcnow()
-                                if fresh_job.created_at:
-                                    fresh_job.execution_time_seconds = (fresh_job.finished_at - fresh_job.created_at.replace(tzinfo=None)).total_seconds()
-                                fresh_job.attempts = (fresh_job.attempts or 0) + 1
-                                db_fresh.commit()
-
-                                total_cost = (fresh_job.cost_input_usd or 0) + (fresh_job.cost_output_usd or 0)
-                                logger.info(f"✅ [SYNC] Processamento concluído: {file.filename} (Cost: ${total_cost:.4f})")
-                        finally:
-                            db_fresh.close()
-
-                        sucesso += 1
-
-                    except Exception as job_e:
-                        logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")
-                        if job:
-                            try:
-                                db_err = next(get_db())
-                                err_job = db_err.query(Job).get(job.id)
-                                if err_job:
-                                    err_job.status = JobStatus.FAILED
-                                    err_job.error_log = str(job_e)
-                                    db_err.commit()
-                                db_err.close()
-                            except Exception:
-                                logger.error(f"Failed to update job status for {job.id}")
-                        falha += 1
-                        
-                        # [NOTIFY] Avisar consultor sobre erro crítico
-                        try:
-                            if app.email_service and user_email:
-                                subj = f"Erro no Processamento: {file.filename}"
-                                body_text = f"""
-                                Olá {user_name},
-                                
-                                Ocorreu um erro ao processar o relatório "{file.filename}".
-                                
-                                Detalhes do erro:
-                                {str(job_e)}
-                                
-                                Por favor, verifique o arquivo e tente novamente. Se o erro persistir, contate o suporte.
-                                """
-                                # HTML version optional, using same text for now
-                                body_html = f"<pre>{body_text}</pre>"
-                                
-                                app.email_service.send_email(user_email, subj, body_html, body_text)
-                        except Exception as mail_e:
-                            logger.error(f"Falha ao enviar email de erro: {mail_e}")
-
-                        flash(f"Erro ao processar {file.filename}: {str(job_e)}", 'error')
-                else:
-                    logger.error(f"Google Drive não configurado para {file.filename}")
+                            db_err = next(get_db())
+                            err_job = db_err.query(Job).get(job.id)
+                            if err_job:
+                                err_job.status = JobStatus.FAILED
+                                err_job.error_log = str(job_e)
+                                db_err.commit()
+                            db_err.close()
+                        except Exception:
+                            logger.error(f"Failed to update job status for {job.id}")
                     falha += 1
+
+                    # [NOTIFY] Avisar consultor sobre erro crítico
+                    try:
+                        if app.email_service and user_email:
+                            subj = f"Erro no Processamento: {file.filename}"
+                            body_text = f"""
+                            Olá {user_name},
+
+                            Ocorreu um erro ao processar o relatório "{file.filename}".
+
+                            Detalhes do erro:
+                            {str(job_e)}
+
+                            Por favor, verifique o arquivo e tente novamente. Se o erro persistir, contate o suporte.
+                            """
+                            body_html = f"<pre>{body_text}</pre>"
+
+                            app.email_service.send_email(user_email, subj, body_html, body_text)
+                    except Exception as mail_e:
+                        logger.error(f"Falha ao enviar email de erro: {mail_e}")
+
+                    flash(f"Erro ao processar {file.filename}: {str(job_e)}", 'error')
 
             except Exception as e:
                 friendly_msg = get_friendly_error_message(e)

@@ -145,18 +145,21 @@ class ProcessorService:
         finally:
             session.close() # Safe to close this private session
 
-    def process_single_file(self, file_meta, company_id=None, establishment_id=None, job_id=None, job=None):
+    def process_single_file(self, file_meta, company_id=None, establishment_id=None, job_id=None, job=None, file_content=None):
         file_id = file_meta['id']
         filename = file_meta['name']
-        
+
         # 0. Start Trace
         self._log_trace(file_id, "INIT", "STARTED", f"Iniciando processamento de {filename}")
-        
+
         try:
             # 1. Download & Hash Check (Idempotency)
-            self._log_trace(file_id, "DOWNLOAD", "RUNNING", "Baixando arquivo do Drive...")
-            file_content = self.drive_service.download_file(file_id)
-            self._log_trace(file_id, "DOWNLOAD", "SUCCESS", "Download concluído")
+            if file_content:
+                self._log_trace(file_id, "DOWNLOAD", "SUCCESS", "Arquivo recebido diretamente (sem Drive)")
+            else:
+                self._log_trace(file_id, "DOWNLOAD", "RUNNING", "Baixando arquivo do Drive...")
+                file_content = self.drive_service.download_file(file_id)
+                self._log_trace(file_id, "DOWNLOAD", "SUCCESS", "Download concluído")
             
             file_hash = self.calculate_hash(file_content)
             
@@ -265,7 +268,7 @@ class ProcessorService:
                 self._update_job_status(job_id, JobStatus.FAILED, error_data=error_obj)
 
             try:
-                if not file_id.startswith('gcs:'):
+                if not file_id.startswith('gcs:') and not file_id.startswith('upload:'):
                     self.drive_service.move_file(file_id, self.folder_error)
                     self._log_trace(file_id, "ERROR", "MOVED", "Arquivo movido para pasta de Erros")
             except:
