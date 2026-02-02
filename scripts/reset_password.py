@@ -1,14 +1,17 @@
 import sys
 import os
 from werkzeug.security import generate_password_hash
+from dotenv import load_dotenv
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+load_dotenv()
 
-from src.database import get_db
+from src.database import get_db, init_db
 from src.models_db import User
 
 def reset_password(email, new_password):
+    init_db()
     db = next(get_db())
     try:
         user = db.query(User).filter_by(email=email).first()
