@@ -572,7 +572,7 @@
         try {
             const response = await fetch(`/manager/plan/${INSPECTION_FILE_ID}/save`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: JSON.stringify({
                     responsible_name: name,
                     responsible_phone: phone,
@@ -604,7 +604,7 @@
         try {
             const response = await fetch(`/api/whatsapp_plan/${INSPECTION_FILE_ID}`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
                 body: JSON.stringify({phone: phone, name: name})
             });
             const result = await response.json();

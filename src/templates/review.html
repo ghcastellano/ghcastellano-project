@@ -808,7 +808,7 @@
             const fileId = "{{ inspection.drive_file_id }}";
             const response = await fetch(`/api/whatsapp_plan/${fileId}`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
                 body: JSON.stringify({phone: phone, name: name})
             });
             const result = await response.json();
