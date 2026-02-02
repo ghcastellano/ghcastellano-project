@@ -367,21 +367,21 @@
 <div class="modal fade" id="shareModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header" style="border-bottom: 2px solid #e2e8f0;">
                 <h5 class="modal-title fw-bold">Compartilhar Plano de Ação</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body px-4 py-4">
                 <!-- Responsável da Loja -->
-                <div class="mb-3 p-3 bg-light rounded border">
-                    <h6 class="fw-bold text-muted text-uppercase mb-2" style="font-size: 0.75rem;">Responsável da Loja</h6>
+                <div class="mb-4 p-3 bg-light rounded border">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">Responsável da Loja</h6>
                     <div class="row g-2">
                         <div class="col-12">
                             <input type="text" id="shareRespName" class="form-control form-control-sm" placeholder="Nome do responsável"
                                 value="{{ contacts[0].name if contacts else '' }}">
                         </div>
                         <div class="col-6">
-                            <input type="tel" id="shareRespPhone" class="form-control form-control-sm" placeholder="Telefone (DDD + Número)"
+                            <input type="tel" id="shareRespPhone" class="form-control form-control-sm" placeholder="Telefone (DDD + Numero)"
                                 value="{{ contacts[0].phone if contacts and contacts[0].phone else '' }}">
                         </div>
                         <div class="col-6">
@@ -391,34 +391,38 @@
                     </div>
                 </div>
 
-                <ul class="nav nav-tabs mb-3" id="shareTabs" role="tablist">
+                <!-- Envio -->
+                <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size: 0.75rem; letter-spacing: 0.5px;">Enviar via</h6>
+                <ul class="nav nav-pills mb-3" id="shareTabs" role="tablist" style="gap: 0.5rem;">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="whatsapp-tab" data-bs-toggle="tab"
-                            data-bs-target="#whatsapp" type="button" role="tab" aria-selected="true">
+                        <button class="nav-link active px-4 py-2" id="whatsapp-tab" data-bs-toggle="tab"
+                            data-bs-target="#whatsapp" type="button" role="tab" aria-selected="true"
+                            style="border-radius: 8px; font-size: 0.9rem;">
                             <i class="ph-bold ph-whatsapp-logo me-2"></i>WhatsApp
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="email-tab" data-bs-toggle="tab" data-bs-target="#email"
-                            type="button" role="tab" aria-selected="false">
+                        <button class="nav-link px-4 py-2" id="email-tab" data-bs-toggle="tab" data-bs-target="#email"
+                            type="button" role="tab" aria-selected="false"
+                            style="border-radius: 8px; font-size: 0.9rem;">
                             <i class="ph-bold ph-envelope-simple me-2"></i>Email
                         </button>
                     </li>
                 </ul>
 
-                <div class="tab-content" id="shareTabContent">
+                <div class="tab-content pt-2 pb-1" id="shareTabContent">
                     <!-- WhatsApp Tab -->
                     <div class="tab-pane fade show active" id="whatsapp" role="tabpanel" aria-labelledby="whatsapp-tab">
-                        <p class="text-muted mb-2" style="font-size: 0.85rem;">O WhatsApp será aberto com a mensagem e link do relatório.</p>
-                        <button class="btn btn-success w-100" onclick="sendWhatsApp()">
+                        <p class="text-muted mb-3" style="font-size: 0.85rem;">Uma mensagem com o link do relatorio sera enviada via WhatsApp Business API.</p>
+                        <button class="btn btn-success w-100 py-2" onclick="sendWhatsApp()" style="font-size: 0.95rem;">
                             <i class="ph-bold ph-whatsapp-logo me-2"></i> Enviar via WhatsApp
                         </button>
                     </div>
 
                     <!-- Email Tab -->
                     <div class="tab-pane fade" id="email" role="tabpanel" aria-labelledby="email-tab">
-                        <p class="text-muted mb-2" style="font-size: 0.85rem;">Um email será enviado com o link do relatório.</p>
-                        <button class="btn btn-primary w-100" onclick="sendEmail()">
+                        <p class="text-muted mb-3" style="font-size: 0.85rem;">Um email sera enviado com o link do relatorio.</p>
+                        <button class="btn btn-primary w-100 py-2" onclick="sendEmail()" style="font-size: 0.95rem;">
                             <i class="ph-bold ph-envelope-simple me-2"></i> Enviar via Email
                         </button>
                     </div>
