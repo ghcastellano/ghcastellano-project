@@ -637,7 +637,7 @@ def tracker_details(inspection_id):
 # --- Settings / Configuracoes ---
 
 SENSITIVE_KEYS = {
-    'GCP_OAUTH_TOKEN', 'WHATSAPP_TOKEN', 'AWS_SECRET_ACCESS_KEY',
+    'GCP_OAUTH_TOKEN', 'WHATSAPP_TOKEN', 'SMTP_PASSWORD',
     'OPENAI_API_KEY', 'WEBHOOK_SECRET_TOKEN'
 }
 
@@ -663,14 +663,14 @@ CONFIG_GROUPS = {
             {'key': 'WHATSAPP_DESTINATION_PHONE', 'label': 'Telefone Padrao', 'type': 'text'},
         ]
     },
-    'email_ses': {
-        'label': 'Email (AWS SES)',
+    'email_smtp': {
+        'label': 'Email (Gmail SMTP)',
         'icon': 'fa-envelope',
         'keys': [
-            {'key': 'AWS_ACCESS_KEY_ID', 'label': 'Access Key ID', 'type': 'text'},
-            {'key': 'AWS_SECRET_ACCESS_KEY', 'label': 'Secret Access Key', 'type': 'password'},
-            {'key': 'AWS_SES_SENDER', 'label': 'Email do Remetente', 'type': 'text'},
-            {'key': 'AWS_REGION', 'label': 'Regiao AWS', 'type': 'text'},
+            {'key': 'SMTP_EMAIL', 'label': 'Email Gmail', 'type': 'text'},
+            {'key': 'SMTP_PASSWORD', 'label': 'Senha de App (App Password)', 'type': 'password'},
+            {'key': 'SMTP_HOST', 'label': 'Servidor SMTP (padrao: smtp.gmail.com)', 'type': 'text'},
+            {'key': 'SMTP_PORT', 'label': 'Porta SMTP (padrao: 587)', 'type': 'text'},
         ]
     },
     'openai': {

@@ -276,7 +276,7 @@ except Exception as e:
 # Email Service
 try:
     from src.services.email_service import EmailService
-    provider = 'ses' if get_config('AWS_ACCESS_KEY_ID') else 'mock'
+    provider = 'smtp' if get_config('SMTP_EMAIL') else 'mock'
     app.email_service = EmailService(provider=provider)
     logger.info(f"✅ Serviço de Email Inicializado ({provider.upper()})")
 except Exception as e:

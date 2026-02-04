@@ -1,7 +1,5 @@
 import os
-import boto3
-from botocore.exceptions import ClientError
-from flask import current_app
+import smtplib
 import logging
 from src.config_helper import get_config
 from email.mime.multipart import MIMEMultipart
@@ -13,21 +11,20 @@ logger = logging.getLogger(__name__)
 class EmailService:
     def __init__(self, provider='mock'):
         self.provider = provider
-        self.ses_client = None
-        self.sender = get_config('AWS_SES_SENDER', 'noreply@inspetorai.com')
+        self.sender = get_config('SMTP_EMAIL', 'noreply@inspetorai.com')
 
-        if provider == 'ses':
-            try:
-                self.ses_client = boto3.client(
-                    'ses',
-                    region_name=get_config('AWS_REGION', 'us-east-1'),
-                    aws_access_key_id=get_config('AWS_ACCESS_KEY_ID'),
-                    aws_secret_access_key=get_config('AWS_SECRET_ACCESS_KEY')
-                )
-                logger.info("AWS SES Client initialized.")
-            except Exception as e:
-                logger.error(f"Failed to initialize AWS SES: {e}. Falling back to Mock.")
+        if provider == 'smtp':
+            self.smtp_email = get_config('SMTP_EMAIL')
+            self.smtp_password = get_config('SMTP_PASSWORD')
+            self.smtp_host = get_config('SMTP_HOST', 'smtp.gmail.com')
+            self.smtp_port = int(get_config('SMTP_PORT', '587'))
+            self.sender = self.smtp_email
+
+            if not self.smtp_email or not self.smtp_password:
+                logger.error("SMTP_EMAIL or SMTP_PASSWORD not configured. Falling back to Mock.")
                 self.provider = 'mock'
+            else:
+                logger.info(f"SMTP Email Service initialized ({self.smtp_host}:{self.smtp_port})")
 
     def send_welcome_email(self, to_email, name, temp_password):
         subject = "Bem-vindo ao InspetorAI - Suas Credenciais"
@@ -66,30 +63,25 @@ class EmailService:
         return self.send_email(to_email, subject, html_body, text_body)
 
     def send_email(self, to_email, subject, html_body, text_body):
-        if self.provider == 'ses' and self.ses_client:
+        if self.provider == 'smtp':
             try:
-                response = self.ses_client.send_email(
-                    Source=self.sender,
-                    Destination={'ToAddresses': [to_email]},
-                    Message={
-                        'Subject': {'Data': subject, 'Charset': 'UTF-8'},
-                        'Body': {
-                            'Html': {'Data': html_body, 'Charset': 'UTF-8'},
-                            'Text': {'Data': text_body, 'Charset': 'UTF-8'}
-                        }
-                    }
-                )
-                logger.info(f"Email sent to {to_email} via SES. MsgId: {response['MessageId']}")
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = subject
+                msg['From'] = self.sender
+                msg['To'] = to_email
+
+                msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+                msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+                with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                    server.starttls()
+                    server.login(self.smtp_email, self.smtp_password)
+                    server.sendmail(self.sender, to_email, msg.as_string())
+
+                logger.info(f"Email sent to {to_email} via SMTP ({self.smtp_host})")
                 return True
-            except ClientError as e:
-                msg = e.response['Error']['Message']
-                if "not verified" in msg:
-                    logger.warning(f"SES Sandbox Warning: {msg}. FALLING BACK TO MOCK.")
-                    # Fallback to Mock
-                    print(f" [MOCK EMAIL FALLBACK] (SES Sandbox Blocked Real Send)")
-                    return self._send_mock_email(to_email, subject, text_body)
-                else:
-                    logger.error(f"SES Error: {msg}")
+            except Exception as e:
+                logger.error(f"SMTP Error sending to {to_email}: {e}")
                 return False
         else:
             return self._send_mock_email(to_email, subject, text_body)
@@ -106,16 +98,14 @@ class EmailService:
         return True
 
     def send_email_with_attachment(self, to_email, subject, body, attachment_path):
-        if self.provider == 'ses' and self.ses_client:
+        if self.provider == 'smtp':
             msg = MIMEMultipart()
             msg['Subject'] = subject
             msg['From'] = self.sender
             msg['To'] = to_email
 
-            # Add body
-            msg.attach(MIMEText(body, 'plain'))
+            msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
-            # Add attachment
             try:
                 with open(attachment_path, 'rb') as f:
                     part = MIMEApplication(f.read())
@@ -126,20 +116,15 @@ class EmailService:
                 return False
 
             try:
-                response = self.ses_client.send_raw_email(
-                    Source=self.sender,
-                    Destinations=[to_email],
-                    RawMessage={'Data': msg.as_string()}
-                )
-                logger.info(f"Email (Raw) sent to {to_email} via SES. MsgId: {response['MessageId']}")
+                with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                    server.starttls()
+                    server.login(self.smtp_email, self.smtp_password)
+                    server.sendmail(self.sender, to_email, msg.as_string())
+
+                logger.info(f"Email with attachment sent to {to_email} via SMTP")
                 return True
-            except ClientError as e:
-                error_msg = e.response['Error']['Message']
-                if "not verified" in error_msg:
-                    logger.warning(f"SES Sandbox Warning (Raw): {error_msg}. FALLING BACK TO MOCK.")
-                    return self._send_mock_email_attachment(to_email, subject, body, attachment_path)
-                else:
-                    logger.error(f"SES Raw Error: {error_msg}")
+            except Exception as e:
+                logger.error(f"SMTP Error sending attachment email to {to_email}: {e}")
                 return False
         else:
             return self._send_mock_email_attachment(to_email, subject, body, attachment_path)
