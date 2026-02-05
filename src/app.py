@@ -276,9 +276,8 @@ except Exception as e:
 # Email Service
 try:
     from src.services.email_service import EmailService
-    provider = 'smtp' if get_config('SMTP_EMAIL') else 'mock'
-    app.email_service = EmailService(provider=provider)
-    logger.info(f"✅ Serviço de Email Inicializado ({provider.upper()})")
+    app.email_service = EmailService()
+    logger.info("✅ Serviço de Email Inicializado (lazy config)")
 except Exception as e:
     logger.error(f"⚠️ Falha ao inicializar Serviço de Email: {e}")
     app.email_service = None
