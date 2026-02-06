@@ -448,19 +448,47 @@ def dashboard_consultant():
             db_session_insp.close()
 
     # [NEW] Buscar jobs com falha para alertas
+    # - Apenas últimos 30 minutos
+    # - Apenas 1 por arquivo (mais recente)
+    # - Exclui arquivos já processados com sucesso
     failed_jobs = []
     if current_user.company_id:
         db_session_jobs = next(get_db())
         try:
             from src.error_codes import ErrorCode
+            from datetime import timedelta
+            from src.models_db import Inspection, InspectionStatus
+
+            cutoff_time = datetime.utcnow() - timedelta(minutes=30)
 
             failed_job_records = db_session_jobs.query(Job).filter(
                 Job.company_id == current_user.company_id,
-                Job.status == JobStatus.FAILED
-            ).order_by(Job.created_at.desc()).limit(5).all()
+                Job.status == JobStatus.FAILED,
+                Job.created_at >= cutoff_time
+            ).order_by(Job.created_at.desc()).limit(10).all()
+
+            # Agrupar por filename (mostrar apenas o mais recente de cada arquivo)
+            seen_filenames = set()
 
             for job in failed_job_records:
                 payload = job.input_payload or {}
+                filename = payload.get('filename', 'Arquivo')
+
+                # Skip se já mostramos este arquivo
+                if filename in seen_filenames:
+                    continue
+
+                # Skip se arquivo já foi processado com sucesso
+                file_id = payload.get('file_id')
+                if file_id:
+                    success_insp = db_session_jobs.query(Inspection).filter(
+                        Inspection.drive_file_id == file_id,
+                        Inspection.status != InspectionStatus.PROCESSING
+                    ).first()
+                    if success_insp:
+                        continue
+
+                seen_filenames.add(filename)
 
                 # Parse error_log (pode ser JSON estruturado ou string)
                 error_obj = {'code': 'ERR_9001', 'user_msg': 'Erro desconhecido'}
@@ -473,7 +501,7 @@ def dashboard_consultant():
                         error_obj = {'code': 'ERR_9001', 'user_msg': job.error_log[:200]}
 
                 failed_jobs.append({
-                    'filename': payload.get('filename', 'Arquivo'),
+                    'filename': filename,
                     'establishment': payload.get('establishment_name', 'N/A'),
                     'establishment_id': payload.get('establishment_id'),
                     'error_code': error_obj.get('code', 'ERR_UNKNOWN'),
