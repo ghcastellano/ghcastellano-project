@@ -544,15 +544,8 @@
             <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-                <!-- [UX] Location Selectors -->
+                <!-- [UX] Location Selector (Only Store - Consultant has single company) -->
                 <div style="margin-bottom: 1.5rem; text-align: left;">
-                    <label
-                        style="display:block; font-size:0.85rem; font-weight:600; color:#1e293b; margin-bottom:0.5rem;">Empresa</label>
-                    <select id="companyUploadSelect" onchange="updateEstablishmentOptions()"
-                        style="width:100%; padding:0.75rem; border:1px solid #CBD5E1; border-radius:8px; background:white; margin-bottom: 1rem;">
-                        <option value="">Selecione a Empresa...</option>
-                    </select>
-
                     <label
                         style="display:block; font-size:0.85rem; font-weight:600; color:#1e293b; margin-bottom:0.5rem;">Loja
                         / Unidade</label>
@@ -681,39 +674,29 @@
     // --- Upload Selectors Logic ---
     const userHierarchy = {{ user_hierarchy| tojson }};
 
-    function populateCompanySelect() {
-        const compSelect = document.getElementById('companyUploadSelect');
-        // Clear (keep default)
-        while (compSelect.options.length > 1) { compSelect.remove(1); }
-
-        // Populate
-        for (const [compId, data] of Object.entries(userHierarchy)) {
-            const opt = document.createElement('option');
-            opt.value = compId;
-            opt.textContent = data.name;
-            compSelect.appendChild(opt);
-        }
-    }
-
-    function updateEstablishmentOptions() {
-        const compId = document.getElementById('companyUploadSelect').value;
+    function populateEstablishmentSelect() {
         const estSelect = document.getElementById('estUploadSelect');
-
         // Clear (keep default)
         while (estSelect.options.length > 1) { estSelect.remove(1); }
 
-        if (compId && userHierarchy[compId]) {
-            const ests = userHierarchy[compId].establishments;
-            // Sort alphabetically
-            ests.sort((a, b) => a.name.localeCompare(b.name));
-
-            ests.forEach(est => {
-                const opt = document.createElement('option');
-                opt.value = est.id;
-                opt.textContent = est.name;
-                estSelect.appendChild(opt);
+        // Collect all establishments from all companies (consultant has only one company)
+        const allEstablishments = [];
+        for (const [compId, data] of Object.entries(userHierarchy)) {
+            data.establishments.forEach(est => {
+                allEstablishments.push(est);
             });
         }
+
+        // Sort alphabetically
+        allEstablishments.sort((a, b) => a.name.localeCompare(b.name));
+
+        // Populate
+        allEstablishments.forEach(est => {
+            const opt = document.createElement('option');
+            opt.value = est.id;
+            opt.textContent = est.name;
+            estSelect.appendChild(opt);
+        });
     }
 
     // --- Filter Logic ---
@@ -773,11 +756,8 @@
         // Reset form state
         document.getElementById('uploadForm').reset();
 
-        // [UX] Init Selectors
-        populateCompanySelect();
-        // Clear Est Select
-        const estSelect = document.getElementById('estUploadSelect');
-        while (estSelect.options.length > 1) { estSelect.remove(1); }
+        // [UX] Init Store Selector (consultant has single company)
+        populateEstablishmentSelect();
 
         document.getElementById('fileName').textContent = '';
         document.getElementById('filePreview').style.display = 'none';
