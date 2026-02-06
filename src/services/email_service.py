@@ -40,7 +40,7 @@ class EmailService:
                     <p style="margin: 5px 0 0 0; font-size: 1.5rem; font-weight: bold; letter-spacing: 2px;">{temp_password}</p>
                 </div>
                 <p>Por motivos de segurança, você será obrigado a alterar esta senha no primeiro acesso.</p>
-                <p><a href="{get_config('BASE_URL', 'http://localhost:5000')}/auth/login" style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Acessar Dashboard</a></p>
+                <p><a href="{get_config('BASE_URL', 'https://mvp-web-1013946239177.us-central1.run.app')}/auth/login" style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Acessar Dashboard</a></p>
                 <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
                 <p style="font-size: 0.8rem; color: #999;">Se você não solicitou este acesso, ignore este e-mail.</p>
             </div>
@@ -54,7 +54,7 @@ class EmailService:
 
         Sua senha temporária: {temp_password}
 
-        Acesse em: {get_config('BASE_URL', 'http://localhost:5000')}/auth/login
+        Acesse em: {get_config('BASE_URL', 'https://mvp-web-1013946239177.us-central1.run.app')}/auth/login
         """
 
         return self.send_email(to_email, subject, html_body, text_body)
