@@ -681,7 +681,7 @@ def upload_file():
                     # Re-fetch job in fresh session (processor closes/detaches our objects)
                     db_fresh = next(get_db())
                     try:
-                        fresh_job = db_fresh.query(Job).get(job_id_saved)
+                        fresh_job = db_fresh.get(Job, job_id_saved)
                         if fresh_job:
                             fresh_job.status = JobStatus.COMPLETED
                             fresh_job.finished_at = datetime.utcnow()
@@ -706,7 +706,7 @@ def upload_file():
 
                         # Update Job status
                         if job_id_saved:
-                            err_job = db_err.query(Job).get(job_id_saved)
+                            err_job = db_err.get(Job, job_id_saved)
                             if err_job:
                                 err_job.status = JobStatus.FAILED
                                 err_job.error_log = str(job_e)
