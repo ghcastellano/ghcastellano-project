@@ -14,6 +14,9 @@ from flask import session
 import uuid
 import random
 import string
+import logging
+
+logger = logging.getLogger(__name__)
 
 manager_bp = Blueprint('manager', __name__)
 
