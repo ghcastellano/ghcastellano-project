@@ -632,6 +632,7 @@ def upload_file():
                 # 5. Criar Job e Inspection
                 db = next(get_db())
                 job = None
+                job_id_saved = None
                 try:
                     from src.models_db import Inspection, InspectionStatus
 
@@ -698,17 +699,17 @@ def upload_file():
 
                 except Exception as job_e:
                     logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")
-                    if job:
+                    if job_id_saved:
                         try:
                             db_err = next(get_db())
-                            err_job = db_err.query(Job).get(job.id)
+                            err_job = db_err.query(Job).get(job_id_saved)
                             if err_job:
                                 err_job.status = JobStatus.FAILED
                                 err_job.error_log = str(job_e)
                                 db_err.commit()
                             db_err.close()
                         except Exception:
-                            logger.error(f"Failed to update job status for {job.id}")
+                            logger.error(f"Failed to update job status for {job_id_saved}")
                     falha += 1
 
                     # [NOTIFY] Avisar consultor sobre erro crítico
