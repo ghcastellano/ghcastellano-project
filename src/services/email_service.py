@@ -34,7 +34,7 @@ class EmailService:
             <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                 <h2 style="color: #2563eb;">Bem-vindo ao InspetorAI!</h2>
                 <p>Olá, <strong>{name}</strong>.</p>
-                <p>Sua conta de Gestor foi criada com sucesso.</p>
+                <p>Sua conta foi criada com sucesso.</p>
                 <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <p style="margin: 0; font-size: 0.9rem; color: #666;">Sua senha temporária:</p>
                     <p style="margin: 5px 0 0 0; font-size: 1.5rem; font-weight: bold; letter-spacing: 2px;">{temp_password}</p>

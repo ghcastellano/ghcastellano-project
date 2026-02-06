@@ -219,7 +219,14 @@ def create_consultant():
         db.add(user)
         db.commit()
         db.refresh(user) # Recarrega para garantir relacionamentos M2M
-        
+
+        # Enviar email de boas-vindas
+        try:
+            current_app.email_service.send_welcome_email(email, name, temp_pass)
+            logger.info(f"Welcome email sent to consultant {email}")
+        except Exception as e:
+            logger.warning(f"Failed to send welcome email to {email}: {e}")
+
         msg = f'Consultor criado com {len(establishments_to_assign)} estabelecimentos! Senha: {temp_pass}'
         
         if request.accept_mimetypes.accept_json:
