@@ -699,17 +699,32 @@ def upload_file():
 
                 except Exception as job_e:
                     logger.error(f"Erro no processamento síncrono para {file.filename}: {job_e}")
-                    if job_id_saved:
-                        try:
-                            db_err = next(get_db())
+
+                    # Cleanup: Update Job and remove orphan Inspection
+                    try:
+                        db_err = next(get_db())
+
+                        # Update Job status
+                        if job_id_saved:
                             err_job = db_err.query(Job).get(job_id_saved)
                             if err_job:
                                 err_job.status = JobStatus.FAILED
                                 err_job.error_log = str(job_e)
-                                db_err.commit()
-                            db_err.close()
-                        except Exception:
-                            logger.error(f"Failed to update job status for {job_id_saved}")
+
+                        # Remove orphan Inspection (was created but processing failed)
+                        orphan_insp = db_err.query(Inspection).filter_by(
+                            drive_file_id=upload_id,
+                            status=InspectionStatus.PROCESSING
+                        ).first()
+                        if orphan_insp:
+                            db_err.delete(orphan_insp)
+                            logger.info(f"🧹 Removida Inspection órfã para {file.filename}")
+
+                        db_err.commit()
+                        db_err.close()
+                    except Exception as cleanup_e:
+                        logger.error(f"Failed to cleanup after error for {file.filename}: {cleanup_e}")
+
                     falha += 1
 
                     # [NOTIFY] Avisar consultor sobre erro crítico
