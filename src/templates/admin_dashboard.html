@@ -1338,8 +1338,18 @@
                 showToast(data.message || 'Gestor removido!', 'success');
                 const row = document.getElementById(`row-manager-${id}`);
                 if (row) {
+                    const companyName = row.dataset.companyName;
                     row.style.background = '#fee2e2';
-                    setTimeout(() => row.remove(), 500);
+                    setTimeout(() => {
+                        row.remove();
+                        // Check if company group is now empty, remove header if so
+                        const tbody = document.querySelector('#managersTable tbody');
+                        const remainingRows = tbody.querySelectorAll(`tr[data-company-name="${companyName}"]:not(.group-header)`);
+                        if (remainingRows.length === 0) {
+                            const header = tbody.querySelector(`tr.group-header[data-group-name="${companyName}"]`);
+                            if (header) header.remove();
+                        }
+                    }, 500);
                 }
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');
