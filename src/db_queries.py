@@ -309,11 +309,11 @@ def get_pending_jobs(company_id=None, establishment_id=None, allow_all=False, es
     try:
         session = database.db_session()
         from datetime import datetime, timedelta
-        # Filter active jobs (Exclude COMPLETED to avoid "stuck" processing card)
+        # Filter active jobs (only PENDING/PROCESSING - FAILED jobs are excluded as they're done)
         # Filter by recent time (last 30 minutes) to avoid ghosts
         cutoff_time = datetime.now() - timedelta(minutes=30)
         query = session.query(Job).filter(
-            Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.FAILED]),
+            Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING]),
             Job.created_at >= cutoff_time
         )
         
