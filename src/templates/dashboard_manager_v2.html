@@ -162,21 +162,9 @@
             </li>
         </ul>
 
-        <!-- Filters (moved to sidebar bottom area) -->
+        <!-- Filter (moved to sidebar bottom area) -->
         <div style="margin-top: auto; padding-top: 2rem;">
             <form id="filterForm" action="{{ url_for('manager.dashboard_manager') }}" method="GET">
-                <!-- Filtro de Empresa -->
-                <label class="form-label" style="font-size: 0.75rem; color: var(--text-light);">EMPRESA</label>
-                <select name="company_id" onchange="handleCompanyFilterChange(this)" class="form-control"
-                    style="font-size: 0.85rem; margin-bottom: 1rem;">
-                    {% for comp in all_companies %}
-                    <option value="{{ comp.id }}" {% if selected_company_id == comp.id|string %}selected{% endif %}>
-                        {{ comp.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-
-                <!-- Filtro de Loja -->
                 <label class="form-label" style="font-size: 0.75rem; color: var(--text-light);">FILTRAR POR LOJA</label>
                 <select name="establishment_id" onchange="handleFilterChange(this)" class="form-control"
                     style="font-size: 0.85rem;">
@@ -805,14 +793,6 @@
 
     window.handleFilterChange = function (select) {
         showLoading();
-        select.form.submit();
-    };
-
-    window.handleCompanyFilterChange = function (select) {
-        showLoading();
-        // Limpa seleção de loja ao mudar empresa
-        const estSelect = select.form.querySelector('select[name="establishment_id"]');
-        if (estSelect) estSelect.value = '';
         select.form.submit();
     };
 
