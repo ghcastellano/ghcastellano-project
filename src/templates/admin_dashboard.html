@@ -1129,15 +1129,47 @@
                 form.reset();
                 document.getElementById('createManagerCard').style.display = 'none';
 
-                // Add row to table
+                // Add row to table (with proper grouping)
                 const tbody = document.querySelector('#managersTable tbody');
                 if (tbody && data.manager) {
                     const m = data.manager;
+                    const companyName = m.company_name;
+
+                    // Check if group header exists for this company
+                    let groupHeader = tbody.querySelector(`tr.group-header[data-group-name="${companyName}"]`);
+
+                    // If no group header, create one and find correct position
+                    if (!groupHeader) {
+                        const headerHtml = `
+                            <tr class="group-header" data-group-name="${companyName}">
+                                <td colspan="4"><i class="ph-bold ph-buildings"></i> ${companyName}</td>
+                            </tr>
+                        `;
+
+                        // Find where to insert (alphabetically by company name)
+                        const allHeaders = tbody.querySelectorAll('tr.group-header');
+                        let insertBefore = null;
+                        for (const header of allHeaders) {
+                            if (header.dataset.groupName > companyName) {
+                                insertBefore = header;
+                                break;
+                            }
+                        }
+
+                        if (insertBefore) {
+                            insertBefore.insertAdjacentHTML('beforebegin', headerHtml);
+                        } else {
+                            tbody.insertAdjacentHTML('beforeend', headerHtml);
+                        }
+                        groupHeader = tbody.querySelector(`tr.group-header[data-group-name="${companyName}"]`);
+                    }
+
+                    // Create the manager row
                     const newRow = `
-                        <tr id="row-manager-${m.id}" style="animation: fadeIn 0.5s;" data-company-name="${m.company_name}">
+                        <tr id="row-manager-${m.id}" style="animation: fadeIn 0.5s;" data-company-name="${companyName}">
                             <td style="font-weight: 500; padding-left: 2rem;" class="col-name">${m.name}</td>
                             <td class="text-sm text-muted col-email">${m.email}</td>
-                            <td><span class="badge badge-blue col-comp">${m.company_name}</span></td>
+                            <td><span class="badge badge-blue col-comp">${companyName}</span></td>
                             <td class="text-right">
                                 <div class="btn-icon-group">
                                     <button class="btn-icon btn-icon-edit" data-id="${m.id}" data-name="${m.name}" data-email="${m.email}" data-company="${m.company_id}"
@@ -1152,7 +1184,15 @@
                             </td>
                         </tr>
                     `;
-                    tbody.insertAdjacentHTML('beforeend', newRow);
+
+                    // Find last row of this company group and insert after it
+                    const companyRows = tbody.querySelectorAll(`tr[data-company-name="${companyName}"]:not(.group-header)`);
+                    if (companyRows.length > 0) {
+                        companyRows[companyRows.length - 1].insertAdjacentHTML('afterend', newRow);
+                    } else {
+                        // No rows yet, insert right after the header
+                        groupHeader.insertAdjacentHTML('afterend', newRow);
+                    }
                 }
             } else {
                 showToast(data.error || 'Erro ao criar gestor', 'error');
