@@ -28,53 +28,76 @@ def dashboard_manager():
     if current_user.role != UserRole.MANAGER:
         flash('Acesso negado', 'error')
         return redirect(url_for('root'))
-        
+
     # Setup for Manager Dashboard
+    company_id = request.args.get('company_id')
     establishment_id = request.args.get('establishment_id')
-    
+
     db = next(get_db())
     try:
         # Carrega dados necessários para dropdowns e listas
-        # Garante que a relação da empresa seja carregada
         establishments = []
-        # Recarrega current_user para garantir sessão anexada se necessário (opcional)
-        
-        company = db.query(Company).get(current_user.company_id) if current_user.company_id else None
-        all_establishments = [] # Inicializa por segurança
+
+        # Lista de empresas acessíveis (por enquanto, apenas a do gestor)
+        all_companies = []
+        if current_user.company_id:
+            company = db.query(Company).get(current_user.company_id)
+            if company:
+                all_companies = [company]
+
+        # Filtro de empresa (persistência em sessão)
+        if company_id is not None:
+            if company_id:
+                session['selected_company_id'] = company_id
+            else:
+                session.pop('selected_company_id', None)
+                company_id = None
+        elif 'selected_company_id' in session:
+            company_id = session['selected_company_id']
+
+        # Empresa selecionada (padrão: primeira disponível)
+        if company_id:
+            company = next((c for c in all_companies if str(c.id) == company_id), None)
+        else:
+            company = all_companies[0] if all_companies else None
+            if company:
+                company_id = str(company.id)
+
+        all_establishments = []
         if company:
             # Ordena Estabelecimentos por Nome
             all_establishments = sorted(company.establishments, key=lambda x: x.name)
-            establishments = all_establishments # Padrão: todos
-            
+            establishments = all_establishments
+
         consultants = db.query(User).filter(
             User.role == UserRole.CONSULTANT,
-            User.company_id == current_user.company_id
+            User.company_id == company.id if company else None
         ).order_by(User.name.asc()).all()
-        
-        # Filtra Lógica de Persistência
+
+        # Filtra Lógica de Persistência (Loja)
         if establishment_id is not None:
             if establishment_id:
                 session['selected_est_id'] = establishment_id
             else:
-                # Usuário selecionou "Todas as Lojas" (valor vazio) -> Limpa Sessão
                 session.pop('selected_est_id', None)
                 establishment_id = None
         elif 'selected_est_id' in session:
             establishment_id = session['selected_est_id']
-            
-        # Aplica Filtro se selecionado
+
+        # Aplica Filtro de Loja se selecionado
         if establishment_id:
-             # Valida se ID pertence à empresa
              target = next((e for e in all_establishments if str(e.id) == establishment_id), None)
              if target:
                  establishments = [target]
-                 # Filtra consultores vinculados a esta loja
                  consultants = [c for c in consultants if target in c.establishments]
-        
-        return render_template('dashboard_manager_v2.html', 
+
+        return render_template('dashboard_manager_v2.html',
                                user_role='MANAGER',
-                               establishments=establishments,     # For Tables
-                               all_establishments=all_establishments, # For Dropdowns
+                               company=company,
+                               all_companies=all_companies,
+                               selected_company_id=company_id,
+                               establishments=establishments,
+                               all_establishments=all_establishments,
                                consultants=consultants,
                                selected_est_id=establishment_id)
     finally:
@@ -398,6 +421,7 @@ def create_establishment():
             msg += ' ⚠️ Pasta no Drive não pôde ser criada.'
         
         if request.accept_mimetypes.accept_json:
+             company_obj = db.query(Company).get(est.company_id) if est.company_id else None
              return jsonify({
                  'success': True,
                  'message': msg,
@@ -405,6 +429,8 @@ def create_establishment():
                      'id': str(est.id),
                      'name': est.name,
                      'code': est.code,
+                     'company_id': str(est.company_id) if est.company_id else None,
+                     'company_name': company_obj.name if company_obj else None,
                      'responsible_name': est.responsible_name,
                      'responsible_email': est.responsible_email,
                      'responsible_phone': est.responsible_phone
