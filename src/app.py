@@ -731,17 +731,44 @@ def upload_file():
                     try:
                         if app.email_service and user_email:
                             subj = f"Erro no Processamento: {file.filename}"
-                            body_text = f"""
-                            Olá {user_name},
 
-                            Ocorreu um erro ao processar o relatório "{file.filename}".
-
-                            Detalhes do erro:
-                            {str(job_e)}
-
-                            Por favor, verifique o arquivo e tente novamente. Se o erro persistir, contate o suporte.
+                            body_html = f"""
+                            <html>
+                            <head></head>
+                            <body style="font-family: sans-serif; color: #333;">
+                                <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #fecaca; border-radius: 10px; background: #fef2f2;">
+                                    <h2 style="color: #dc2626;"><span style="font-size: 1.5rem;">⚠️</span> Erro no Processamento</h2>
+                                    <p>Olá, <strong>{user_name}</strong>.</p>
+                                    <p>Ocorreu um erro ao processar o relatório:</p>
+                                    <div style="background: #fff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #dc2626;">
+                                        <p style="margin: 0; font-weight: bold; color: #333;">{file.filename}</p>
+                                    </div>
+                                    <p style="font-size: 0.9rem; color: #666;">O arquivo pode estar corrompido, em formato inválido, ou houve uma falha temporária no sistema.</p>
+                                    <p><strong>O que fazer:</strong></p>
+                                    <ul style="color: #666;">
+                                        <li>Verifique se o arquivo é um PDF válido</li>
+                                        <li>Tente enviar novamente</li>
+                                        <li>Se o erro persistir, contate o suporte</li>
+                                    </ul>
+                                    <hr style="border: none; border-top: 1px solid #fecaca; margin: 20px 0;">
+                                    <p style="font-size: 0.75rem; color: #999;">Erro técnico: {str(job_e)[:200]}</p>
+                                </div>
+                            </body>
+                            </html>
                             """
-                            body_html = f"<pre>{body_text}</pre>"
+
+                            body_text = f"""
+Olá {user_name},
+
+Ocorreu um erro ao processar o relatório "{file.filename}".
+
+O que fazer:
+- Verifique se o arquivo é um PDF válido
+- Tente enviar novamente
+- Se o erro persistir, contate o suporte
+
+Erro técnico: {str(job_e)[:200]}
+                            """
 
                             app.email_service.send_email(user_email, subj, body_html, body_text)
                     except Exception as mail_e:
