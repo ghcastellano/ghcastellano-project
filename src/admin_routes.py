@@ -11,6 +11,7 @@ import os
 import logging
 from datetime import datetime
 from src.services.drive_service import drive_service
+from src.config_helper import get_config
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -63,16 +64,22 @@ def create_company():
         # [NEW] Drive Folder - Level 1: Company
         drive_folder_created = False
         try:
-             # Use Root Folder from Env or None (Root)
+             # Use Root Folder from DB/Env
              from src.app import drive_service # Import instance
-             if drive_service.service:
-                 root_id = os.getenv('GDRIVE_ROOT_FOLDER_ID')
+             if drive_service and drive_service.service:
+                 root_id = get_config('GDRIVE_ROOT_FOLDER_ID')
+                 logger.info(f"[CREATE_COMPANY] Creating Drive folder '{name}' in root_id={root_id}")
                  f_id, f_link = drive_service.create_folder(folder_name=name, parent_id=root_id)
                  if f_id:
                      company.drive_folder_id = f_id
                      drive_folder_created = True
+                     logger.info(f"[CREATE_COMPANY] Drive folder created: {f_id}")
+                 else:
+                     logger.warning(f"[CREATE_COMPANY] create_folder returned None for '{name}'")
+             else:
+                 logger.warning("[CREATE_COMPANY] drive_service not available")
         except Exception as drive_err:
-             current_app.logger.error(f"Failed to create Drive folder for Company: {drive_err}")
+             logger.error(f"[CREATE_COMPANY] Failed to create Drive folder: {drive_err}")
              
         db.add(company)
         db.commit()
