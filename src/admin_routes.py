@@ -209,7 +209,11 @@ def create_manager():
     email = request.form.get('email')
     company_id = request.form.get('company_id')
     initial_password = request.form.get('password', '123456') # Default ou gerado
-    
+
+    # DEBUG: Log all form data
+    logger.info(f"[CREATE_MANAGER] Form data: name={name}, email={email}, company_id={company_id}")
+    logger.info(f"[CREATE_MANAGER] Current user: {current_user.email if current_user.is_authenticated else 'Anonymous'}")
+
     if not email or not company_id:
         if request.accept_mimetypes.accept_json:
              return jsonify({'error': 'Email e Empresa são obrigatórios.'}), 400
@@ -414,14 +418,20 @@ def update_manager(user_id):
     email = request.form.get('email')
     company_id = request.form.get('company_id')
     password = request.form.get('password') # Optional
-    
+
+    # DEBUG: Log all update attempts
+    logger.info(f"[UPDATE_MANAGER] Attempting to update user_id={user_id}")
+    logger.info(f"[UPDATE_MANAGER] Form data: name={name}, email={email}, company_id={company_id}, has_password={bool(password)}")
+
     if not name or not email:
         return jsonify({'error': 'Nome e Email são obrigatórios.'}), 400
 
     db = next(get_db())
     try:
         user = db.query(User).get(user_id)
+        logger.info(f"[UPDATE_MANAGER] Found user: {user.email if user else 'None'}, role={user.role if user else 'N/A'}")
         if not user or user.role != UserRole.MANAGER:
+            logger.warning(f"[UPDATE_MANAGER] REJECTED - User is not a MANAGER (role={user.role if user else 'None'})")
             return jsonify({'error': 'Gestor não encontrado.'}), 404
             
         user.name = name
