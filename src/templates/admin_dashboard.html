@@ -1242,7 +1242,7 @@
                 showToast(data.message || 'Gestor atualizado!', 'success');
                 document.getElementById('editManagerCard').style.display = 'none';
 
-                // Update row
+                // Update row and move to correct group if company changed
                 const row = document.getElementById(`row-manager-${id}`);
                 if (row) {
                     const name = formData.get('name');
@@ -1250,7 +1250,9 @@
                     const companySelect = document.getElementById('edit_manager_company');
                     const companyName = companySelect ? companySelect.options[companySelect.selectedIndex].text : '';
                     const companyId = formData.get('company_id');
+                    const oldCompanyName = row.dataset.companyName;
 
+                    // Update cell contents
                     const nameCell = row.querySelector('.col-name');
                     const emailCell = row.querySelector('.col-email');
                     const compCell = row.querySelector('.col-comp');
@@ -1263,6 +1265,52 @@
                         editBtn.dataset.name = name;
                         editBtn.dataset.email = email;
                         editBtn.dataset.company = companyId;
+                    }
+
+                    // Move row to correct group if company changed
+                    if (oldCompanyName !== companyName) {
+                        row.dataset.companyName = companyName;
+                        const tbody = document.querySelector('#managersTable tbody');
+
+                        // Find or create group header for new company
+                        let groupHeader = tbody.querySelector(`tr.group-header[data-group-name="${companyName}"]`);
+                        if (!groupHeader) {
+                            const headerHtml = `
+                                <tr class="group-header" data-group-name="${companyName}">
+                                    <td colspan="4"><i class="ph-bold ph-buildings"></i> ${companyName}</td>
+                                </tr>
+                            `;
+                            // Find where to insert alphabetically
+                            const allHeaders = tbody.querySelectorAll('tr.group-header');
+                            let insertBefore = null;
+                            for (const header of allHeaders) {
+                                if (header.dataset.groupName > companyName) {
+                                    insertBefore = header;
+                                    break;
+                                }
+                            }
+                            if (insertBefore) {
+                                insertBefore.insertAdjacentHTML('beforebegin', headerHtml);
+                            } else {
+                                tbody.insertAdjacentHTML('beforeend', headerHtml);
+                            }
+                            groupHeader = tbody.querySelector(`tr.group-header[data-group-name="${companyName}"]`);
+                        }
+
+                        // Move row after the last row of its new company group (or after header)
+                        const companyRows = tbody.querySelectorAll(`tr[data-company-name="${companyName}"]:not(.group-header)`);
+                        if (companyRows.length > 0) {
+                            companyRows[companyRows.length - 1].insertAdjacentElement('afterend', row);
+                        } else {
+                            groupHeader.insertAdjacentElement('afterend', row);
+                        }
+
+                        // Check if old company group is now empty, remove header if so
+                        const oldCompanyRows = tbody.querySelectorAll(`tr[data-company-name="${oldCompanyName}"]:not(.group-header)`);
+                        if (oldCompanyRows.length === 0) {
+                            const oldHeader = tbody.querySelector(`tr.group-header[data-group-name="${oldCompanyName}"]`);
+                            if (oldHeader) oldHeader.remove();
+                        }
                     }
                 }
             } else {
