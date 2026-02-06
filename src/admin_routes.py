@@ -663,7 +663,8 @@ CONFIG_GROUPS = {
         'label': 'Google Drive',
         'icon': 'fa-google-drive',
         'keys': [
-            {'key': 'GCP_OAUTH_TOKEN', 'label': 'OAuth Token (Base64 JSON)', 'type': 'textarea'},
+            {'key': 'GCP_SA_KEY', 'label': 'Service Account JSON (completo)', 'type': 'textarea'},
+            {'key': 'GCP_OAUTH_TOKEN', 'label': 'OAuth Token (alternativo ao SA)', 'type': 'textarea'},
             {'key': 'GDRIVE_ROOT_FOLDER_ID', 'label': 'ID da Pasta Raiz', 'type': 'text'},
             {'key': 'FOLDER_ID_01_ENTRADA_RELATORIOS', 'label': 'Pasta Entrada Relatorios', 'type': 'text'},
             {'key': 'FOLDER_ID_02_PLANOS_GERADOS', 'label': 'Pasta Planos Gerados', 'type': 'text'},
