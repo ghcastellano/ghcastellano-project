@@ -1018,23 +1018,23 @@
                 if (modalWrapper) {
                     successView = document.createElement('div');
                     successView.id = 'uploadSuccessView';
-                    successView.style.cssText = 'text-align:center; padding:2.5rem 1.5rem;';
+                    successView.style.cssText = 'text-align:center; padding:2.5rem 2rem; animation: fadeIn 0.3s ease;';
                     successView.innerHTML = `
-                        <div style="width:64px; height:64px; background:#15803d; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem;">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
+                        <div style="width:64px; height:64px; background:#DCFCE7; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem;">
+                            <i class="fas fa-check-circle" style="color:#16a34a; font-size:1.5rem;"></i>
                         </div>
-                        <h3 style="color:#0f172a; margin-bottom:0.75rem; font-size:1.25rem; font-weight:700;">Enviado com Sucesso!</h3>
-                        <p style="color:#1e293b; font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;">
-                            Seu relatório foi recebido e está sendo<br>analisado pela inteligência artificial.
+                        <h3 style="color:#1E293B; margin-bottom:1rem; font-weight:700; font-size:1.25rem;">Enviado com Sucesso!</h3>
+                        <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.5rem; text-align:left;">
+                            <p style="color:#166534; line-height:1.6; margin:0; font-size:0.9rem;">
+                                Seu relatório foi recebido e está sendo analisado pela inteligência artificial.
+                            </p>
+                        </div>
+                        <p style="color:#64748B; font-size:0.85rem; margin-bottom:1.5rem;">
+                            A página será atualizada automaticamente em instantes.
                         </p>
-                        <p style="color:#334155; font-size:0.85rem; margin-bottom:1.5rem;">
-                            A página será atualizada automaticamente.
-                        </p>
-                        <div style="background:#f0fdf4; border:1px solid #16a34a; border-radius:8px; padding:0.75rem; display:inline-block;">
+                        <div style="background:#ECFDF5; border:1px solid #16a34a; border-radius:8px; padding:0.75rem; display:inline-block;">
                             <p style="font-size:0.85rem; color:#14532d; margin:0; font-weight:600;">
-                                Aguarde o processamento na lista de inspeções.
+                                <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Processando...
                             </p>
                         </div>
                     `;
