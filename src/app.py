@@ -718,6 +718,40 @@ def upload_file():
                         file_content=file_bytes
                     )
 
+                    # [FIX] Verificar se arquivo foi pulado por duplicação
+                    if result and result.get('status') == 'skipped' and result.get('reason') == 'duplicate':
+                        logger.info(f"♻️ Arquivo duplicado: {file.filename} (já existe como {result.get('existing_id')})")
+
+                        # Atualizar Job como SKIPPED
+                        db_skip = next(get_db())
+                        try:
+                            skip_job = db_skip.get(Job, job_id_saved)
+                            if skip_job:
+                                skip_job.status = JobStatus.SKIPPED
+                                skip_job.finished_at = datetime.utcnow()
+                                skip_job.error_log = f"Arquivo duplicado - já processado anteriormente"
+                                db_skip.commit()
+                        finally:
+                            db_skip.close()
+
+                        # Remover Inspection órfã criada para este upload
+                        db_cleanup = next(get_db())
+                        try:
+                            orphan = db_cleanup.query(Inspection).filter_by(
+                                drive_file_id=upload_id,
+                                status=InspectionStatus.PROCESSING
+                            ).first()
+                            if orphan:
+                                db_cleanup.delete(orphan)
+                                db_cleanup.commit()
+                                logger.info(f"🧹 Removida Inspection órfã para duplicado: {file.filename}")
+                        finally:
+                            db_cleanup.close()
+
+                        # Informar usuário sobre duplicação
+                        flash(f'Arquivo "{file.filename}" já foi processado anteriormente. Verifique na lista de relatórios.', 'warning')
+                        continue  # Próximo arquivo
+
                     # Re-fetch job in fresh session (processor closes/detaches our objects)
                     db_fresh = next(get_db())
                     try:
