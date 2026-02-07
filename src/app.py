@@ -1481,12 +1481,42 @@ def email_plan(file_id):
         #    return jsonify({'error': f'Envio restrito (Sandbox). Apenas: {", ".join(valid_emails)}'}), 400
 
         if app.email_service:
-             link = f"{request.host_url}download_revised_pdf/{file_id}" 
-             body = f"Olá {target_name},<br><br>Segue o link para o relatório de inspeção: <a href='{link}'>Baixar PDF</a>"
-             
+             link = f"{request.host_url}download_revised_pdf/{file_id}"
+             establishment_name = insp.establishment.name if insp and insp.establishment else 'Estabelecimento'
+
+             html_body = f"""
+             <html>
+             <head></head>
+             <body style="font-family: sans-serif; color: #333;">
+                 <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                     <h2 style="color: #2563eb;">Relatório de Inspeção</h2>
+                     <p>Olá, <strong>{target_name}</strong>.</p>
+                     <p>O relatório de inspeção do estabelecimento <strong>{establishment_name}</strong> está disponível para download.</p>
+                     <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+                         <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: #666;">Clique no botão abaixo para baixar o PDF:</p>
+                         <a href="{link}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Baixar PDF</a>
+                     </div>
+                     <p style="font-size: 0.9rem; color: #666;">Este link é válido e pode ser acessado a qualquer momento.</p>
+                     <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                     <p style="font-size: 0.8rem; color: #999;">Este email foi enviado pelo sistema InspetorAI.</p>
+                 </div>
+             </body>
+             </html>
+             """
+
+             text_body = f"""
+Olá {target_name},
+
+O relatório de inspeção do estabelecimento {establishment_name} está disponível para download.
+
+Acesse o link: {link}
+
+Este email foi enviado pelo sistema InspetorAI.
+             """
+
              # Try/Except for specific SES errors
              try:
-                app.email_service.send_email(target_email, f"Relatório de Inspeção - {insp.establishment.name if insp and insp.establishment else ''}", body, body)
+                app.email_service.send_email(target_email, f"Relatório de Inspeção - {establishment_name}", html_body, text_body)
              except Exception as ses_err:
                  msg = str(ses_err)
                  if "Email address is not verified" in msg:
