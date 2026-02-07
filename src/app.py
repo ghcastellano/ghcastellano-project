@@ -626,7 +626,7 @@ def upload_file():
             
             try:
                 est_alvo = est_alvo_selected
-                
+
                 # Smart Match Fallback (only if no selection)
                 if not est_alvo:
                     # 1. Extrair texto para Smart Match de estabelecimento
@@ -648,7 +648,13 @@ def upload_file():
                         if est.name.strip().upper() in conteudo_texto:
                             est_alvo = est
                             break
-                
+
+                # [FIX] Salvar valores primitivos DEPOIS do smart match
+                # (evita DetachedInstanceError após commit)
+                est_alvo_id = est_alvo.id if est_alvo else None
+                est_alvo_name = est_alvo.name if est_alvo else "N/A"
+                est_alvo_company_id = est_alvo.company_id if est_alvo else None
+
                 # 3. Gerar ID único para o upload (sem salvar no Drive)
                 upload_id = f"upload:{uuid.uuid4()}"
                 logger.info(f"📄 Upload direto (sem Drive): {file.filename} -> {upload_id}")
@@ -668,24 +674,32 @@ def upload_file():
                         drive_file_id=upload_id,
                         drive_web_link=None,
                         status=InspectionStatus.PROCESSING,
-                        establishment_id=est_alvo.id if est_alvo else None
+                        establishment_id=est_alvo_id  # Usa valor primitivo (evita DetachedInstanceError)
                     )
                     db.add(new_insp)
                     db.flush()
                     logger.info(f"✅ Registro de Inspeção {new_insp.id} pré-criado para visibilidade na UI.")
 
+                    # Usar valores primitivos salvos (evita DetachedInstanceError)
+                    job_company_id = current_user.company_id or est_alvo_company_id
+
                     job = Job(
-                        company_id=current_user.company_id or (est_alvo.company_id if est_alvo else None),
+                        company_id=job_company_id,
                         type="PROCESS_REPORT",
                         status=JobStatus.PENDING,
                         input_payload={
                             'file_id': upload_id,
                             'filename': file.filename,
-                            'establishment_id': str(est_alvo.id) if est_alvo else None,
-                            'establishment_name': est_alvo.name if est_alvo else "N/A"
+                            'establishment_id': str(est_alvo_id) if est_alvo_id else None,
+                            'establishment_name': est_alvo_name  # Valor primitivo
                         }
                     )
                     db.add(job)
+                    db.flush()  # Gera o ID sem fechar a sessão
+
+                    # Salvar ID ANTES do commit (evita DetachedInstanceError)
+                    job_id_saved = job.id
+
                     db.commit()
 
                     # [SYNC-MVP] Processar Imediatamente (Sem Worker)
@@ -695,13 +709,10 @@ def upload_file():
 
                     file_meta = {'id': upload_id, 'name': file.filename}
 
-                    job_id_saved = job.id
-                    job_company_id = job.company_id
-
                     result = processor_service.process_single_file(
                         file_meta,
                         company_id=job_company_id,
-                        establishment_id=est_alvo.id if est_alvo else None,
+                        establishment_id=est_alvo_id,  # Valor primitivo (evita DetachedInstanceError)
                         job_id=job_id_saved,
                         file_content=file_bytes
                     )
