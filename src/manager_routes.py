@@ -1345,13 +1345,18 @@ def api_status():
 
         # 3. [FIX] Fetch Pending JOBS (Source of Truth for Processing)
         # This ensures we see uploads even if Establishment Match failed (NULL ID)
+        # [FIX] Only PENDING/PROCESSING - FAILED jobs should NOT appear in "Em Processamento"
         if current_user.company_id:
             from src.models_db import Job, JobStatus
+            from datetime import timedelta
+            cutoff_time = datetime.utcnow() - timedelta(minutes=30)
+
             jobs_query = db.query(Job).filter(
                 Job.company_id == current_user.company_id,
-                Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.FAILED])
+                Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING]),  # [FIX] Removed FAILED
+                Job.created_at >= cutoff_time  # [FIX] Only recent jobs
             )
-            # Filter by Est if selected (if job input has it) 
+            # Filter by Est if selected (if job input has it)
             # Note: Input payload might have establishment_id as string
             pending_jobs = jobs_query.order_by(Job.created_at.desc()).limit(10).all()
             
