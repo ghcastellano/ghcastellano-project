@@ -61,15 +61,15 @@ def cleanup_orphans(dry_run=True, threshold_minutes=10):
                     print(f"  ❌ REMOVIDA")
                     print()
 
-        # 2. Jobs travados (status PENDING há mais de threshold_minutes)
-        print(f"\n📋 JOBS COM STATUS 'PENDING' (threshold: {threshold_minutes} min):")
+        # 2. Jobs travados (status PENDING ou PROCESSING há mais de threshold_minutes)
+        print(f"\n📋 JOBS COM STATUS 'PENDING/PROCESSING' (threshold: {threshold_minutes} min):")
         print("-"*40)
 
         now = datetime.now(timezone.utc)
         threshold = now - timedelta(minutes=threshold_minutes)
 
         stuck_jobs = db.query(Job).filter(
-            Job.status == JobStatus.PENDING
+            Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
         ).all()
 
         if not stuck_jobs:
@@ -94,7 +94,7 @@ def cleanup_orphans(dry_run=True, threshold_minutes=10):
                     print(f"  Status: 🔴 TRAVADO")
                     if not dry_run:
                         job.status = JobStatus.FAILED
-                        job.error_log = "Timeout: Job ficou travado em PENDING"
+                        job.error_log = f"Timeout: Job ficou travado em {job.status.value}"
                         job.finished_at = datetime.now(timezone.utc)
                         print(f"  ⚠️ MARCADO COMO FAILED")
                 else:

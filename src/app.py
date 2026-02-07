@@ -686,7 +686,7 @@ def upload_file():
                     job = Job(
                         company_id=job_company_id,
                         type="PROCESS_REPORT",
-                        status=JobStatus.PENDING,
+                        status=JobStatus.PROCESSING,  # [FIX] Já inicia como PROCESSING (não PENDING)
                         input_payload={
                             'file_id': upload_id,
                             'filename': file.filename,
@@ -701,9 +701,10 @@ def upload_file():
                     job_id_saved = job.id
 
                     db.commit()
+                    db.close()  # [FIX] Fechar sessão explicitamente antes do processamento
 
                     # [SYNC-MVP] Processar Imediatamente (Sem Worker)
-                    logger.info(f"⏳ [SYNC] Iniciando processamento imediato: {file.filename}")
+                    logger.info(f"⏳ [SYNC] Iniciando processamento de {file.filename} (Job: {job_id_saved})")
 
                     from src.services.processor import processor_service
 
