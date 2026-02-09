@@ -46,7 +46,7 @@ class UnauthorizedError(DomainError):
 class BusinessRuleViolationError(DomainError):
     """Raised when a business rule is violated."""
 
-    def __init__(self, rule: str, message: str):
+    def __init__(self, message: str, rule: str = "GENERAL"):
         self.rule = rule
         super().__init__(message, f"BUSINESS_RULE_{rule.upper()}")
 
@@ -74,14 +74,29 @@ class UserNotFoundError(NotFoundError):
         super().__init__("Usuário", user_id)
 
 
+class CompanyNotFoundError(NotFoundError):
+    """Raised when a company is not found."""
+
+    def __init__(self, company_id: str = None):
+        super().__init__("Empresa", company_id)
+
+
+class ActionPlanNotFoundError(NotFoundError):
+    """Raised when an action plan is not found."""
+
+    def __init__(self, plan_id: str = None):
+        super().__init__("Plano de Ação", plan_id)
+
+
 class InvalidStatusTransitionError(BusinessRuleViolationError):
     """Raised when an invalid status transition is attempted."""
 
-    def __init__(self, current_status: str, target_status: str):
+    def __init__(self, current_status: str, new_status: str, entity_type: str = "Entity"):
         self.current_status = current_status
-        self.target_status = target_status
-        message = f"Não é possível mudar de '{current_status}' para '{target_status}'"
-        super().__init__("STATUS_TRANSITION", message)
+        self.new_status = new_status
+        self.entity_type = entity_type
+        message = f"Não é possível mudar {entity_type} de '{current_status}' para '{new_status}'"
+        super().__init__(message, "STATUS_TRANSITION")
 
 
 class InspectionAlreadyProcessedError(BusinessRuleViolationError):
@@ -90,7 +105,7 @@ class InspectionAlreadyProcessedError(BusinessRuleViolationError):
     def __init__(self, inspection_id: str):
         self.inspection_id = inspection_id
         message = f"Inspeção '{inspection_id}' já foi processada"
-        super().__init__("ALREADY_PROCESSED", message)
+        super().__init__(message, "ALREADY_PROCESSED")
 
 
 class DuplicateFileError(BusinessRuleViolationError):
@@ -99,4 +114,4 @@ class DuplicateFileError(BusinessRuleViolationError):
     def __init__(self, file_hash: str):
         self.file_hash = file_hash
         message = "Este arquivo já foi enviado anteriormente"
-        super().__init__("DUPLICATE_FILE", message)
+        super().__init__(message, "DUPLICATE_FILE")
