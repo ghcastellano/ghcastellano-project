@@ -44,26 +44,17 @@ from flask_wtf.csrf import CSRFProtect
 from flask_login import login_required, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 import uuid # Fix uuid not defined error
 import logging
 import json
 import os
 
-# Security module for file validation
-from src.infrastructure.security import FileValidator
+# Security module for file validation and rate limiting
+from src.infrastructure.security import FileValidator, limiter, init_limiter
 import tempfile
 
-# Rate Limiting Configuration
-# Uses remote address for identification, memory storage for simplicity
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
-    strategy="fixed-window"
-)
+# Initialize Rate Limiting with the app
+init_limiter(app)
 
 # App Imports
 from src.config import config

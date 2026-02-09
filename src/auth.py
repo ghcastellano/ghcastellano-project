@@ -4,6 +4,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models_db import User, UserRole
 from .database import get_db
+from .infrastructure.security import limiter
 from sqlalchemy import select
 
 auth_bp = Blueprint('auth', __name__)
@@ -76,8 +77,9 @@ def admin_required(f):
     return role_required(UserRole.ADMIN)(f)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", error_message="Muitas tentativas de login. Aguarde um minuto.")
 def login():
-    # Rate limiting is applied at app level - see app.py
+    # Rate limiting: 5 attempts per minute per IP
     # [MOD] User requested to stay on login page if explicitly visited
     # if current_user.is_authenticated:
     #     if current_user.role == UserRole.MANAGER:
@@ -132,6 +134,7 @@ def logout():
     return redirect(url_for('auth.login'))
 
 @auth_bp.route('/change-password', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", error_message="Muitas tentativas. Aguarde um minuto.")
 @login_required
 def change_password():
     if request.method == 'POST':
