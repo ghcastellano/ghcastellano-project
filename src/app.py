@@ -385,235 +385,21 @@ def root():
 @login_required
 @role_required(UserRole.CONSULTANT)
 def dashboard_consultant():
-    from src.db_queries import get_consultant_inspections, get_pending_jobs
-    from datetime import datetime
-    
-    # [SECURITY] Scope to Consultant's Establishments
-    my_est_ids = [est.id for est in current_user.establishments] if current_user.establishments else []
-    
-    # 1. Fetch Processed/Approved Inspections
-    inspections = get_consultant_inspections(
-        company_id=current_user.company_id, 
-        allowed_establishment_ids=my_est_ids
+    from src.container import get_dashboard_service
+
+    svc = get_dashboard_service()
+    data = svc.get_consultant_dashboard(current_user)
+    data['stats']['last_sync'] = brazil_now().strftime('%H:%M')
+
+    return render_template(
+        'dashboard_consultant.html',
+        user_role='CONSULTANT',
+        inspections=data['inspections'],
+        stats=data['stats'],
+        user_hierarchy=data['user_hierarchy'],
+        pending_establishments=data['pending_establishments'],
+        failed_jobs=data['failed_jobs'],
     )
-    
-    # 2. Fetch Active Jobs (Processing/Pending) to show "Em Análise" items that might be orphans
-    # This ensures "New Store" uploads are visible immediately even if establishment matching is ambiguous
-    pending_jobs = get_pending_jobs(
-        company_id=current_user.company_id,
-        establishment_ids=my_est_ids
-    )
-    
-    # 2. Fetch Active Jobs (Processing/Pending)
-    pending_jobs = get_pending_jobs(
-        company_id=current_user.company_id,
-        establishment_ids=my_est_ids
-    )
-    
-    # [UX] Enhance Links & Deduplicate
-    existing_file_ids = set()
-    
-    # Process Existing Inspections (Loaded from DB)
-    for insp in inspections:
-        existing_file_ids.add(insp.get('id'))
-        # If status is Waiting Approval, prevent Consultant from thinking it's broken
-        if insp.get('status') in ['Aguardando Aprovação', 'PENDING_MANAGER_REVIEW']:
-             insp['review_link'] = "javascript:alert('Este relatório está em análise pelo Gestor. Você será notificado quando for aprovado.')"
-
-    # Merge Jobs (Active or Orphaned)
-    for job in pending_jobs:
-        file_id = job.get('drive_file_id')
-        
-        # Skip if already shown as a processed inspection
-        if file_id and file_id in existing_file_ids:
-            continue
-            
-        # Filter: Show PENDING, PROCESSING, FAILED, and ORPHAN COMPLETED
-        # (Orphan Completed = Completed but not in existing_file_ids, which we just checked)
-        is_completed = (job.get('status_raw') == 'COMPLETED')
-        
-        # Define Link/Action
-        msg = "Arquivo ainda em processamento. Por favor aguarde."
-        if is_completed:
-             msg = "Processamento concluído. O relatório deve aparecer na lista em breve (verifique se a loja está vinculada)."
-        elif job.get('status_raw') == 'FAILED':
-             msg = "Houve uma falha no processamento deste arquivo. Tente enviar novamente."
-
-        # Add to main list
-        inspections.insert(0, {
-            'id': file_id or '#', 
-            'name': job['name'],
-            'establishment': job.get('establishment') or "Em processamento...",
-            'date': job['created_at'],
-            'status': job.get('status', 'Pendente'), 
-            'pdf_link': '#',
-            'review_link': f"javascript:alert('{msg}')"
-        })
-    
-    # [UX] Calculate Quick Stats for Dashboard + Pontuação Geral
-    # Calculate average score from all completed inspections
-    from src.database import get_db
-    from src.models_db import Inspection, InspectionStatus
-
-    avg_score = 0
-    total_score = 0
-    max_score = 0
-
-    if my_est_ids:
-        db_session_score = next(get_db())
-        try:
-            completed_inspections = db_session_score.query(Inspection).filter(
-                Inspection.establishment_id.in_(my_est_ids),
-                Inspection.status.in_([InspectionStatus.COMPLETED, InspectionStatus.PENDING_CONSULTANT_VERIFICATION, InspectionStatus.APPROVED])
-            ).all()
-
-            scores = []
-            for insp in completed_inspections:
-                if insp.ai_raw_response:
-                    ai_data = insp.ai_raw_response
-                    if isinstance(ai_data, dict):
-                        score = ai_data.get('pontuacao_geral', 0)
-                        max_s = ai_data.get('pontuacao_maxima_geral', 100)
-                        if score and max_s:
-                            total_score += float(score)
-                            max_score += float(max_s)
-
-            if max_score > 0:
-                avg_score = round((total_score / max_score * 100), 2)
-        finally:
-            db_session_score.close()
-
-    stats = {
-        'total': len(inspections),
-        'pending': sum(1 for i in inspections if i['status'] in ['PENDING_MANAGER_REVIEW', 'Pendente']),
-        'approved': sum(1 for i in inspections if i['status'] in ['APPROVED', 'COMPLETED', 'Concluído']),
-        'last_sync': brazil_now().strftime('%H:%M'),
-        'pontuacao_geral': total_score,
-        'pontuacao_maxima': max_score,
-        'aproveitamento_geral': avg_score
-    }
-
-    # [NEW] Buscar estabelecimentos com inspeções em análise
-    from src.models_db import Inspection, InspectionStatus, Job, JobStatus
-    from src.database import get_db
-    from sqlalchemy.orm import joinedload
-
-    pending_establishments = []
-    if my_est_ids:
-        db_session_insp = next(get_db())
-        try:
-            pending_inspections = db_session_insp.query(Inspection).filter(
-                Inspection.establishment_id.in_(my_est_ids),
-                Inspection.status.in_([InspectionStatus.PROCESSING, InspectionStatus.PENDING_MANAGER_REVIEW])
-            ).options(joinedload(Inspection.establishment)).all()
-
-            # Extrair estabelecimentos únicos
-            est_set = {insp.establishment for insp in pending_inspections if insp.establishment}
-            pending_establishments = sorted(list(est_set), key=lambda e: e.name)
-        finally:
-            db_session_insp.close()
-
-    # [NEW] Buscar jobs com falha para alertas
-    # - Apenas últimos 30 minutos
-    # - Apenas 1 por arquivo (mais recente)
-    # - Exclui arquivos já processados com sucesso
-    failed_jobs = []
-    if current_user.company_id:
-        db_session_jobs = next(get_db())
-        try:
-            from src.error_codes import ErrorCode
-            from datetime import timedelta
-            from src.models_db import Inspection, InspectionStatus
-
-            cutoff_time = datetime.utcnow() - timedelta(minutes=30)
-
-            failed_job_records = db_session_jobs.query(Job).filter(
-                Job.company_id == current_user.company_id,
-                Job.status == JobStatus.FAILED,
-                Job.created_at >= cutoff_time
-            ).order_by(Job.created_at.desc()).limit(10).all()
-
-            # Agrupar por filename (mostrar apenas o mais recente de cada arquivo)
-            seen_filenames = set()
-
-            for job in failed_job_records:
-                payload = job.input_payload or {}
-                filename = payload.get('filename', 'Arquivo')
-
-                # Skip se já mostramos este arquivo
-                if filename in seen_filenames:
-                    continue
-
-                # Skip se arquivo já foi processado com sucesso
-                file_id = payload.get('file_id')
-                if file_id:
-                    success_insp = db_session_jobs.query(Inspection).filter(
-                        Inspection.drive_file_id == file_id,
-                        Inspection.status != InspectionStatus.PROCESSING
-                    ).first()
-                    if success_insp:
-                        continue
-
-                seen_filenames.add(filename)
-
-                # Parse error_log (pode ser JSON estruturado ou string)
-                error_obj = {'code': 'ERR_9001', 'user_msg': 'Erro desconhecido'}
-                if job.error_log:
-                    try:
-                        # Tentar parsear como JSON
-                        error_obj = json.loads(job.error_log.split('\n')[-1])
-                    except:
-                        # Fallback: usar como string
-                        error_obj = {'code': 'ERR_9001', 'user_msg': job.error_log[:200]}
-
-                failed_jobs.append({
-                    'filename': filename,
-                    'establishment': payload.get('establishment_name', 'N/A'),
-                    'establishment_id': payload.get('establishment_id'),
-                    'error_code': error_obj.get('code', 'ERR_UNKNOWN'),
-                    'error_message': error_obj.get('user_msg', 'Erro desconhecido. Contate o suporte.'),
-                    'created_at': to_brazil_time(job.created_at).strftime('%d/%m/%Y %H:%M') if job.created_at else 'N/A'
-                })
-        finally:
-            db_session_jobs.close()
-
-    # [UX] Build Hierarchy for Upload Selectors
-    user_hierarchy = {}
-    
-    # [FIX] Re-attach user to session to avoid DetachedInstanceError
-    # or query establishments directly
-    from src.database import get_db
-    from src.models_db import User
-    
-    db_session = next(get_db())
-    fresh_user = db_session.query(User).get(current_user.id)
-    
-    # Sort for consistent display
-    if fresh_user and fresh_user.establishments:
-        sorted_ests = sorted(fresh_user.establishments, key=lambda x: x.name)
-        
-        for est in sorted_ests:
-            comp_name = est.company.name if est.company else "Outras"
-            comp_id = str(est.company.id) if est.company else "other"
-            
-            if comp_id not in user_hierarchy:
-                user_hierarchy[comp_id] = {
-                    'name': comp_name,
-                    'establishments': []
-                }
-            
-            user_hierarchy[comp_id]['establishments'].append({
-                'id': str(est.id),
-                'name': est.name
-            })
-    
-    return render_template('dashboard_consultant.html',
-                         user_role='CONSULTANT',
-                         inspections=inspections,
-                         stats=stats,
-                         user_hierarchy=user_hierarchy,
-                         pending_establishments=pending_establishments,
-                         failed_jobs=failed_jobs)
 
 # Rota legado (redireciona para root para tratar auth)
 @app.route('/dashboard')
@@ -1235,242 +1021,76 @@ def download_pdf_route(json_id):
         logger.error(f"Erro download Drive: {e}")
         return f"Erro download: {e}", 500
 
-@app.route('/review/<file_id>') # file_id aqui é o ID do JSON no Drive (ou drive_file_id na table inspections)
+@app.route('/review/<file_id>')
 @login_required
 def review_page(file_id):
-    if not drive_service:
-        # Check if we can proceed with DB only?
-        pass # Continue to try
-
     try:
-        # 1. Tenta carregar do Banco de Dados (Fonte da Verdade Validada)
-        from src.database import get_db
-        from src.models_db import Inspection, ActionPlan, ActionPlanItemStatus
-        db = database.db_session
-        
-        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
-        data = {}
+        from src.container import get_inspection_data_service, get_uow
+
+        data_svc = get_inspection_data_service()
+        result = data_svc.get_review_data(file_id, filter_compliant=True)
+
         contacts_list = []
+        users_list = []
         is_validated = False
 
-        if inspection and inspection.action_plan:
-            plan = inspection.action_plan
+        if result and result.get('plan'):
+            inspection = result['inspection']
+            data = result['data']
             is_validated = True
-            
-            # Populate data from Plan Stats (Source of Truth for Validated Data)
-            # [FIX] Trust the AI for stats if available
-            ai_raw = inspection.ai_raw_response or {}
-            
-            # Use AI Raw as base, overlay with plan stats for edits
-            merged_stats = ai_raw.copy()
-            if plan.stats_json:
-                merged_stats.update(plan.stats_json)
-            
-            data = merged_stats
-            if 'detalhe_pontuacao' not in data:
-                 data['detalhe_pontuacao'] = data.get('by_sector', {})
 
-            # [FIX] Polyfill: Calcular items_nc para dados existentes
-            if 'areas_inspecionadas' in data:
-                for area in data['areas_inspecionadas']:
-                    items_in_area = area.get('itens', [])
-                    # Contar itens onde status NÃO é 'Conforme'
-                    # [V19] Case-insensitive and robust status check
-                    area['items_nc'] = sum(1 for item in items_in_area if 'conforme' in str(item.get('status', '')).lower() and 'não' in str(item.get('status', '')).lower() or 'parcial' in str(item.get('status', '')).lower())
-
-            
-            # [FIX] Reconstruir Itens do BD (Ordenados) para garantir consistência com a Visão do Gestor
-            if inspection.action_plan.items:
-                # 1. Mapear áreas JSON existentes para pontuações/estatísticas E Recuperação de Status
-                rebuilt_areas = {}
-                normalized_area_map = {} # Chave: nome_normalizado -> objeto área
-                
-                # Mapas de busca para recuperação de status
-                score_map_by_index = {} # Chave: (area_name, index) -> dados
-                score_map_by_text = {}  # Chave: texto -> dados
-                
-                if 'areas_inspecionadas' in data:
-                    for area in data['areas_inspecionadas']:
-                        # Usar nome normalizado como chave
-                        key_name = area.get('nome_area') or area.get('name')
-                        if key_name:
-                            rebuilt_areas[key_name] = area
-                            rebuilt_areas[key_name] = area
-                            normalized_area_map[key_name.strip().lower()] = area
-                            
-                            # Construir mapas de pontuação
-                            for idx, item_json in enumerate(area.get('itens', [])):
-                                 # [FIX] Garantir valor numérico seguro (evita NoneType > int)
-                                 score_val = item_json.get('pontuacao', 0)
-                                 if score_val is None: score_val = 0
-                                 
-                                 payload = {
-                                     'pontuacao': float(score_val),
-                                     'status': item_json.get('status')
-                                 }
-                                 score_map_by_index[(key_name, idx)] = payload
-                                 
-                                 text_key = (item_json.get('item_verificado') or item_json.get('observacao') or "").strip()[:50]
-                                 score_map_by_text[text_key] = payload
-
-                            area['itens'] = [] # Limpar itens para reabastecer do BD
-
-                # 2. Ordenar Itens do BD por Índice de Ordem
-                db_items = sorted(
-                    inspection.action_items, 
-                    key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
-                )
-
-                # 3. Popular
-                for item in db_items:
-                    raw_area_name = item.nome_area or "Geral"
-                    norm_area_name = raw_area_name.strip().lower()
-                    
-                    # Busca Robusta de Área
-                    target_area = normalized_area_map.get(norm_area_name)
-                    if target_area:
-                        area_name = target_area['nome_area']
-                    else:
-                        area_name = raw_area_name # Fallback para criar nova (inevitável se realmente nova)
-                    
-                    # Criar área se faltando (improvável se sincronizado, mas seguro)
-                    if area_name not in rebuilt_areas:
-                         rebuilt_areas[area_name] = {
-                             'nome_area': area_name, 
-                             'itens': [], 
-                             'items_nc': 0,
-                             'pontuacao_obtida': 0,
-                             'pontuacao_maxima': 0,
-                             'aproveitamento': 0
-                         }
-                    
-                    # Formatação
-                    deadline_display = item.prazo_sugerido
-                    if item.deadline_date:
-                        try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
-                        except: pass
-                    
-
-                    
-                    # [FILTER] User Request: Only show NC or Partial items in the Review View.
-                    # Copy logic from manager_routes.py
-                    is_compliant_status = False
-                    status_check = (item.original_status or "").upper()
-                    
-                    # Also check recovered status if logic below finds it, but we filter early here
-                    # To do this safely, we need to peek at recovery logic or just use DB props
-                    if 'CONFORME' in status_check and 'NÃO' not in status_check and 'PARCIAL' not in status_check:
-                        is_compliant_status = True
-                    if status_check == 'COMPLIANT' or status_check == 'RESOLVED':
-                         is_compliant_status = True
-                         
-                    if item.status == ActionPlanItemStatus.RESOLVED and not item.manager_notes:
-                         pass # Likely original compliant
-                    
-                    if item.original_score is not None and item.original_score >= 10:
-                        is_compliant_status = True
-                        
-                    if is_compliant_status:
-                        continue # Skip showing this item
-
-                    
-
-                    
-                    # Recuperação Robusta de Status
-                    recovered_data = {}
-                    # Tentar correspondência por Índice
-                    if item.order_index is not None:
-                         recovered_data = score_map_by_index.get((area_name, item.order_index), {})
-                    
-                    # Tentar correspondência por Texto como fallback
-                    if not recovered_data:
-                         full_desc = item.problem_description or ""
-                         candidate_name = full_desc.split(":", 1)[0].strip() if ":" in full_desc else full_desc
-                         recovered_data = score_map_by_text.get(candidate_name[:50], {})
-
-                    recovered_status = recovered_data.get('status')
-                    recovered_score = recovered_data.get('pontuacao', 0)
-
-                    rebuilt_areas[area_name]['itens'].append({
-                        'id': str(item.id),
-                        'item_verificado': item.item_verificado,
-                        'status': recovered_status or item.original_status or 'Não Conforme', 
-                        'observacao': item.problem_description,
-                        'fundamento_legal': item.fundamento_legal,
-                        'acao_corretiva_sugerida': item.corrective_action,
-                        'prazo_sugerido': deadline_display,
-                        'pontuacao': item.original_score if (item.original_score is not None and item.original_score > 0) else (recovered_score if recovered_score > 0 else (item.original_score or 0)),
-                        'manager_notes': item.manager_notes,
-                        'evidence_image_url': item.evidence_image_url,
-                        'status_atual': item.current_status or ('Corrigido' if item.status == ActionPlanItemStatus.RESOLVED else None)
-                    })
-                    
-                # 4. Recalculate NC counts
-                for area in rebuilt_areas.values():
-                    area['items_nc'] = len(area['itens'])
-
-                # 5. Save back to data used by template
-                data['areas_inspecionadas'] = list(rebuilt_areas.values())
-            
-            # Contacts (for Email Modal)
+            # Contacts for sharing modal
             if inspection.establishment:
-                contacts_list = [{'name': c.name, 'phone': c.phone, 'email': c.email, 'role': c.role, 'id': str(c.id)} for c in inspection.establishment.contacts]
+                contacts_list = [
+                    {'name': c.name, 'phone': c.phone, 'email': c.email, 'role': c.role, 'id': str(c.id)}
+                    for c in inspection.establishment.contacts
+                ]
                 if not contacts_list and (inspection.establishment.responsible_name or inspection.establishment.responsible_email):
-                     contacts_list.append({
-                         'name': inspection.establishment.responsible_name or 'Responsável',
-                         'phone': inspection.establishment.responsible_phone,
-                         'email': inspection.establishment.responsible_email,
-                         'role': 'Responsável',
-                         'id': 'default'
-                     })
+                    contacts_list.append({
+                        'name': inspection.establishment.responsible_name or 'Responsavel',
+                        'phone': inspection.establishment.responsible_phone,
+                        'email': inspection.establishment.responsible_email,
+                        'role': 'Responsavel',
+                        'id': 'default',
+                    })
 
-            # Users list for Email Modal (Fetch all users for now, or just company users)
-            # Users list for Email Modal
+            # Users for email modal
             from src.models_db import User
+            uow = get_uow()
             company_id = inspection.establishment.company_id if inspection.establishment else None
-            users_list = db.query(User).filter(User.company_id == company_id).all() if company_id else []
-            
+            if company_id:
+                users_list = uow.users.get_all_by_company(company_id)
+
         else:
-            # Fallback for unproccessed/legacy items
-            # Load from Drive (Legacy)
+            # Fallback for legacy/unprocessed items
+            inspection = None
+            data = {}
             if drive_service and not file_id.startswith('gcs:'):
                 try:
-                    data = drive_service.read_json(file_id)
-                except: data = {}
-            else:
-                data = {}
-
-            if not data: data = {}
-            # Ensure detalhe_pontuacao exists for template compatibility
+                    data = drive_service.read_json(file_id) or {}
+                except Exception:
+                    data = {}
             if 'detalhe_pontuacao' not in data:
-                 data['detalhe_pontuacao'] = {} # Prevent template crash
-            
-            # [FIX] Polyfill: Calculate items_nc for Legacy Drive JSON (Required by template)
-            if 'areas_inspecionadas' in data:
-                for area in data['areas_inspecionadas']:
-                    items_in_area = area.get('itens', [])
-                    # Count items where status is NOT 'Conforme'
-                    area['items_nc'] = sum(1 for item in items_in_area if item.get('status') != 'Conforme')
-            
-            # [HOTFIX] Enrich Data Globally via PDFService Logic (Fixes missing keys like aproveitamento_geral)
+                data['detalhe_pontuacao'] = {}
+
+            # Enrich via PDFService for template compatibility
             try:
-                # Usa o enrich_data do pdf_service para garantir consistência entre PDF e Web
                 pdf_service.enrich_data(data)
-            except Exception as e:
-                logger.warning(f"Failed to enrich data via PDF Service: {e}")
+            except Exception:
+                pass
 
-            # flash("Este relatório ainda não foi processado completamente para a nova visualização.", "warning")
+        return render_template(
+            'review.html',
+            inspection=inspection,
+            report_data=data,
+            users=users_list,
+            contacts=contacts_list,
+            is_validated=is_validated,
+        )
 
-        return render_template('review.html', 
-                             inspection=inspection, 
-                             report_data=data,
-                             users=users_list if 'users_list' in locals() else [],
-                             contacts=contacts_list,
-                             is_validated=is_validated)
-                             
     except Exception as e:
         logger.error(f"Erro ao abrir Review {file_id}: {e}", exc_info=True)
-        return f"<h1>Erro ao abrir revisão</h1><p>{str(e)}</p><p><a href='/'>Voltar</a></p>", 500
+        return f"<h1>Erro ao abrir revisao</h1><p>{str(e)}</p><p><a href='/'>Voltar</a></p>", 500
 
 from src.services.approval_service import approval_service
 
@@ -1657,41 +1277,33 @@ def _handle_service_call(file_id, is_approval):
 @app.route('/api/save_review/<file_id>', methods=['POST'])
 @login_required
 def save_review(file_id):
-    """Salva revisões feitas pelo consultor no Plano de Ação."""
+    """Salva revisoes feitas pelo consultor no Plano de Acao."""
     try:
-        from src.models_db import ActionPlanItem, ActionPlanItemStatus
-        db = database.db_session
+        from src.models_db import ActionPlanItemStatus
+        from src.container import get_uow
+
+        uow = get_uow()
         updates = request.json
 
-        logger.info(f"[SAVE_REVIEW] Recebendo atualizações para {len(updates)} itens")
-
         for item_id_str, data in updates.items():
-            item = db.query(ActionPlanItem).get(uuid.UUID(item_id_str))
-            if item:
-                logger.info(f"[SAVE_REVIEW] Item {item_id_str[:8]}... - Dados: {data}")
+            item = uow.action_plans.get_item_by_id(uuid.UUID(item_id_str))
+            if not item:
+                continue
 
-                if 'is_corrected' in data:
-                    item.status = ActionPlanItemStatus.RESOLVED if data['is_corrected'] else ActionPlanItemStatus.OPEN
-                    item.current_status = 'Corrigido' if data['is_corrected'] else 'Pendente'
-                    logger.info(f"[SAVE_REVIEW] Status atualizado para: {item.current_status}")
+            if 'is_corrected' in data:
+                item.status = ActionPlanItemStatus.RESOLVED if data['is_corrected'] else ActionPlanItemStatus.OPEN
+                item.current_status = 'Corrigido' if data['is_corrected'] else 'Pendente'
 
-                if 'correction_notes' in data:
-                    item.manager_notes = data['correction_notes']
+            if 'correction_notes' in data:
+                item.manager_notes = data['correction_notes']
 
-                if 'evidence_image_url' in data:
-                    evidence_url = data['evidence_image_url']
-                    logger.info(f"[SAVE_REVIEW] Evidence URL recebida: {evidence_url}")
-                    item.evidence_image_url = evidence_url if evidence_url else None
-                    logger.info(f"[SAVE_REVIEW] Evidence URL salva: {item.evidence_image_url}")
-            else:
-                logger.warning(f"[SAVE_REVIEW] Item {item_id_str} não encontrado")
+            if 'evidence_image_url' in data:
+                item.evidence_image_url = data['evidence_image_url'] or None
 
-        db.commit()
-        logger.info(f"[SAVE_REVIEW] Commit realizado com sucesso")
+        uow.commit()
         return jsonify({'success': True})
     except Exception as e:
-        logger.error(f"[SAVE_REVIEW] Erro ao salvar revisão {file_id}: {e}")
-        db.rollback()
+        logger.error(f"[SAVE_REVIEW] Erro ao salvar revisao {file_id}: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/upload_evidence', methods=['POST'])
@@ -1786,144 +1398,26 @@ def serve_evidence(filename):
 
 @app.route('/download_revised_pdf/<file_id>')
 def download_revised_pdf(file_id):
-    """Gera um PDF sincronizado com a visão do Gestor/Consultor."""
-    if not drive_service or not pdf_service:
-        return "Serviços indisponíveis", 500
-        
+    """Gera um PDF sincronizado com a visao do Gestor/Consultor."""
+    if not pdf_service:
+        return 'Servico de PDF indisponivel', 500
+
     try:
-        from src.models_db import Inspection
-        db = database.db_session
-        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
-        
-        if not inspection or not inspection.action_plan:
-            return "Plano não encontrado", 404
+        from src.container import get_inspection_data_service
 
-        # 1. Base Data from AI Raw (Source of Truth for Stats)
-        ai_raw = inspection.ai_raw_response or {}
-        plan = inspection.action_plan
-        
-        # Merge Stats
-        merged_stats = ai_raw.copy()
-        if plan.stats_json:
-            merged_stats.update(plan.stats_json)
-        
-        data = merged_stats
-        
-        # 2. Rebuild Items from DB (Sync with Edits)
-        if inspection.action_plan.items:
-            # Sort items
-            db_items = sorted(
-                inspection.action_items, 
-                key=lambda i: (i.order_index if i.order_index is not None else float('inf'), str(i.id))
-            )
-            
-            # Map areas
-            rebuilt_areas = {}
-            normalized_area_map = {}
-            if 'areas_inspecionadas' in data:
-                for area in data['areas_inspecionadas']:
-                    key = area.get('nome_area') or area.get('name')
-                    if key:
-                         rebuilt_areas[key] = area
-                         # Reset items to fill from DB
-                         area['itens'] = []
-                         normalized_area_map[key.strip().lower()] = area
+        data_svc = get_inspection_data_service()
+        data = data_svc.get_pdf_data(file_id)
 
-            for item in db_items:
-                raw_area_name = item.nome_area or item.sector or "Geral"
-                norm_area_name = raw_area_name.strip().lower()
-                
-                # Find Area
-                target_area = normalized_area_map.get(norm_area_name)
-                if target_area:
-                    area_name = target_area['nome_area']
-                else:
-                    area_name = raw_area_name
-                
-                # Create Area if missing
-                if area_name not in rebuilt_areas:
-                    rebuilt_areas[area_name] = {
-                        'nome_area': area_name,
-                        'itens': [],
-                        'pontuacao_obtida': 0, 
-                        'pontuacao_maxima': 0,
-                        'aproveitamento': 0
-                    }
-                
-                # Format Dates (Priority: Text Edit > Date > AI Suggestion)
-                deadline_display = item.prazo_sugerido # Default: AI
-                
-                if item.deadline_text and item.deadline_text.strip():
-                    deadline_display = item.deadline_text
-                elif item.deadline_date:
-                    try: deadline_display = item.deadline_date.strftime('%d/%m/%Y')
-                    except: pass
-                
-                # Correct Score Logic (Prefer Original if valid, else 0)
-                score_val = item.original_score if item.original_score is not None else 0
-                
-                # Normalize Status for PDF - use original_status from AI as source of truth
-                status_val = item.original_status or "Não Conforme"
+        if not data:
+            return 'Plano nao encontrado', 404
 
-                # Normalize to standard Portuguese labels
-                status_lower = status_val.lower()
-                if 'parcial' in status_lower:
-                    status_val = 'Parcialmente Conforme'
-                elif 'não' in status_lower or 'nao' in status_lower:
-                    status_val = 'Não Conforme'
-                elif 'conforme' in status_lower:
-                    status_val = 'Conforme'
-
-                # Determine if item was corrected by consultant
-                current_status = item.current_status or ''
-                is_corrected = (current_status == 'Corrigido')
-
-                rebuilt_areas[area_name]['itens'].append({
-                    'item_verificado': item.item_verificado,
-                    'status': status_val,
-                    'original_status_label': status_val,
-                    'observacao': item.problem_description,
-                    'fundamento_legal': item.fundamento_legal,
-                    'acao_corretiva_sugerida': item.corrective_action,
-                    'prazo_sugerido': deadline_display,
-                    'pontuacao': float(score_val),
-                    'manager_notes': item.manager_notes,
-                    'evidence_image_url': item.evidence_image_url,
-                    'correction_notes': item.manager_notes,
-                    'is_corrected': is_corrected,
-                })
-
-            # Recalculate NC Counts
-            for area in rebuilt_areas.values():
-                items_in_area = area.get('itens', [])
-                area['items_nc'] = sum(1 for i in items_in_area if i['status'] != 'Conforme')
-            
-            data['areas_inspecionadas'] = list(rebuilt_areas.values())
-
-        # Ensure keys for template
+        # Ensure template keys
         if 'detalhe_pontuacao' not in data:
-             data['detalhe_pontuacao'] = data.get('by_sector', {})
-        if 'pontuacao_geral' not in data: data['pontuacao_geral'] = 0
-        if 'pontuacao_maxima' not in data: data['pontuacao_maxima'] = 0
-        if 'aproveitamento_geral' not in data: data['aproveitamento_geral'] = 0
-
-        # [FIX] Inject Mapped Plan Status for PDF Template
-        # Mapping: APPROVED -> 'AGUARDANDO VISITA', COMPLETED -> 'CONCLUÍDO', Others -> 'EM APROVAÇÃO'
-        status_enum = inspection.status
-        # Ensure we compare against Enum member if possible, or string value
-        status_val = status_enum.value if hasattr(status_enum, 'value') else str(status_enum)
-        
-        if status_val == 'COMPLETED':
-            data['status_plano'] = 'CONCLUÍDO'
-        elif status_val == 'APPROVED' or status_val == 'PENDING_CONSULTANT_VERIFICATION':
-            data['status_plano'] = 'AGUARDANDO VISITA'
-        else:
-             # PENDING_MANAGER_REVIEW, PROCESSING, REJECTED
-            data['status_plano'] = 'EM APROVAÇÃO'
+            data['detalhe_pontuacao'] = data.get('by_sector', {})
 
         # Generate PDF
         pdf_bytes = pdf_service.generate_pdf_bytes(data)
-        
+
         filename = f"Plano_Revisado_{data.get('nome_estabelecimento', 'Relatorio').replace(' ', '_')}.pdf"
         response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'
@@ -1931,17 +1425,8 @@ def download_revised_pdf(file_id):
         return response
 
     except Exception as e:
-        logger.error(f"Erro PDF Gen: {e}")
-        return f"Erro ao gerar PDF: {e}", 500
-        return response
-        response = make_response(pdf_bytes)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
-        
-    except Exception as e:
-        logger.error(f"Erro gerando PDF revisado: {e}")
-        return f"Erro na geração: {e}", 500
+        logger.error(f'Erro PDF Gen: {e}')
+        return f'Erro ao gerar PDF: {e}', 500
 
 @app.route('/api/batch_details', methods=['POST'])
 def batch_details():
@@ -1996,38 +1481,16 @@ def batch_details():
 @login_required
 @role_required(UserRole.CONSULTANT)
 def finalize_verification(file_id):
-    """
-    Finaliza a etapa de verificacao do consultor.
-    Muda status para COMPLETED e gera PDF final se necessario.
-    """
-    db = next(get_db())
-    try:
-        from src.models_db import Inspection, InspectionStatus
-        inspection = db.query(Inspection).filter_by(drive_file_id=file_id).first()
-        if not inspection:
-            return jsonify({'error': 'Inspection not found'}), 404
-        
-        # Validar se usuario pode editar (se pertence a ele ou admin)
-        # TODO: Adicionar validacao de permissao
-        
-        # 1. Update Status
-        inspection.status = InspectionStatus.COMPLETED
-        inspection.updated_at = datetime.utcnow()
-        
-        db.commit()
-        
-        # 2. Trigger Final PDF Generation (Async or Sync)
-        # For now, we assume PDF is generated on demand or already exists. 
-        # Ideally, generate a "Final with Evidence" version.
-        
-        return jsonify({'success': True, 'message': 'Verificação concluída'})
+    """Finaliza a etapa de verificacao do consultor."""
+    from src.container import get_plan_service
 
-    except Exception as e:
-        logger.error(f"Erro ao finalizar verificação {file_id}: {e}")
-        db.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        db.close()
+    plan_svc = get_plan_service()
+    result = plan_svc.finalize_verification(file_id)
+
+    if not result.success:
+        return jsonify({'error': result.message}), 404
+
+    return jsonify({'success': True, 'message': result.message})
 
 @app.route('/api/webhook/drive', methods=['POST'])
 @csrf.exempt # Webhooks from Google don't have CSRF token

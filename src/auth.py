@@ -2,10 +2,9 @@ from functools import wraps
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from .models_db import User, UserRole
-from .database import get_db
+from .models_db import UserRole
+from .container import get_uow
 from .infrastructure.security import limiter
-from sqlalchemy import select
 
 auth_bp = Blueprint('auth', __name__)
 login_manager = LoginManager()
@@ -38,19 +37,17 @@ def unauthorized():
 def load_user(user_id):
     import logging
     auth_logger = logging.getLogger("mvp-app")
-    auth_logger.debug(f"🔍 [load_user] Carregando usuário: {user_id}")
-    db_gen = get_db()
-    db = next(db_gen)
+    auth_logger.debug(f"[load_user] Carregando usuario: {user_id}")
     try:
-        user = db.query(User).get(user_id)
+        uow = get_uow()
+        user = uow.users.get_by_id(user_id)
         if user:
-            auth_logger.debug(f"✅ [load_user] Usuário encontrado: {user.email} (Role: {user.role})")
+            auth_logger.debug(f"[load_user] Usuario encontrado: {user.email} (Role: {user.role})")
         else:
-            auth_logger.debug(f"⚠️ [load_user] Usuário não encontrado ID: {user_id}")
+            auth_logger.debug(f"[load_user] Usuario nao encontrado ID: {user_id}")
         return user
     except Exception as e:
-        auth_logger.error(f"❌ [load_user] Erro ao carregar usuário {user_id}: {e}")
-        db.rollback()
+        auth_logger.error(f"[load_user] Erro ao carregar usuario {user_id}: {e}")
         return None
 
 def role_required(role: str):
@@ -91,21 +88,19 @@ def login():
         password = request.form.get('password')
         remember = True if request.form.get('remember') else False
 
-        db_gen = get_db()
-        db = next(db_gen)
         try:
-            # db is guaranteed to be a session object or raise ConnectionError from get_db()
-            user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
-            
+            uow = get_uow()
+            user = uow.users.get_by_email(email)
+
             if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
                 flash('Email ou senha incorretos.', 'error')
                 return render_template('login.html')
 
             login_user(user, remember=remember)
-            
-            # [FIX] Clean Manager Filter on Login
+
+            # Clean Manager Filter on Login
             session.pop('selected_est_id', None)
-            
+
             # Redirecionamento baseado em Role
             next_page = request.args.get('next')
             if not next_page or not next_page.startswith('/'):
@@ -115,13 +110,11 @@ def login():
                     next_page = url_for('manager.dashboard_manager')
                 else:
                     next_page = url_for('dashboard_consultant')
-            
+
             return redirect(next_page)
-            
+
         except Exception as e:
-            db.rollback()
             flash(f'Erro ao fazer login: {str(e)}', 'error')
-        # finally handled by app teardown for request-scoped sessions
 
     return render_template('login.html')
 
@@ -154,21 +147,20 @@ def change_password():
             flash('A senha deve ter no mínimo 8 caracteres e conter números.', 'error')
             return render_template('change_password.html')
             
-        db = next(get_db())
         try:
-            # Force integrity check on current DB state
-            user = db.query(User).get(current_user.id)
-            
+            uow = get_uow()
+            user = uow.users.get_by_id(current_user.id)
+
             if not check_password_hash(user.password_hash, current_password):
                 flash('Senha atual incorreta.', 'error')
                 return render_template('change_password.html')
-                
+
             user.password_hash = generate_password_hash(new_password)
             user.must_change_password = False
-            db.commit()
-            
+            uow.commit()
+
             flash('Senha atualizada com sucesso! Bem-vindo.', 'success')
-            
+
             # Redirect to correct dashboard
             if user.role == UserRole.MANAGER:
                 return redirect(url_for('manager.dashboard_manager'))
@@ -176,12 +168,9 @@ def change_password():
                 return redirect(url_for('admin.index'))
             else:
                 return redirect(url_for('dashboard_consultant'))
-                
+
         except Exception as e:
-            db.rollback()
             flash(f'Erro ao atualizar senha: {e}', 'error')
-        finally:
-            db.close()
             
     return render_template('change_password.html')
 
