@@ -129,6 +129,43 @@ python3 scripts/migration_app_config.py
 python3 run_dev.py
 ```
 
+### Variáveis de Ambiente
+
+Copie `.env.example` para `.env` e configure as variáveis abaixo:
+
+| Variável | Obrigatória | Descrição |
+|----------|-------------|-----------|
+| `SECRET_KEY` | Sim | Chave secreta Flask para sessões |
+| `DATABASE_URL` | Sim | URL de conexão PostgreSQL |
+| `OPENAI_API_KEY` | Sim | Chave da API OpenAI |
+| `FOLDER_ID_01_ENTRADA_RELATORIOS` | Sim | ID da pasta Google Drive para entrada |
+| `FOLDER_ID_02_PLANOS_GERADOS` | Sim | ID da pasta para planos gerados |
+| `FOLDER_ID_03_PROCESSADOS_BACKUP` | Sim | ID da pasta para backups |
+| `FOLDER_ID_99_ERROS` | Não | ID da pasta para arquivos com erro |
+| `GCP_PROJECT_ID` | Não | ID do projeto GCP |
+| `GCP_STORAGE_BUCKET` | Não | Nome do bucket GCS |
+| `WHATSAPP_TOKEN` | Não | Token da API WhatsApp Business |
+| `FLASK_DEBUG` | Não | Ativa modo debug (true/false) |
+
+**Variáveis de Pool de Conexão (opcionais):**
+- `DB_POOL_SIZE` (default: 2)
+- `DB_MAX_OVERFLOW` (default: 3)
+- `DB_POOL_TIMEOUT` (default: 30)
+- `DB_POOL_RECYCLE` (default: 1800)
+
+### Executando Testes
+
+```bash
+# Rodar todos os testes
+pytest tests/ -v
+
+# Apenas testes unitários
+pytest tests/unit/ -v
+
+# Com cobertura
+pytest tests/ -v --cov=src --cov-report=html
+```
+
 ## 📝 Desenvolvimento
 
 ### Diretrizes do Projeto
