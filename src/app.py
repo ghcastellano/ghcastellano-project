@@ -14,21 +14,51 @@ from src.config import config
 import uuid
 
 # Configuração de Logs (JSON Estruturado para Cloud Logging)
+import re
+
+# Patterns for sensitive data that should be masked in logs
+SENSITIVE_PATTERNS = [
+    (re.compile(r'(sk-[a-zA-Z0-9]{20,})'), r'sk-***REDACTED***'),  # OpenAI API keys
+    (re.compile(r'(password["\']?\s*[:=]\s*["\']?)([^"\'&\s]+)', re.I), r'\1***REDACTED***'),  # Passwords
+    (re.compile(r'(api[_-]?key["\']?\s*[:=]\s*["\']?)([^"\'&\s]+)', re.I), r'\1***REDACTED***'),  # API keys
+    (re.compile(r'(token["\']?\s*[:=]\s*["\']?)([^"\'&\s]+)', re.I), r'\1***REDACTED***'),  # Tokens
+    (re.compile(r'(secret["\']?\s*[:=]\s*["\']?)([^"\'&\s]+)', re.I), r'\1***REDACTED***'),  # Secrets
+    (re.compile(r'(Bearer\s+)([a-zA-Z0-9._-]+)', re.I), r'\1***REDACTED***'),  # Bearer tokens
+]
+
+
+def sanitize_log_message(message: str) -> str:
+    """Remove sensitive data patterns from log messages."""
+    for pattern, replacement in SENSITIVE_PATTERNS:
+        message = pattern.sub(replacement, message)
+    return message
+
+
 class JsonFormatter(logging.Formatter):
     def format(self, record):
+        # Sanitize the message to remove sensitive data
+        sanitized_message = sanitize_log_message(record.getMessage())
+
         json_log = {
             "severity": record.levelname,
-            "message": record.getMessage(),
+            "message": sanitized_message,
             "timestamp": self.formatTime(record, self.datefmt),
             "logger": record.name,
             "module": record.module,
         }
         if hasattr(record, "props"):
-            json_log.update(record.props)
-            
+            # Sanitize props values too
+            sanitized_props = {}
+            for k, v in record.props.items():
+                if isinstance(v, str):
+                    sanitized_props[k] = sanitize_log_message(v)
+                else:
+                    sanitized_props[k] = v
+            json_log.update(sanitized_props)
+
         if record.exc_info:
-            json_log["exception"] = self.formatException(record.exc_info)
-            
+            json_log["exception"] = sanitize_log_message(self.formatException(record.exc_info))
+
         return json.dumps(json_log)
 
 handler = logging.StreamHandler()
