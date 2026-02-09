@@ -1287,6 +1287,16 @@
             const urlParams = new URLSearchParams(window.location.search);
             const estId = urlParams.get('establishment_id') || '';
             const response = await fetch(`/api/status?establishment_id=${estId}&v=` + new Date().getTime());
+
+            // Handle session expiration
+            if (response.status === 401) {
+                const errorData = await response.json();
+                console.warn('Sessão expirada:', errorData);
+                // Redirect to login
+                window.location.href = errorData.redirect || '/auth/login';
+                return;
+            }
+
             const data = await response.json();
 
             // Pending
@@ -1710,6 +1720,20 @@
 
         try {
             const res = await fetch(`/api/tracker/${inspId}`);
+
+            // Handle session expiration (401 Unauthorized)
+            if (res.status === 401) {
+                const data = await res.json();
+                titleEl.innerText = "Sessão expirada";
+                logsEl.innerHTML = `<div style="color: #f59e0b;">
+                    <p style="margin-bottom: 10px;">${data.error || 'Sua sessão expirou.'}</p>
+                    <a href="${data.redirect || '/auth/login'}" style="color: #3b82f6; text-decoration: underline;">
+                        Clique aqui para fazer login novamente
+                    </a>
+                </div>`;
+                return;
+            }
+
             const data = await res.json();
 
             if (data.error) {
@@ -1779,8 +1803,14 @@
             stepperEl.innerHTML = html;
 
         } catch (e) {
-            console.error(e);
+            console.error('Erro ao carregar tracker:', e);
             titleEl.innerText = "Erro de conexão";
+            logsEl.innerHTML = `<div style="color: #ef4444;">
+                <p>Não foi possível carregar as informações.</p>
+                <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 5px;">
+                    Verifique sua conexão e tente novamente.
+                </p>
+            </div>`;
         }
     }
     // Expose

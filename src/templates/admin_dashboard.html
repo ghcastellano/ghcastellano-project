@@ -474,6 +474,19 @@
         const tbody = document.getElementById('monitoring-tbody');
         try {
             const res = await fetch('/admin/api/monitor', { headers: { 'Accept': 'application/json' } });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="color: #f59e0b;">
+                    <p style="margin-bottom: 10px;">Sessão expirada.</p>
+                    <a href="${errorData.redirect || '/auth/login'}" style="color: #3b82f6; text-decoration: underline;">
+                        Clique aqui para fazer login novamente
+                    </a>
+                </td></tr>`;
+                return;
+            }
+
             if (res.ok) {
                 const data = await res.json();
                 if (data.items && data.items.length > 0) {
@@ -609,6 +622,19 @@
         const container = document.getElementById('settingsContainer');
         try {
             const res = await fetch('/admin/api/settings', { headers: { 'Accept': 'application/json' } });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                container.innerHTML = `<div class="card"><div class="card-body" style="color:#f59e0b;">
+                    <p style="margin-bottom: 10px;">Sessão expirada.</p>
+                    <a href="${errorData.redirect || '/auth/login'}" style="color: #3b82f6; text-decoration: underline;">
+                        Clique aqui para fazer login novamente
+                    </a>
+                </div></div>`;
+                return;
+            }
+
             const data = await res.json();
             if (data.error) {
                 container.innerHTML = `<div class="card"><div class="card-body" style="color:#ef4444;">${data.error}</div></div>`;
@@ -696,6 +722,15 @@
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: JSON.stringify(payload)
             });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                showToast('Sessão expirada. Redirecionando para login...', 'error');
+                setTimeout(() => window.location.href = errorData.redirect || '/auth/login', 1500);
+                return;
+            }
+
             const data = await res.json();
             if (res.ok) {
                 showToast(data.message || 'Salvo!', 'success');
@@ -823,6 +858,20 @@
 
         try {
             const res = await fetch(`/admin/api/tracker/${inspId}`);
+
+            // Handle session expiration (401 Unauthorized)
+            if (res.status === 401) {
+                const data = await res.json();
+                titleEl.innerText = "Sessão expirada";
+                logsEl.innerHTML = `<div style="color: #f59e0b;">
+                    <p style="margin-bottom: 10px;">${data.error || 'Sua sessão expirou.'}</p>
+                    <a href="${data.redirect || '/auth/login'}" style="color: #3b82f6; text-decoration: underline;">
+                        Clique aqui para fazer login novamente
+                    </a>
+                </div>`;
+                return;
+            }
+
             const data = await res.json();
 
             if (data.error) {
@@ -889,8 +938,14 @@
             stepperEl.innerHTML = html;
 
         } catch (e) {
-            console.error(e);
+            console.error('Erro ao carregar tracker:', e);
             titleEl.innerText = "Erro de conexão";
+            logsEl.innerHTML = `<div style="color: #ef4444;">
+                <p>Não foi possível carregar as informações.</p>
+                <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 5px;">
+                    Verifique sua conexão e tente novamente.
+                </p>
+            </div>`;
         }
     }
 
@@ -961,6 +1016,15 @@
                 body: formData,
                 headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
             });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                showToast('Sessão expirada. Redirecionando para login...', 'error');
+                setTimeout(() => window.location.href = errorData.redirect || '/auth/login', 1500);
+                return;
+            }
+
             const data = await res.json();
 
             if (res.ok) {
@@ -1033,6 +1097,15 @@
                 body: formData,
                 headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
             });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                showToast('Sessão expirada. Redirecionando para login...', 'error');
+                setTimeout(() => window.location.href = errorData.redirect || '/auth/login', 1500);
+                return;
+            }
+
             const data = await res.json();
 
             if (res.ok) {
@@ -1075,6 +1148,15 @@
                 method: 'POST',
                 headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
             });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                showToast('Sessão expirada. Redirecionando para login...', 'error');
+                setTimeout(() => window.location.href = errorData.redirect || '/auth/login', 1500);
+                return;
+            }
+
             const data = await res.json();
 
             if (res.ok) {
@@ -1122,6 +1204,15 @@
                 body: formData,
                 headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
             });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                showToast('Sessão expirada. Redirecionando para login...', 'error');
+                setTimeout(() => window.location.href = errorData.redirect || '/auth/login', 1500);
+                return;
+            }
+
             const data = await res.json();
 
             if (res.ok) {
@@ -1236,6 +1327,15 @@
                 body: formData,
                 headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
             });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                showToast('Sessão expirada. Redirecionando para login...', 'error');
+                setTimeout(() => window.location.href = errorData.redirect || '/auth/login', 1500);
+                return;
+            }
+
             const data = await res.json();
 
             if (res.ok) {
@@ -1332,6 +1432,15 @@
                 method: 'POST',
                 headers: { 'Accept': 'application/json', 'X-CSRFToken': getCsrfToken() }
             });
+
+            // Handle session expiration (401)
+            if (res.status === 401) {
+                const errorData = await res.json();
+                showToast('Sessão expirada. Redirecionando para login...', 'error');
+                setTimeout(() => window.location.href = errorData.redirect || '/auth/login', 1500);
+                return;
+            }
+
             const data = await res.json();
 
             if (res.ok) {

@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models_db import User, UserRole
@@ -11,6 +11,27 @@ login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Por favor, faça login para acessar esta página.'
 login_manager.login_message_category = 'warning'
+
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    """
+    Handle unauthorized access - return JSON for API requests, redirect otherwise.
+    This prevents the 'Unexpected token <' error when API endpoints receive HTML login page.
+    """
+    # Check if this is an API request (expects JSON response)
+    if (request.path.startswith('/api/') or
+        request.accept_mimetypes.accept_json and
+        not request.accept_mimetypes.accept_html):
+        return jsonify({
+            'error': 'Sessão expirada ou não autenticado',
+            'code': 'UNAUTHORIZED',
+            'redirect': url_for('auth.login')
+        }), 401
+
+    # Regular HTML request - redirect to login
+    flash(login_manager.login_message, login_manager.login_message_category)
+    return redirect(url_for('auth.login', next=request.url))
 
 @login_manager.user_loader
 def load_user(user_id):
