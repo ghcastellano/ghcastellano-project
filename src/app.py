@@ -761,165 +761,75 @@ Erro técnico: {str(job_e)[:200]}
 @login_required
 def get_status():
     try:
-        if not drive_service:
-            return jsonify({'error': 'Drive unavailable'}), 500
+        from src.container import get_dashboard_service
+        import uuid as _uuid
 
-        # Recupera parametro de filtro
-        import uuid
         est_id = request.args.get('establishment_id')
         est_uuid = None
-        if est_id and est_id.strip() and est_id != 'null' and est_id != 'undefined': # Verificação robusta
+        if est_id and est_id.strip() and est_id not in ('null', 'undefined'):
             try:
-                est_uuid = uuid.UUID(est_id)
-            except:
-                pass # Ignora UUID inválido
-                
-        # Tenta banco primeiro, fallback para Drive se vazio ou erro
-        use_db = os.getenv('DATABASE_URL') is not None
-        
-        if use_db:
-            try:
-                from src.db_queries import get_pending_inspections, get_processed_inspections_raw, get_consultant_inspections, get_pending_jobs, get_consultant_pending_inspections
-                
-                # Lógica baseada em Role
-                if current_user.role == UserRole.CONSULTANT:
-                    # [FIX] Acesso seguro a relacionamentos
-                    my_est_ids = [est.id for est in current_user.establishments] if current_user.establishments else []
-                    user_company_id = current_user.company_id
-                    
-                    pending_jobs = get_pending_jobs(
-                        company_id=user_company_id, 
-                        establishment_ids=my_est_ids
-                    ) 
-                    
-                    # Fix: Usuário sem establishment_id, usa lista de relacionamentos
-                    filter_est_id = my_est_ids[0] if my_est_ids else None
-                    
-                    # Busca Aguardando Aprovação (Visão Global da Empresa)
-                    pending_approval = get_consultant_pending_inspections(
-                        establishment_id=filter_est_id,
-                        company_id=user_company_id,
-                        establishment_ids=my_est_ids
-                    )
-                    
-                    # Combine technical jobs with business pending items
-                    pending = pending_jobs 
-                    
-                    processed_raw = get_consultant_inspections(company_id=user_company_id, allowed_establishment_ids=my_est_ids)
-                else:
-                    # Gestor vê tudo ou filtrado
-                    # [TEMP] Allow Manager to see ALL companies (Super View) to debug orphaned reports
-                    user_company_id = None 
-                    
-                    pending = get_pending_jobs(
-                        company_id=None, 
-                        allow_all=True,
-                        establishment_ids=[est_uuid] if est_uuid else None
-                    ) 
-                    # Fix: Enable "Aguardando Aprovação" for Managers using Company Scope
-                    pending_approval = get_consultant_pending_inspections(
-                         company_id=None,
-                         establishment_id=est_uuid
-                    ) 
-                    processed_raw = get_processed_inspections_raw(company_id=None, establishment_id=est_uuid)
-                
-                # Se o banco retornou dados (ou consultor vazio mas ok), usa eles
-                if processed_raw is not None:  
-                    def list_errors():
-                        try:
-                            # Improve error mapping here or just return raw names
-                            files = drive_service.list_files(FOLDER_ERROR, extension='.pdf')
-                            mapped_errors = []
-                            for f in files[:10]:
-                                mapped_errors.append({'name': f['name'], 'error': 'Erro no processamento (Verificar logs)'})
-                            return mapped_errors
-                        except Exception as e:
-                            logger.error(f"Erro listando falhas no Drive: {e}")
-                            return []
-                    
-                    return jsonify({
-                        'pending': pending,
-                        'in_approval': pending_approval, 
-                        'processed_raw': processed_raw,
-                        'errors': list_errors()
-                    })
-                else:
-                    # Banco vazio/falhou, usa Drive
-                    logger.info("Banco de dados retornou None, buscando no Drive")
-            except Exception as e:
-                logger.warning(f"Falha na consulta ao Banco, buscando no Drive: {e}")
-        
-    except Exception as fatal_e:
-        logger.error(f"ERRO FATAL em /api/status: {fatal_e}")
-        return jsonify({'error': str(fatal_e)}), 500
+                est_uuid = _uuid.UUID(est_id)
+            except ValueError:
+                pass
 
-    # Lógica original baseada no Drive (fallback)
-    
-    # Lógica original baseada no Drive (fallback) - APENAS GESTOR OU FALLBACK GERAL
-    # Se for consultor e cair no fallback, ele veria tudo (segurança por obscuridade no MVP fallback)
-    # Idealmente, filtrar aqui também, mas JSON do drive não tem status fácil.
-    
-    def list_pending():
-        try:
-            files = drive_service.list_files(FOLDER_IN, extension='.pdf')
-            return [{'name': f['name']} for f in files[:10]]
-        except: return []
+        svc = get_dashboard_service()
+        data = svc.get_status_data(current_user, establishment_id=est_uuid)
+        return jsonify(data)
 
-    def list_errors():
-        try:
-            files = drive_service.list_files(FOLDER_ERROR, extension='.pdf')
-            return [{'name': f['name']} for f in files[:10]]
-        except: return []
-
-    def list_processed_raw():
-        try:
-            json_files = drive_service.list_files(FOLDER_OUT, extension='.json')
-            return [{'id': f['id'], 'name': f['name']} for f in json_files[:30]]
-        except Exception as e:
-            logger.error(f"Erro escaneando output: {e}")
-            return []
-        
-    return jsonify({
-        'pending': list_pending(),
-        'processed_raw': list_processed_raw(),
-        'errors': list_errors()
-    })
+    except Exception as e:
+        logger.error(f"Erro em /api/status: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/processed_item/<file_id>')
 def get_processed_item_details(file_id):
     """Retorna detalhes de um item processado específico (Lazy Load)."""
-    if not drive_service:
-        return jsonify({'error': 'Drive unavailable'}), 500
-    
-    # Try database first
-    use_db = os.getenv('DATABASE_URL') is not None
-    if use_db:
-        try:
-            from src.db_queries import get_inspection_details
-            details = get_inspection_details(file_id)
-            if details:
-                return jsonify(details)
-            # If not found in DB, try Drive fallback
-        except Exception as e:
-            logger.warning(f"Falha na consulta ao Banco para {file_id}, buscando no Drive: {e}")
-        
-    # Lógica original baseada no Drive (fallback)
     try:
-        data = drive_service.read_json(file_id)
-        basename = data.get('titulo', 'Relatório Sem Título')
-        pdf_name = f"{basename}.pdf"
-        estab = data.get('estabelecimento', 'Outros')
-        
-        item = {
-            'id': file_id,
-            'name': data.get('titulo', 'Relatório Processado'),
-            'establishment': estab,
-            'date': data.get('data_inspecao', ''),
-            'pdf_name': pdf_name,
-            'pdf_link': f"/download_pdf/{file_id}", 
-            'review_link': f"/review/{file_id}",
-        }
-        return jsonify(item)
+        from src.container import get_uow
+
+        uow = get_uow()
+        inspection = uow.inspections.get_with_plan_by_file_id(file_id)
+
+        if inspection:
+            ai_data = inspection.ai_raw_response or {}
+            est_name = inspection.establishment.name if inspection.establishment else 'Desconhecido'
+            result = {
+                'id': inspection.drive_file_id,
+                'name': ai_data.get('titulo', 'Relatório Processado'),
+                'establishment': est_name,
+                'date': ai_data.get('data_inspecao', ''),
+                'pdf_name': f"{est_name}.pdf",
+                'pdf_link': f"/download_pdf/{inspection.drive_file_id}",
+                'review_link': f"/review/{inspection.drive_file_id}",
+            }
+            if inspection.action_plan:
+                result['action_plan'] = {
+                    'final_pdf_link': getattr(inspection.action_plan, 'final_pdf_public_link', None),
+                    'items': [{
+                        'id': str(item.id),
+                        'problem': item.problem_description,
+                        'action': item.corrective_action,
+                        'legal_basis': item.legal_basis,
+                        'severity': item.severity.value if item.severity else 'MEDIUM',
+                        'status': item.status.value if item.status else 'OPEN',
+                    } for item in inspection.action_plan.items],
+                }
+            return jsonify(result)
+
+        # Fallback: try Drive
+        if drive_service:
+            data = drive_service.read_json(file_id)
+            return jsonify({
+                'id': file_id,
+                'name': data.get('titulo', 'Relatório Processado'),
+                'establishment': data.get('estabelecimento', 'Outros'),
+                'date': data.get('data_inspecao', ''),
+                'pdf_name': f"{data.get('titulo', 'Relatório')}.pdf",
+                'pdf_link': f"/download_pdf/{file_id}",
+                'review_link': f"/review/{file_id}",
+            })
+
+        return jsonify({'error': 'Inspeção não encontrada'}), 404
+
     except Exception as e:
         logger.error(f"Erro lendo item {file_id}: {e}")
         return jsonify({'error': str(e)}), 500
@@ -1430,50 +1340,55 @@ def download_revised_pdf(file_id):
 
 @app.route('/api/batch_details', methods=['POST'])
 def batch_details():
-    """
-    Endpoint otimizado para buscar detalhes de múltiplos arquivos de uma vez.
-    """
-    if not drive_service:
-        return jsonify({'error': 'Drive unavailable'}), 500
-        
+    """Endpoint otimizado para buscar detalhes de múltiplos arquivos de uma vez."""
     file_ids = request.json.get('ids', [])
     if not file_ids:
         return jsonify({})
-    
-    # Try database first
-    use_db = os.getenv('DATABASE_URL') is not None
-    if use_db:
-        try:
-            from src.db_queries import get_batch_inspection_details
-            results = get_batch_inspection_details(file_ids[:15])
-            if results:
-                return jsonify(results)
-        except Exception as e:
-            logger.warning(f"Database batch query failed, falling back to Drive: {e}")
-    
-    # Original Drive-based logic (fallback)
-    results = {}
-    for fid in file_ids[:15]:
-        try:
-            data = drive_service.read_json(fid)
-            basename = data.get('titulo', 'Relatório')
-            pdf_name = f"{basename}.pdf"
-            estab = data.get('estabelecimento', 'Outros')
-            
-            results[fid] = {
-                'id': fid,
-                'name': data.get('titulo', 'Relatório Processado'),
-                'establishment': estab,
-                'date': data.get('data_inspecao', ''),
-                'pdf_name': pdf_name,
-                'pdf_link': f"/download_pdf/{fid}",
-                'review_link': f"/review/{fid}"
+
+    try:
+        from src.container import get_uow
+
+        uow = get_uow()
+        inspections = uow.inspections.get_batch_by_file_ids(file_ids[:15])
+
+        results = {}
+        for insp in inspections:
+            ai_data = insp.ai_raw_response or {}
+            est_name = insp.establishment.name if insp.establishment else 'Desconhecido'
+            results[insp.drive_file_id] = {
+                'id': insp.drive_file_id,
+                'name': ai_data.get('titulo', 'Relatório Processado'),
+                'establishment': est_name,
+                'date': ai_data.get('data_inspecao', ''),
+                'pdf_name': f"{est_name}.pdf",
+                'pdf_link': f"/download_pdf/{insp.drive_file_id}",
+                'review_link': f"/review/{insp.drive_file_id}",
             }
-        except Exception as e:
-            logger.error(f"Error reading {fid}: {e}")
-            results[fid] = {'error': str(e)}
-    
-    return jsonify(results)
+
+        # Drive fallback for IDs not found in DB
+        missing = [fid for fid in file_ids[:15] if fid not in results]
+        if missing and drive_service:
+            for fid in missing:
+                try:
+                    data = drive_service.read_json(fid)
+                    results[fid] = {
+                        'id': fid,
+                        'name': data.get('titulo', 'Relatório Processado'),
+                        'establishment': data.get('estabelecimento', 'Outros'),
+                        'date': data.get('data_inspecao', ''),
+                        'pdf_name': f"{data.get('titulo', 'Relatório')}.pdf",
+                        'pdf_link': f"/download_pdf/{fid}",
+                        'review_link': f"/review/{fid}",
+                    }
+                except Exception as e:
+                    logger.error(f"Error reading {fid} from Drive: {e}")
+                    results[fid] = {'error': str(e)}
+
+        return jsonify(results)
+
+    except Exception as e:
+        logger.error(f"Erro em batch_details: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 

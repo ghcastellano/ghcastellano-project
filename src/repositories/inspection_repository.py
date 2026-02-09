@@ -131,6 +131,15 @@ class InspectionRepository:
             Inspection.created_at >= cutoff,
         ).order_by(Inspection.created_at.desc()).limit(limit).all()
 
+    def get_batch_by_file_ids(self, file_ids: List[str]) -> List[Inspection]:
+        """Get multiple inspections by drive_file_id list."""
+        if not file_ids:
+            return []
+        return self._session.query(Inspection).options(
+            joinedload(Inspection.establishment),
+            joinedload(Inspection.action_plan),
+        ).filter(Inspection.drive_file_id.in_(file_ids)).all()
+
     def add(self, inspection: Inspection) -> Inspection:
         self._session.add(inspection)
         return inspection
