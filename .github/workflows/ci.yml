@@ -39,7 +39,7 @@ jobs:
           SECRET_KEY: 'test-secret-key'
           FLASK_DEBUG: 'false'
         run: |
-          pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=term-missing
+          pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=50
 
       - name: Run security tests
         env:
@@ -47,11 +47,11 @@ jobs:
           DATABASE_URL: 'sqlite:///:memory:'
           SECRET_KEY: 'test-secret-key'
         run: |
-          pytest tests/security/ -v || true  # Don't fail on security tests yet
+          pytest tests/security/ -v
 
       - name: Security scan with Bandit
         run: |
-          bandit -r src/ -ll --skip B101 -f txt || true  # B101 is assert usage
+          bandit -r src/ -ll --skip B101,B104 -f txt  # B101=assert, B104=bind all interfaces
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

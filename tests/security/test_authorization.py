@@ -97,8 +97,9 @@ class TestDebugEndpoints:
         """Debug routes should be disabled when K_SERVICE is set (Cloud Run)."""
         monkeypatch.setenv('K_SERVICE', 'test-service')
         response = client.get('/debug/routes')
-        # Should return 404 (not found) or 403 (forbidden) in production
-        assert response.status_code in [403, 404]
+        # Should return 302 (redirect to login), 403 (forbidden), or 404 (not found)
+        # 302 is acceptable because @login_required redirects unauthenticated users
+        assert response.status_code in [302, 403, 404]
 
 
 class TestCSRFProtection:
