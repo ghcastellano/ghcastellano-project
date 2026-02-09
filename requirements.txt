@@ -12,6 +12,7 @@ tomli
 gunicorn
 flask-login
 flask-wtf
+flask-limiter
 google-cloud-tasks
 google-auth
 pytest

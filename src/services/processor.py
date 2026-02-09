@@ -54,12 +54,10 @@ class ProcessorService:
         try:
             api_key = get_config("OPENAI_API_KEY")
             if api_key:
-                # Security Log: Only show prefix and suffix
-                prefix = api_key[:10] if len(api_key) > 10 else "SHORT"
-                suffix = api_key[-4:] if len(api_key) > 4 else "????"
-                logger.info("OpenAI Key Status", prefix=f"{prefix}...", suffix=f"...{suffix}")
+                # Security: Only log that key is present, never log any part of the key
+                logger.info("OpenAI API key configured: YES")
             else:
-                logger.warning("OPENAI_API_KEY não encontrada nas variáveis de ambiente.")
+                logger.warning("OpenAI API key configured: NO - OPENAI_API_KEY not found")
                 
             from openai import OpenAI
             self.client = OpenAI(api_key=api_key) if api_key else None

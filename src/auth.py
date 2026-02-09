@@ -56,6 +56,7 @@ def admin_required(f):
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    # Rate limiting is applied at app level - see app.py
     # [MOD] User requested to stay on login page if explicitly visited
     # if current_user.is_authenticated:
     #     if current_user.role == UserRole.MANAGER:

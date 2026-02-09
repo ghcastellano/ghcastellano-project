@@ -44,11 +44,26 @@ from flask_wtf.csrf import CSRFProtect
 from flask_login import login_required, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import uuid # Fix uuid not defined error
 import logging
 import json
 import os
+
+# Security module for file validation
+from src.infrastructure.security import FileValidator
 import tempfile
+
+# Rate Limiting Configuration
+# Uses remote address for identification, memory storage for simplicity
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
 
 # App Imports
 from src.config import config
@@ -109,13 +124,19 @@ try:
     from src.cron_routes import cron_bp, cron_sync_drive
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(admin_bp) 
+    app.register_blueprint(admin_bp)
     app.register_blueprint(manager_bp)
     app.register_blueprint(cron_bp)
-    
+
+    # Rate limiting for login endpoint (5 attempts per minute per IP)
+    limiter.limit("5 per minute")(app.view_functions['auth.login'])
+
     # Exempt Cron from CSRF (Done here to avoid circular import)
     csrf.exempt(cron_sync_drive)
-    
+
+    # Exempt Cron from rate limiting
+    limiter.exempt(cron_sync_drive)
+
     logger.info("✅ Blueprints Registrados: auth, admin, manager")
     
     # Debug: List all rules
@@ -125,15 +146,27 @@ except Exception as bp_error:
     logger.error(f"❌ Erro Crítico ao registrar Blueprints: {bp_error}")
     raise bp_error
 
+# Debug endpoints - DISABLED in production (Cloud Run)
+# These endpoints expose internal information and should only be available in development
+IS_PRODUCTION = os.getenv('K_SERVICE') is not None  # K_SERVICE is set in Cloud Run
+DEBUG_MODE = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+
+
 @app.route('/debug/routes')
 def debug_routes():
+    # Security: Disable in production
+    if IS_PRODUCTION and not DEBUG_MODE:
+        logger.warning("Attempted access to /debug/routes in production")
+        return "Not Found", 404
+
     if not current_user.is_authenticated or current_user.role != UserRole.ADMIN:
         return "Unauthorized", 403
-    
+
     rules = []
     for rule in app.url_map.iter_rules():
         rules.append(f"{rule.endpoint}: {rule}")
     return "<br>".join(rules)
+
 
 @app.route('/debug/config')
 @login_required
@@ -142,6 +175,11 @@ def debug_config():
     """
     Zero Defect Check: Verify if Cloud Run Env Vars are actually injected.
     """
+    # Security: Disable in production
+    if IS_PRODUCTION and not DEBUG_MODE:
+        logger.warning("Attempted access to /debug/config in production")
+        return jsonify({'error': 'Not Found'}), 404
+
     keys = ['GCP_PROJECT_ID', 'GCP_LOCATION', 'DATABASE_URL', 'FOLDER_ID_01_ENTRADA_RELATORIOS']
     status = {}
     for k in keys:
@@ -570,6 +608,7 @@ def get_friendly_error_message(e):
     return f"Erro processamento: {msg}"
 
 @app.route('/upload', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")  # Rate limit: 10 uploads per minute per IP
 @login_required
 @role_required(UserRole.CONSULTANT)
 def upload_file():
@@ -612,17 +651,29 @@ def upload_file():
         user_email = current_user.email
         user_name = current_user.name
 
+        # Initialize file validator (validates magic bytes, not just extension)
+        pdf_validator = FileValidator.create_pdf_validator(max_size_mb=50)
+
         for file in uploaded_files:
             if not file or file.filename == '':
-                continue
-            
-            if not file.filename.lower().endswith('.pdf'):
-                flash(f'Arquivo {file.filename} ignorado: apenas PDFs são permitidos.', 'warning')
                 continue
 
             nome_seguro = secure_filename(file.filename)
             caminho_temp = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}_{nome_seguro}")
             file.save(caminho_temp)
+
+            # Read file content for validation
+            with open(caminho_temp, 'rb') as f_validate:
+                file_content = f_validate.read()
+
+            # Validate file using magic bytes (more secure than extension check)
+            validation_result = pdf_validator.validate(file_content, file.filename)
+            if not validation_result.is_valid:
+                flash(f'Arquivo {file.filename} rejeitado: {validation_result.error_message}', 'warning')
+                logger.warning(f"File validation failed: {file.filename} - {validation_result.error_code}: {validation_result.error_message}")
+                os.remove(caminho_temp)
+                falha += 1
+                continue
             
             try:
                 est_alvo = est_alvo_selected
@@ -1616,6 +1667,7 @@ def save_review(file_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/upload_evidence', methods=['POST'])
+@limiter.limit("20 per minute")  # Rate limit: 20 evidence uploads per minute per IP
 @login_required
 def upload_evidence():
     """Recebe imagem de evidência e retorna URL pública/local."""
@@ -1625,9 +1677,15 @@ def upload_evidence():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-    if '.' not in file.filename or file.filename.rsplit('.', 1)[1].lower() not in ALLOWED_EXTENSIONS:
-        return jsonify({'error': 'Apenas imagens (PNG, JPG) são permitidas.'}), 400
+    # Validate file using magic bytes (more secure than extension check)
+    image_validator = FileValidator.create_image_validator(max_size_mb=10)
+    file_content = file.read()
+    file.seek(0)  # Reset file pointer for later use
+
+    validation_result = image_validator.validate(file_content, file.filename)
+    if not validation_result.is_valid:
+        logger.warning(f"Evidence validation failed: {file.filename} - {validation_result.error_code}")
+        return jsonify({'error': validation_result.error_message}), 400
 
     if file:
         filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
