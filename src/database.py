@@ -81,20 +81,27 @@ def init_db():
             # Se DB_POOL_SIZE > 0, usamos pooling sqlalchemy.
             # Se 0, usamos NullPool (Stateless/Serverless puro).
             
-            pool_args = {
-                "pool_pre_ping": True,
-                "pool_recycle": pool_recycle
-            }
-            
-            if pool_size > 0:
-                # Use standard QueuePool (default)
-                pool_args["pool_size"] = pool_size
-                pool_args["max_overflow"] = max_overflow
-                logger.info(f"🔌 Connection Pooling ENABLED (Size: {pool_size}, Overflow: {max_overflow})")
+            # SQLite doesn't support pool_size, max_overflow, etc.
+            is_sqlite = database_url.startswith("sqlite")
+
+            if is_sqlite:
+                pool_args = {}
+                logger.info("🔌 Using SQLite with default pooling (StaticPool for :memory:)")
             else:
-                # Use NullPool (No pooling)
-                pool_args["poolclass"] = NullPool
-                logger.info("🔌 Connection Pooling DISABLED (NullPool)")
+                pool_args = {
+                    "pool_pre_ping": True,
+                    "pool_recycle": pool_recycle
+                }
+
+                if pool_size > 0:
+                    # Use standard QueuePool (default)
+                    pool_args["pool_size"] = pool_size
+                    pool_args["max_overflow"] = max_overflow
+                    logger.info(f"🔌 Connection Pooling ENABLED (Size: {pool_size}, Overflow: {max_overflow})")
+                else:
+                    # Use NullPool (No pooling)
+                    pool_args["poolclass"] = NullPool
+                    logger.info("🔌 Connection Pooling DISABLED (NullPool)")
 
             engine = create_engine(
                 database_url,

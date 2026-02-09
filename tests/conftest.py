@@ -8,6 +8,13 @@ This module provides:
 - Authentication helpers
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path so 'src' module can be imported
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import pytest
 import os
 import uuid
@@ -336,3 +343,32 @@ def test_png():
 def test_jpg():
     """Fixture that returns test JPEG content."""
     return create_test_jpg_content()
+
+
+# Alias for 'db_session' - some tests use 'session' name
+@pytest.fixture
+def session(db_session):
+    """Alias for db_session fixture."""
+    return db_session
+
+
+def pytest_configure(config):
+    """Configure custom markers."""
+    config.addinivalue_line(
+        "markers", "requires_postgres: mark test as requiring PostgreSQL (skip on SQLite)"
+    )
+
+
+@pytest.fixture(autouse=True)
+def skip_if_sqlite_and_requires_postgres(request):
+    """
+    Skip tests marked with 'requires_postgres' when using SQLite.
+
+    Integration tests using full database features (JSONB, etc.) need PostgreSQL.
+    """
+    marker = request.node.get_closest_marker('requires_postgres')
+    if marker:
+        # Check if we're using SQLite
+        db_url = os.environ.get('DATABASE_URL', '')
+        if db_url.startswith('sqlite'):
+            pytest.skip("Test requires PostgreSQL (SQLite doesn't support JSONB)")

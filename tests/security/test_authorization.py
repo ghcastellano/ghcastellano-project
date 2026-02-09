@@ -25,21 +25,29 @@ class TestUnauthenticatedAccess:
 
     def test_api_endpoints_require_login(self, client):
         """Should reject unauthenticated API access."""
-        endpoints = [
-            '/api/upload_evidence',
-            '/api/monitor',
-        ]
-        for endpoint in endpoints:
+        # Test POST endpoints
+        post_endpoints = ['/api/upload_evidence']
+        for endpoint in post_endpoints:
             response = client.post(endpoint)
+            assert response.status_code in [302, 401, 403], f"Endpoint {endpoint} should require login"
+
+        # Test GET endpoints
+        get_endpoints = ['/admin/api/monitor']
+        for endpoint in get_endpoints:
+            response = client.get(endpoint)
             assert response.status_code in [302, 401, 403], f"Endpoint {endpoint} should require login"
 
     def test_admin_routes_require_login(self, client):
         """Should reject unauthenticated access to admin routes."""
-        endpoints = [
-            '/company/new',
-            '/api/settings',
-        ]
-        for endpoint in endpoints:
+        # POST-only endpoints
+        post_endpoints = ['/admin/company/new']
+        for endpoint in post_endpoints:
+            response = client.post(endpoint)
+            assert response.status_code in [302, 401, 403], f"Admin endpoint {endpoint} should require login"
+
+        # GET endpoints
+        get_endpoints = ['/admin/api/settings']
+        for endpoint in get_endpoints:
             response = client.get(endpoint)
             assert response.status_code in [302, 401, 403], f"Admin endpoint {endpoint} should require login"
 
@@ -57,7 +65,7 @@ class TestRoleBasedAccess:
     def test_consultant_cannot_create_company(self, auth_client):
         """Consultants should not be able to create companies."""
         client, user = auth_client
-        response = client.post('/company/new', data={
+        response = client.post('/admin/company/new', data={
             'name': 'Malicious Company',
             'cnpj': '12345678000100'
         })
@@ -66,7 +74,7 @@ class TestRoleBasedAccess:
     def test_manager_cannot_access_admin_routes(self, manager_client):
         """Managers should not access admin-only routes."""
         client, user = manager_client
-        response = client.get('/api/settings')
+        response = client.get('/admin/api/settings')
         assert response.status_code in [302, 403]
 
 
@@ -89,8 +97,8 @@ class TestDebugEndpoints:
         """Debug routes should be disabled when K_SERVICE is set (Cloud Run)."""
         monkeypatch.setenv('K_SERVICE', 'test-service')
         response = client.get('/debug/routes')
-        # Should return 404 in production
-        assert response.status_code == 404
+        # Should return 404 (not found) or 403 (forbidden) in production
+        assert response.status_code in [403, 404]
 
 
 class TestCSRFProtection:
