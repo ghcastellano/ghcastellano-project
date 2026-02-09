@@ -357,6 +357,10 @@ except Exception as e:
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
+    # Clean up DI container UnitOfWork
+    from src.container import teardown_uow
+    teardown_uow(exception)
+
     # Safe import to avoid circular dependency issues
     from src.database import db_session
     if db_session:

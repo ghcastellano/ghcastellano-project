@@ -126,7 +126,6 @@ def auth_client(client, db_session):
         company_id=company.id,
         name='Test Establishment',
         code='TEST001',
-        is_active=True
     )
     db_session.add(establishment)
 
@@ -272,7 +271,6 @@ class EstablishmentFactory:
             'company_id': company.id,
             'name': f'Establishment {uuid.uuid4().hex[:8]}',
             'code': f'EST{uuid.uuid4().hex[:6].upper()}',
-            'is_active': True
         }
         defaults.update(kwargs)
 
