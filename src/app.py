@@ -104,10 +104,14 @@ login_manager.init_app(app)
 # Import Blueprints - Late Import to avoid circular dependencies
 logger.info("🔧 Carregando Blueprints...")
 
-# Dev Mode Blueprint (Mock Data)
-from src.dev_routes import dev_bp
-app.register_blueprint(dev_bp)
-logger.info("🛠️ Rotas de Dev registradas em /dev")
+# Dev Mode Blueprint (Mock Data) - Only register in debug mode
+# Protects /dev/* routes from being accessible in production
+if os.getenv('FLASK_DEBUG', 'false').lower() == 'true' or os.getenv('K_SERVICE') is None:
+    from src.dev_routes import dev_bp
+    app.register_blueprint(dev_bp)
+    logger.info("🛠️ Rotas de Dev registradas em /dev")
+else:
+    logger.info("⛔ Rotas de Dev desabilitadas em produção")
 try:
     from src.auth import auth_bp
     from src.admin_routes import admin_bp
@@ -119,8 +123,7 @@ try:
     app.register_blueprint(manager_bp)
     app.register_blueprint(cron_bp)
 
-    # Rate limiting for login endpoint (5 attempts per minute per IP)
-    limiter.limit("5 per minute")(app.view_functions['auth.login'])
+    # Note: Rate limiting for login is now defined in auth.py with @limiter.limit decorator
 
     # Exempt Cron from CSRF (Done here to avoid circular import)
     csrf.exempt(cron_sync_drive)
@@ -144,14 +147,14 @@ DEBUG_MODE = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
 
 
 @app.route('/debug/routes')
+@login_required
+@admin_required
 def debug_routes():
+    """List all registered routes. Admin only, disabled in production."""
     # Security: Disable in production
     if IS_PRODUCTION and not DEBUG_MODE:
         logger.warning("Attempted access to /debug/routes in production")
-        return "Not Found", 404
-
-    if not current_user.is_authenticated or current_user.role != UserRole.ADMIN:
-        return "Unauthorized", 403
+        return jsonify({'error': 'Not Found'}), 404
 
     rules = []
     for rule in app.url_map.iter_rules():
