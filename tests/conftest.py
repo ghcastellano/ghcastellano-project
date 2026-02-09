@@ -47,6 +47,13 @@ def app():
 @pytest.fixture(scope='function')
 def client(app):
     """Create test client for each test function."""
+    # Reset rate limiter storage before each test
+    try:
+        from src.infrastructure.security import limiter
+        limiter.reset()
+    except Exception:
+        pass  # Limiter might not be initialized
+
     with app.test_client() as test_client:
         with app.app_context():
             yield test_client
