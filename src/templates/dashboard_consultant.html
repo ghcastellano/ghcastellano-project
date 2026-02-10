@@ -476,7 +476,7 @@
             <div class="inspection-item {{ 'locked-item' if is_pending else '' }}"
                 onclick="{{ 'return false;' if is_pending else 'showPageLoading(); window.location.href=\'' + insp.review_link + '\'' }}"
                 style="cursor: {{ 'default' if is_pending else 'pointer' }}; opacity: {{ '0.6' if is_pending else '1' }}; pointer-events: {{ 'none' if is_pending else 'auto' }};"
-                data-name="{{ insp.name|lower }}" data-est="{{ insp.establishment|lower }}">
+                data-name="{{ insp.name|lower }}" data-filename="{{ (insp.filename or '')|lower }}" data-est="{{ insp.establishment|lower }}">
 
                 <div class="item-icon">
                     <i class="fas {{ 'fa-hourglass-half' if is_pending else ('fa-clipboard-check' if is_verification else 'fa-file-alt') }}"></i>
@@ -723,30 +723,36 @@
     var consultantPaginator = null;
 
     function filterInspections() {
-        const search = document.getElementById('searchInput').value.toLowerCase();
-        const est = document.getElementById('estFilter').value.toLowerCase();
+        const search = document.getElementById('searchInput').value.toLowerCase().trim();
+        const est = document.getElementById('estFilter').value.toLowerCase().trim();
         const items = document.querySelectorAll('.inspection-item');
         let visibleCount = 0;
 
         items.forEach(item => {
+            // Clear all pagination state first
             item.removeAttribute('data-paginator-hidden');
-            const name = item.dataset.name || '';
-            const itemEst = item.dataset.est || '';
+            item.style.display = '';
 
-            const matchSearch = name.includes(search) || itemEst.includes(search);
-            const matchEst = est === "" || itemEst === est;
+            const name = (item.dataset.name || '') + ' ' + (item.dataset.filename || '');
+            const itemEst = (item.dataset.est || '').trim();
+
+            const matchSearch = !search || name.includes(search) || itemEst.includes(search);
+            const matchEst = !est || itemEst === est;
 
             if (matchSearch && matchEst) {
-                item.style.display = 'flex';
                 item.removeAttribute('data-filter-hidden');
                 visibleCount++;
             } else {
-                item.style.display = 'none';
                 item.setAttribute('data-filter-hidden', 'true');
+                item.style.display = 'none';
             }
         });
 
-        if (consultantPaginator) consultantPaginator.refresh();
+        // Reset paginator to page 1 when filter changes, then refresh
+        if (consultantPaginator) {
+            consultantPaginator.currentPage = 1;
+            consultantPaginator.refresh();
+        }
 
         const msg = document.getElementById('noResultsMsg');
         if (visibleCount === 0 && items.length > 0) {
