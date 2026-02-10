@@ -556,7 +556,9 @@ def upload_file():
                             'file_id': upload_id,
                             'filename': file.filename,
                             'establishment_id': str(est_alvo_id) if est_alvo_id else None,
-                            'establishment_name': est_alvo_name  # Valor primitivo
+                            'establishment_name': est_alvo_name,  # Valor primitivo
+                            'uploaded_by_id': str(current_user.id),
+                            'uploaded_by_name': user_name,
                         }
                     )
                     db.add(job)

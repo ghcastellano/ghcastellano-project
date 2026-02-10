@@ -380,6 +380,7 @@
                                 <thead>
                                     <tr>
                                         <th>Estabelecimento</th>
+                                        <th>Consultor</th>
                                         <th>Arquivo</th>
                                         <th>Data/Hora</th>
                                         <th>Status</th>
@@ -388,7 +389,7 @@
                                 </thead>
                                 <tbody id="list-processed-tbody">
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted" style="padding: 2rem;">
+                                        <td colspan="6" class="text-center text-muted" style="padding: 2rem;">
                                             Carregando vistorias...
                                         </td>
                                     </tr>
@@ -1418,6 +1419,7 @@
                                 <span class="font-weight-medium">${item.establishment}</span>
                             </div>
                         </td>
+                        <td style="font-size:0.85rem; color:var(--text-secondary);">${item.consultant || '<span style="color:#cbd5e1">—</span>'}</td>
                         <td style="font-size:0.85rem; color:var(--text-secondary); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${item.filename || ''}">${item.filename || '<span style="color:#cbd5e1">—</span>'}</td>
                         <td>${item.date}</td>
                         <td>${getStatusBadge(item.status, item.id)}</td>
@@ -1469,7 +1471,7 @@
                     }
                 }
             } else if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Nenhuma vistoria encontrada.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhuma vistoria encontrada.</td></tr>';
                 if (urgentCard) urgentCard.style.display = 'none';
             }
 
