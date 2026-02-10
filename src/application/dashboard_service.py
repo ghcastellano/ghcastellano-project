@@ -80,12 +80,20 @@ class DashboardService:
             company_id=company_id,
             establishment_ids=establishment_ids,
         )
+
+        # Get filenames from jobs
+        file_ids = [insp.drive_file_id for insp in raw if insp.drive_file_id]
+        job_info_map = self._uow.jobs.get_job_info_map(file_ids)
+
         result = []
         for insp in raw:
             status_val = insp.status.value if hasattr(insp.status, 'value') else str(insp.status)
+            job_info = job_info_map.get(insp.drive_file_id, {})
+            filename = job_info.get('filename', '')
             result.append({
                 'id': insp.drive_file_id,
                 'name': getattr(insp, 'processed_filename', None) or insp.drive_file_id,
+                'filename': filename,
                 'establishment': insp.establishment.name if insp.establishment else 'N/A',
                 'date': insp.created_at.strftime('%d/%m/%Y %H:%M') if insp.created_at else '',
                 'status': status_val,
