@@ -1044,6 +1044,10 @@
                     const c = data.consultant;
                     if (tbody.innerHTML.includes('Nenhum consultor')) tbody.innerHTML = '';
 
+                    const storesBadges = (c.establishments || []).map(e =>
+                        `<span class="badge" style="background:#dcfce7;color:#166534;font-size:0.7rem;padding:0.2rem 0.4rem;border-radius:3px;">${e.name}</span>`
+                    ).join('') || '<span style="color:var(--text-secondary);font-size:0.8rem;">Nenhuma</span>';
+
                     const newRow = `
                         <tr id="row-consultant-${c.id}" style="animation: fadeIn 0.5s;">
                             <td>
@@ -1053,6 +1057,11 @@
                                 </div>
                             </td>
                             <td style="color: var(--text-secondary);">${c.email}</td>
+                            <td>
+                                <div style="display:flex;flex-wrap:wrap;gap:0.25rem;">
+                                    ${storesBadges}
+                                </div>
+                            </td>
                             <td class="text-right">
                                 <div class="btn-icon-group">
                                     <button class="btn-icon btn-icon-edit" data-id="${c.id}" data-name="${c.name}" data-email="${c.email}"

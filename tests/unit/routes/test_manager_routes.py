@@ -290,6 +290,7 @@ class TestCreateConsultant:
         est_id = uuid.uuid4()
         mock_est = MagicMock()
         mock_est.id = est_id
+        mock_est.name = 'Test Store'
 
         mock_uow = MagicMock()
         mock_uow.establishments.get_by_id.return_value = mock_est
@@ -309,6 +310,7 @@ class TestCreateConsultant:
         data = response.get_json()
         assert data['success'] is True
         assert 'consultant' in data
+        assert data['consultant']['establishments'][0]['name'] == 'Test Store'
         mock_uow.users.add.assert_called_once()
         mock_uow.commit.assert_called_once()
 

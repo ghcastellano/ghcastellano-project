@@ -166,6 +166,7 @@ def create_consultant():
             'name': user.name,
             'email': user.email,
             'establishment_ids': [str(e.id) for e in establishments_to_assign],
+            'establishments': [{'id': str(e.id), 'name': e.name} for e in establishments_to_assign],
         }
         num_establishments = len(establishments_to_assign)
 
