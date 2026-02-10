@@ -238,8 +238,9 @@ class ApprovalService:
 
             pdf_bytes = pdf_service.generate_pdf_bytes(json_data)
             date_str = json_data.get('data_inspecao', '').replace('/', '-')
+            import tempfile
             filename = f"Plano_Acao_{est_name.replace(' ', '_')}_{date_str}.pdf"
-            temp_path = f"/tmp/{filename}"
+            temp_path = os.path.join(tempfile.gettempdir(), filename)
             
             with open(temp_path, "wb") as f:
                 f.write(pdf_bytes)

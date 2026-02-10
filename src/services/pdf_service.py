@@ -16,7 +16,7 @@ class PDFService:
         if not os.path.isabs(template_dir):
             self.template_dir = os.path.join(os.getcwd(), template_dir)
             
-        self.jinja_env = Environment(loader=FileSystemLoader(self.template_dir))
+        self.jinja_env = Environment(loader=FileSystemLoader(self.template_dir), autoescape=True)
         self.jinja_env.filters['resolve_path'] = self.resolve_path
 
     def generate_pdf_bytes(self, data: dict, original_filename: str = "relatorio", template_name: str = "pdf_template.html") -> bytes:

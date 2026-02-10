@@ -158,6 +158,16 @@ def create_consultant():
         )
         user.establishments = establishments_to_assign
         uow.users.add(user)
+
+        # Capture data before commit (SQLAlchemy expires attributes after commit)
+        user_data = {
+            'id': str(user.id),
+            'name': user.name,
+            'email': user.email,
+            'establishment_ids': [str(e.id) for e in establishments_to_assign],
+        }
+        num_establishments = len(establishments_to_assign)
+
         uow.commit()
 
         # Send welcome email
@@ -166,17 +176,12 @@ def create_consultant():
         except Exception as e:
             logger.warning(f"Failed to send welcome email to {email}: {e}")
 
-        msg = f'Consultor criado com {len(establishments_to_assign)} estabelecimentos! Senha: {temp_pass}'
+        msg = f'Consultor criado com {num_establishments} estabelecimentos! Senha: {temp_pass}'
         if request.accept_mimetypes.accept_json:
             return jsonify({
                 'success': True,
                 'message': msg,
-                'consultant': {
-                    'id': str(user.id),
-                    'name': user.name,
-                    'email': user.email,
-                    'establishment_ids': [str(e.id) for e in user.establishments],
-                },
+                'consultant': user_data,
             }), 201
 
         flash(msg, 'success')
@@ -226,17 +231,20 @@ def update_consultant(user_id):
                     new_establishments.append(est)
             user.establishments = new_establishments
 
+        # Capture data before commit (SQLAlchemy expires attributes after commit)
+        user_data = {
+            'id': str(user.id),
+            'name': user.name,
+            'email': user.email,
+            'establishment_ids': [str(e.id) for e in user.establishments],
+        }
+
         uow.commit()
 
         return jsonify({
             'success': True,
             'message': 'Consultor atualizado!',
-            'consultant': {
-                'id': str(user.id),
-                'name': user.name,
-                'email': user.email,
-                'establishment_ids': [str(e.id) for e in user.establishments],
-            },
+            'consultant': user_data,
         }), 200
 
     except Exception as e:
@@ -324,6 +332,21 @@ def create_establishment():
             current_app.logger.error(f"Failed to create Drive folder: {drive_err}")
 
         uow.establishments.add(est)
+
+        # Capture data before commit (SQLAlchemy expires attributes after commit)
+        est_data = {
+            'id': str(est.id),
+            'name': est.name,
+            'code': est.code,
+            'company_id': str(est.company_id) if est.company_id else None,
+            'responsible_name': est.responsible_name,
+            'responsible_email': est.responsible_email,
+            'responsible_phone': est.responsible_phone,
+        }
+        # Get company name before commit
+        company_obj = uow.companies.get_by_id(est.company_id) if est.company_id else None
+        est_data['company_name'] = company_obj.name if company_obj else None
+
         uow.commit()
 
         msg = f'Estabelecimento {name} criado com sucesso!'
@@ -331,20 +354,10 @@ def create_establishment():
             msg += ' Pasta no Drive nao pôde ser criada.'
 
         if request.accept_mimetypes.accept_json:
-            company_obj = uow.companies.get_by_id(est.company_id) if est.company_id else None
             return jsonify({
                 'success': True,
                 'message': msg,
-                'establishment': {
-                    'id': str(est.id),
-                    'name': est.name,
-                    'code': est.code,
-                    'company_id': str(est.company_id) if est.company_id else None,
-                    'company_name': company_obj.name if company_obj else None,
-                    'responsible_name': est.responsible_name,
-                    'responsible_email': est.responsible_email,
-                    'responsible_phone': est.responsible_phone,
-                },
+                'establishment': est_data,
             }), 201
 
         flash(msg, 'success' if drive_folder_created else 'warning')
@@ -381,19 +394,22 @@ def update_establishment(est_id):
         est.responsible_name = request.form.get('responsible_name')
         est.responsible_email = request.form.get('responsible_email')
         est.responsible_phone = request.form.get('responsible_phone')
+
+        # Capture data before commit (SQLAlchemy expires attributes after commit)
+        est_data = {
+            'id': str(est.id),
+            'name': est.name,
+            'code': est.code,
+            'responsible_name': est.responsible_name,
+            'responsible_email': est.responsible_email,
+            'responsible_phone': est.responsible_phone,
+        }
         uow.commit()
 
         return jsonify({
             'success': True,
             'message': 'Estabelecimento atualizado!',
-            'establishment': {
-                'id': str(est.id),
-                'name': est.name,
-                'code': est.code,
-                'responsible_name': est.responsible_name,
-                'responsible_email': est.responsible_email,
-                'responsible_phone': est.responsible_phone,
-            },
+            'establishment': est_data,
         }), 200
 
     except Exception as e:
@@ -671,6 +687,10 @@ def api_status():
 
         from src.app import to_brazil_time
 
+        # Build filename map from jobs
+        file_ids = [insp.drive_file_id for insp in inspections if insp.drive_file_id]
+        filename_map = uow.jobs.get_filename_map(file_ids)
+
         processed_list = []
         for insp in inspections:
             if insp.status == InspectionStatus.PROCESSING:
@@ -679,10 +699,12 @@ def api_status():
             est_name = insp.establishment.name if insp.establishment else 'Desconhecido'
             date_str = to_brazil_time(insp.created_at).strftime('%d/%m/%Y %H:%M') if insp.created_at else ''
             review_link = url_for('manager.edit_plan', file_id=insp.drive_file_id) if insp.drive_file_id else '#'
+            filename = filename_map.get(insp.drive_file_id, '')
 
             processed_list.append({
                 'id': str(insp.id),
                 'establishment': est_name,
+                'filename': filename,
                 'date': date_str,
                 'status': insp.status.value if insp.status else 'PENDING',
                 'review_link': review_link,

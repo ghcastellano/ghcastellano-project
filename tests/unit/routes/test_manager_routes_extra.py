@@ -883,6 +883,7 @@ class TestApiStatusExtra:
         mock_uow.inspections.get_for_manager.return_value = [mock_insp]
         mock_uow.establishments.get_by_company.return_value = []
         mock_uow.jobs.get_pending_for_company.return_value = []
+        mock_uow.jobs.get_filename_map.return_value = {}
         mock_mgr_uow.return_value = mock_uow
 
         response = client.get('/api/status')

@@ -68,7 +68,7 @@ class ProcessorService:
 
         # Inicializa Jinja
         from jinja2 import Environment, FileSystemLoader
-        self.jinja_env = Environment(loader=FileSystemLoader('src/templates'))
+        self.jinja_env = Environment(loader=FileSystemLoader('src/templates'), autoescape=True)
 
     def process_pending_files(self):
         """
@@ -499,8 +499,10 @@ class ProcessorService:
             output_filename = f"Plano_Acao_{clean_name}.pdf"
             json_filename = f"Plano_Acao_{clean_name}.json"
             
-            temp_pdf = f"/tmp/{output_filename}"
-            temp_json = f"/tmp/{json_filename}"
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            temp_pdf = os.path.join(temp_dir, output_filename)
+            temp_json = os.path.join(temp_dir, json_filename)
             
             # Render HTML
             template = self.jinja_env.get_template('pdf_template.html') # Updated to Validated Template
@@ -569,7 +571,7 @@ class ProcessorService:
 
     def calculate_hash(self, content: bytes) -> str:
         import hashlib
-        return hashlib.md5(content).hexdigest()
+        return hashlib.md5(content, usedforsecurity=False).hexdigest()
 
     def normalize_name(self, name: str) -> str:
         if not name: return ""

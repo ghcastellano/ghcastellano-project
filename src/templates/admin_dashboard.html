@@ -237,6 +237,7 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                        <div id="companiesPaginationControls"></div>
                     </div>
                 </div>
             </div>
@@ -379,6 +380,7 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                        <div id="managersPaginationControls"></div>
                     </div>
                 </div>
             </div>
@@ -416,6 +418,7 @@
                                 </tr>
                             </tbody>
                         </table>
+                        <div id="monitorPaginationControls"></div>
                     </div>
                 </div>
             </div>
@@ -470,12 +473,64 @@
     // ... [Existing Functions] ...
 
     // Monitoring
+    var monitorPaginator = null;
+
+    function renderMonitorRow(item) {
+        const hasError = item.status === 'FAILED';
+        const errorBadge = hasError && item.error_code ? `<span class="badge badge-danger" style="font-size:0.65em; margin-left:4px;">${item.error_code}</span>` : '';
+        return `
+       <tr style="animation: fadeIn 0.5s; ${hasError ? 'background: #fef2f2;' : ''}">
+           <td>
+                <span title="${item.id}" style="font-family: monospace; font-size: 0.8em; color: var(--text-muted); cursor: help;">
+                    ${item.id.substring(0, 8)}...
+                </span>
+           </td>
+           <td style="font-size: 0.85em;">
+                <span class="badge badge-secondary">${translate(item.type || 'N/A')}</span>
+           </td>
+           <td style="font-size: 0.9em; font-weight: 500;">
+                ${item.company_name}
+           </td>
+           <td style="font-weight: 500; font-size: 0.9em;">
+                <div style="display:flex; flex-direction:column;">
+                    <span><i class="ph-file-pdf" style="color: #ef4444; margin-right: 4px;"></i> ${item.filename}</span>
+                    <span style="font-size:0.8em; color:#64748b;">${item.establishment}</span>
+                </div>
+           </td>
+            <td>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <div>
+                        <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Detalhes">${translate(item.status)}</span>
+                        ${errorBadge}
+                    </div>
+                    ${item.current_stage ? '<div style="font-size:0.75em; color:#64748b;">📍 ' + item.current_stage + '</div>' : ''}
+                    ${hasError && item.error_log ? '<div style="font-size:0.7em; color:#dc2626; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.error_log + '">⚠️ ' + item.error_log + '</div>' : ''}
+                    ${item.last_log_message && !hasError ? '<div style="font-size:0.7em; color:#059669; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.last_log_message + '">✓ ' + item.last_log_message + '</div>' : ''}
+                </div>
+            </td>
+            <td class="text-sm">
+                <div style="color: #475569;" title="Entrada / Saída">
+                    <span style="color:#2563eb;">${(item.tokens_input || 0).toLocaleString()}</span> /
+                    <span style="color:#16a34a;">${(item.tokens_output || 0).toLocaleString()}</span>
+                </div>
+                <div style="font-size: 0.75em; color: #94a3b8;">Total: ${(item.tokens_total || 0).toLocaleString()}</div>
+            </td>
+            <td class="text-sm">
+                <div style="font-weight: 600; color: #475569;">R$ ${(item.cost_brl || 0).toFixed(4)}</div>
+                <div style="font-size: 0.8em; color: #64748b;">$ ${(item.cost_usd || 0).toFixed(4)}</div>
+            </td>
+            <td class="text-sm text-muted">
+                ${item.duration ? item.duration + 's' : '-'}
+                ${item.attempts > 1 ? '<div style="font-size:0.7em; color:#f59e0b;">(' + item.attempts + ' tentativas)</div>' : ''}
+            </td>
+        </tr>`;
+    }
+
     async function updateMonitoring() {
         const tbody = document.getElementById('monitoring-tbody');
         try {
             const res = await fetch('/admin/api/monitor', { headers: { 'Accept': 'application/json' } });
 
-            // Handle session expiration (401)
             if (res.status === 401) {
                 const errorData = await res.json();
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="color: #f59e0b;">
@@ -490,58 +545,13 @@
             if (res.ok) {
                 const data = await res.json();
                 if (data.items && data.items.length > 0) {
-                    tbody.innerHTML = data.items.map(item => {
-                        const hasError = item.status === 'FAILED';
-                        const errorBadge = hasError && item.error_code ? `<span class="badge badge-danger" style="font-size:0.65em; margin-left:4px;">${item.error_code}</span>` : '';
-
-                        return `
-                       <tr style="animation: fadeIn 0.5s; ${hasError ? 'background: #fef2f2;' : ''}">
-                           <td>
-                                <span title="${item.id}" style="font-family: monospace; font-size: 0.8em; color: var(--text-muted); cursor: help;">
-                                    ${item.id.substring(0, 8)}...
-                                </span>
-                           </td>
-                           <td style="font-size: 0.85em;">
-                                <span class="badge badge-secondary">${translate(item.type || 'N/A')}</span>
-                           </td>
-                           <td style="font-size: 0.9em; font-weight: 500;">
-                                ${item.company_name}
-                           </td>
-                           <td style="font-weight: 500; font-size: 0.9em;">
-                                <div style="display:flex; flex-direction:column;">
-                                    <span><i class="ph-file-pdf" style="color: #ef4444; margin-right: 4px;"></i> ${item.filename}</span>
-                                    <span style="font-size:0.8em; color:#64748b;">${item.establishment}</span>
-                                </div>
-                           </td>
-                            <td>
-                                <div style="display:flex; flex-direction:column; gap:4px;">
-                                    <div>
-                                        <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Detalhes">${translate(item.status)}</span>
-                                        ${errorBadge}
-                                    </div>
-                                    ${item.current_stage ? '<div style="font-size:0.75em; color:#64748b;">📍 ' + item.current_stage + '</div>' : ''}
-                                    ${hasError && item.error_log ? '<div style="font-size:0.7em; color:#dc2626; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.error_log + '">⚠️ ' + item.error_log + '</div>' : ''}
-                                    ${item.last_log_message && !hasError ? '<div style="font-size:0.7em; color:#059669; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.last_log_message + '">✓ ' + item.last_log_message + '</div>' : ''}
-                                </div>
-                            </td>
-                            <td class="text-sm">
-                                <div style="color: #475569;" title="Entrada / Saída">
-                                    <span style="color:#2563eb;">${(item.tokens_input || 0).toLocaleString()}</span> /
-                                    <span style="color:#16a34a;">${(item.tokens_output || 0).toLocaleString()}</span>
-                                </div>
-                                <div style="font-size: 0.75em; color: #94a3b8;">Total: ${(item.tokens_total || 0).toLocaleString()}</div>
-                            </td>
-                            <td class="text-sm">
-                                <div style="font-weight: 600; color: #475569;">R$ ${(item.cost_brl || 0).toFixed(4)}</div>
-                                <div style="font-size: 0.8em; color: #64748b;">$ ${(item.cost_usd || 0).toFixed(4)}</div>
-                            </td>
-                            <td class="text-sm text-muted">
-                                ${item.duration ? item.duration + 's' : '-'}
-                                ${item.attempts > 1 ? '<div style="font-size:0.7em; color:#f59e0b;">(' + item.attempts + ' tentativas)</div>' : ''}
-                            </td>
-                        </tr>
-                    `}).join('');
+                    if (monitorPaginator) {
+                        monitorPaginator.setData(data.items);
+                    } else {
+                        tbody.innerHTML = data.items.map(renderMonitorRow).join('');
+                    }
                 } else {
+                    if (monitorPaginator) monitorPaginator.setData([]);
                     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Nenhum job recente encontrado.</td></tr>`;
                 }
             } else {
@@ -608,8 +618,51 @@
 </div>`;
     }
 
-    // Auto-load monitoring data when page loads
+    // Pagination instances for CRUD tables
+    var companiesPaginator = null;
+    var managersPaginator = null;
+
+    // Auto-load monitoring data + init paginators
     document.addEventListener('DOMContentLoaded', function() {
+        // Companies table pagination
+        if (document.querySelector('#companiesTable tbody')) {
+            companiesPaginator = new Paginator({
+                container: '#companiesTable tbody',
+                itemSelector: 'tr',
+                controlsTarget: '#companiesPaginationControls',
+                perPage: 10,
+                perPageOptions: [10, 25, 50, 0],
+            });
+        }
+
+        // Managers table pagination (with group headers)
+        if (document.querySelector('#managersTable tbody')) {
+            managersPaginator = new Paginator({
+                container: '#managersTable tbody',
+                itemSelector: 'tr:not(.group-header)',
+                controlsTarget: '#managersPaginationControls',
+                perPage: 10,
+                perPageOptions: [10, 25, 50, 0],
+                skipSelector: '.group-header',
+            });
+        }
+
+        // Monitoring table pagination (array mode)
+        monitorPaginator = new Paginator({
+            controlsTarget: '#monitorPaginationControls',
+            perPage: 10,
+            perPageOptions: [10, 25, 50, 0],
+            mode: 'array',
+            renderCallback: function(pageItems) {
+                var tbody = document.getElementById('monitoring-tbody');
+                if (!pageItems || pageItems.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Nenhum job recente encontrado.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = pageItems.map(renderMonitorRow).join('');
+            },
+        });
+
         updateMonitoring();
         setInterval(updateMonitoring, 30000);
     });
@@ -1056,6 +1109,7 @@
                         </tr>
                     `;
                     tbody.insertAdjacentHTML('beforeend', newRow);
+                    if (companiesPaginator) companiesPaginator.refresh();
 
                     // Also add to manager company dropdowns
                     document.querySelectorAll('select[name="company_id"]').forEach(sel => {
@@ -1164,7 +1218,7 @@
                 const row = document.getElementById(`row-company-${id}`);
                 if (row) {
                     row.style.background = '#fee2e2';
-                    setTimeout(() => row.remove(), 500);
+                    setTimeout(function() { row.remove(); if (companiesPaginator) companiesPaginator.refresh(); }, 500);
                 }
 
                 // Remover empresa dos dropdowns de gestor
@@ -1284,6 +1338,7 @@
                         // No rows yet, insert right after the header
                         groupHeader.insertAdjacentHTML('afterend', newRow);
                     }
+                    if (managersPaginator) managersPaginator.refresh();
                 }
             } else {
                 showToast(data.error || 'Erro ao criar gestor', 'error');
@@ -1449,15 +1504,15 @@
                 if (row) {
                     const companyName = row.dataset.companyName;
                     row.style.background = '#fee2e2';
-                    setTimeout(() => {
+                    setTimeout(function() {
                         row.remove();
-                        // Check if company group is now empty, remove header if so
-                        const tbody = document.querySelector('#managersTable tbody');
-                        const remainingRows = tbody.querySelectorAll(`tr[data-company-name="${companyName}"]:not(.group-header)`);
+                        var tbody = document.querySelector('#managersTable tbody');
+                        var remainingRows = tbody.querySelectorAll('tr[data-company-name="' + companyName + '"]:not(.group-header)');
                         if (remainingRows.length === 0) {
-                            const header = tbody.querySelector(`tr.group-header[data-group-name="${companyName}"]`);
+                            var header = tbody.querySelector('tr.group-header[data-group-name="' + companyName + '"]');
                             if (header) header.remove();
                         }
+                        if (managersPaginator) managersPaginator.refresh();
                     }, 500);
                 }
             } else {

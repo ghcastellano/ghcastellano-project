@@ -380,6 +380,7 @@
                                 <thead>
                                     <tr>
                                         <th>Estabelecimento</th>
+                                        <th>Arquivo</th>
                                         <th>Data/Hora</th>
                                         <th>Status</th>
                                         <th>Ação</th>
@@ -387,12 +388,13 @@
                                 </thead>
                                 <tbody id="list-processed-tbody">
                                     <tr>
-                                        <td colspan="4" class="text-center text-muted" style="padding: 2rem;">
+                                        <td colspan="5" class="text-center text-muted" style="padding: 2rem;">
                                             Carregando vistorias...
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
+                            <div id="planosPaginationControls"></div>
                         </div>
                     </div>
                 </div>
@@ -538,6 +540,7 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                        <div id="estPaginationControls"></div>
                     </div>
                 </div>
             </div>
@@ -688,6 +691,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    <div id="consultantsPaginationControls"></div>
                 </div>
             </div>
         </div>
@@ -736,6 +740,26 @@
         // Initialize View (Critical for Navigation)
         const menuOverview = document.getElementById('menu-overview');
         if (menuOverview) showSection('overview', menuOverview);
+
+        // Initialize Pagination
+        if (document.getElementById('table-establishments-body')) {
+            window.estPaginator = new Paginator({
+                container: '#table-establishments-body',
+                itemSelector: 'tr',
+                controlsTarget: '#estPaginationControls',
+                perPage: 10,
+                perPageOptions: [10, 25, 50, 0],
+            });
+        }
+        if (document.getElementById('table-consultants-body')) {
+            window.consultantsPaginator = new Paginator({
+                container: '#table-consultants-body',
+                itemSelector: 'tr',
+                controlsTarget: '#consultantsPaginationControls',
+                perPage: 10,
+                perPageOptions: [10, 25, 50, 0],
+            });
+        }
 
         // Initial Load Only (No Polling)
         updateLists();
@@ -1044,6 +1068,7 @@
                         </tr>
                     `;
                     tbody.insertAdjacentHTML('beforeend', newRow);
+                    if (window.consultantsPaginator) window.consultantsPaginator.refresh();
                 }
             } else {
                 showToast(data.error || 'Erro desconhecido', 'error');
@@ -1127,6 +1152,7 @@
                         </tr>
                     `;
                     tbody.insertAdjacentHTML('beforeend', newRow);
+                    if (window.estPaginator) window.estPaginator.refresh();
 
                     // Update Dropdowns & Checkbox Lists
                     // 1. Update Selects (if any)
@@ -1392,15 +1418,29 @@
                                 <span class="font-weight-medium">${item.establishment}</span>
                             </div>
                         </td>
+                        <td style="font-size:0.85rem; color:var(--text-secondary); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${item.filename || ''}">${item.filename || '<span style="color:#cbd5e1">—</span>'}</td>
                         <td>${item.date}</td>
                         <td>${getStatusBadge(item.status, item.id)}</td>
                         <td>
-                            <a href="${item.review_link}" class="btn btn-sm ${getActionButtonStyle(item.status)} shadow-sm">
+                            <a href="${item.review_link}" onclick="showPageLoading()" class="btn btn-sm ${getActionButtonStyle(item.status)} shadow-sm">
                                 ${getActionButtonIcon(item.status)} ${getActionButtonText(item.status)}
                             </a>
                         </td>
                     </tr>
                 `).join('');
+
+                // Refresh pagination after populating table
+                if (window.planosPaginator) {
+                    window.planosPaginator.refresh();
+                } else {
+                    window.planosPaginator = new Paginator({
+                        container: '#list-processed-tbody',
+                        itemSelector: 'tr',
+                        controlsTarget: '#planosPaginationControls',
+                        perPage: 10,
+                        perPageOptions: [10, 25, 50, 0],
+                    });
+                }
 
                 // ... Home Pendencies logic (condensed for brevity, already robust in previous version, just ensure ID checks)
                 const homePendencies = document.getElementById('home-pendencies');
@@ -1419,7 +1459,7 @@
                                     <div style="font-weight: 600; color: var(--text-primary);">${item.establishment}</div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Realizada em ${item.date}</div>
                                 </div>
-                                <a href="${item.review_link}" class="btn btn-sm btn-accent">
+                                <a href="${item.review_link}" onclick="showPageLoading()" class="btn btn-sm btn-accent">
                                     <i class="ph ph-check-square-offset"></i> Validar Agora
                                 </a>
                             </div>
@@ -1429,7 +1469,7 @@
                     }
                 }
             } else if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Nenhuma vistoria encontrada.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Nenhuma vistoria encontrada.</td></tr>';
                 if (urgentCard) urgentCard.style.display = 'none';
             }
 
@@ -1609,7 +1649,7 @@
                 const row = document.getElementById(`row-consultant-${id}`);
                 if (row) {
                     row.style.background = '#fee2e2';
-                    setTimeout(() => row.remove(), 500);
+                    setTimeout(function() { row.remove(); if (window.consultantsPaginator) window.consultantsPaginator.refresh(); }, 500);
                 }
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');
@@ -1651,7 +1691,7 @@
                 const row = document.getElementById(`row-est-${id}`);
                 if (row) {
                     row.style.background = '#fee2e2';
-                    setTimeout(() => row.remove(), 500);
+                    setTimeout(function() { row.remove(); if (window.estPaginator) window.estPaginator.refresh(); }, 500);
                 }
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');

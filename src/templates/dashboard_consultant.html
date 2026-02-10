@@ -474,7 +474,7 @@
             {% set is_verification = insp.status == 'PENDING_CONSULTANT_VERIFICATION' %}
             {% set is_pending = not is_verification and ('PENDING' in insp.status or 'PROCESSING' in insp.status) %}
             <div class="inspection-item {{ 'locked-item' if is_pending else '' }}"
-                onclick="{{ 'return false;' if is_pending else 'window.location.href=\'' + insp.review_link + '\'' }}"
+                onclick="{{ 'return false;' if is_pending else 'showPageLoading(); window.location.href=\'' + insp.review_link + '\'' }}"
                 style="cursor: {{ 'default' if is_pending else 'pointer' }}; opacity: {{ '0.6' if is_pending else '1' }}; pointer-events: {{ 'none' if is_pending else 'auto' }};"
                 data-name="{{ insp.name|lower }}" data-est="{{ insp.establishment|lower }}">
 
@@ -524,6 +524,7 @@
                 <p>Nenhuma inspeção encontrada para este filtro.</p>
             </div>
         </div>
+        <div id="inspectionPaginationControls" style="padding: 0 0.5rem;"></div>
         {% else %}
         <!-- Empty State -->
         <div style="text-align: center; padding: 3rem; color: #94A3B8;">
@@ -719,6 +720,8 @@
         });
     }
 
+    var consultantPaginator = null;
+
     function filterInspections() {
         const search = document.getElementById('searchInput').value.toLowerCase();
         const est = document.getElementById('estFilter').value.toLowerCase();
@@ -726,6 +729,7 @@
         let visibleCount = 0;
 
         items.forEach(item => {
+            item.removeAttribute('data-paginator-hidden');
             const name = item.dataset.name || '';
             const itemEst = item.dataset.est || '';
 
@@ -734,11 +738,15 @@
 
             if (matchSearch && matchEst) {
                 item.style.display = 'flex';
+                item.removeAttribute('data-filter-hidden');
                 visibleCount++;
             } else {
                 item.style.display = 'none';
+                item.setAttribute('data-filter-hidden', 'true');
             }
         });
+
+        if (consultantPaginator) consultantPaginator.refresh();
 
         const msg = document.getElementById('noResultsMsg');
         if (visibleCount === 0 && items.length > 0) {
@@ -748,8 +756,20 @@
         }
     }
 
-    // Init Filters on Load
-    document.addEventListener('DOMContentLoaded', populateEstFilters);
+    // Init Filters + Pagination on Load
+    document.addEventListener('DOMContentLoaded', function() {
+        populateEstFilters();
+        var inspList = document.getElementById('inspectionList');
+        if (inspList) {
+            consultantPaginator = new Paginator({
+                container: '#inspectionList',
+                itemSelector: '.inspection-item',
+                controlsTarget: '#inspectionPaginationControls',
+                perPage: 10,
+                perPageOptions: [10, 25, 50, 0],
+            });
+        }
+    });
 
     function openUploadModal() {
         document.getElementById('uploadModal').style.display = 'flex';

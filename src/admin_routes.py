@@ -92,13 +92,17 @@ def create_establishment():
     try:
         est = Establishment(company_id=uuid.UUID(company_id), name=name, drive_folder_id=drive_id)
         uow.establishments.add(est)
+
+        # Capture data before commit (SQLAlchemy expires attributes after commit)
+        est_id = str(est.id)
+        est_name = est.name
         uow.commit()
 
         if request.accept_mimetypes.accept_json:
             return jsonify({
                 'success': True,
                 'message': f'Estabelecimento {name} criado!',
-                'establishment': {'id': str(est.id), 'name': est.name},
+                'establishment': {'id': est_id, 'name': est_name},
             }), 201
 
         flash(f'Estabelecimento {name} criado!', 'success')
@@ -131,6 +135,8 @@ def create_manager():
                     'id': result.data['id'],
                     'name': result.data['name'],
                     'email': result.data['email'],
+                    'company_name': result.data.get('company_name', ''),
+                    'company_id': result.data.get('company_id', ''),
                 },
                 'message': result.message,
             }), 201
@@ -180,11 +186,10 @@ def trigger_test_job():
             input_payload={"delay": 5, "triggered_by": current_user.email},
         )
         uow.jobs.add(job)
+        job_id = str(job.id)
         uow.commit()
 
-        job.status = JobStatus.COMPLETED
-        uow.commit()
-        flash(f"Job {job.id} criado com sucesso!", "success")
+        flash(f"Job {job_id} criado com sucesso!", "success")
     except Exception as e:
         uow.rollback()
         flash(f"Erro ao criar job: {e}", "error")

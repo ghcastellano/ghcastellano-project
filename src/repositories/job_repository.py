@@ -70,6 +70,23 @@ class JobRepository:
 
         return query.order_by(Job.created_at.desc()).limit(limit).all()
 
+    def get_filename_map(self, file_ids: List[str]) -> dict:
+        """Return {file_id: filename} for a list of drive_file_ids."""
+        if not file_ids:
+            return {}
+        from sqlalchemy import cast, String
+        file_ids_set = set(file_ids)
+        jobs = self._session.query(Job).filter(
+            cast(Job.input_payload, String).like('%file_id%'),
+        ).all()
+        result = {}
+        for job in jobs:
+            payload = job.input_payload or {}
+            fid = payload.get('file_id')
+            if fid and fid in file_ids_set:
+                result[fid] = payload.get('filename', '')
+        return result
+
     def add(self, job: Job) -> Job:
         self._session.add(job)
         return job

@@ -59,6 +59,12 @@ class AdminService:
                 logger.error(f'Failed to create Drive folder: {e}')
 
         self._uow.companies.add(company)
+
+        # Capture data before commit (SQLAlchemy expires attributes after commit)
+        company_id = str(company.id)
+        company_name = company.name
+        company_cnpj = company.cnpj
+
         self._uow.commit()
 
         msg = f'Empresa {name} criada com sucesso!'
@@ -69,9 +75,9 @@ class AdminService:
             success=True,
             message=msg,
             data={
-                'id': str(company.id),
-                'name': company.name,
-                'cnpj': company.cnpj,
+                'id': company_id,
+                'name': company_name,
+                'cnpj': company_cnpj,
             },
         )
 
@@ -148,6 +154,19 @@ class AdminService:
             must_change_password=True,
         )
         self._uow.users.add(user)
+
+        # Capture data before commit (SQLAlchemy expires attributes after commit)
+        user_id = str(user.id)
+        user_name = user.name
+        user_email = user.email
+        company_name = ''
+        try:
+            company = self._uow.companies.get_by_id(company_id)
+            if company:
+                company_name = company.name
+        except Exception:
+            pass
+
         self._uow.commit()
 
         # Send welcome email
@@ -162,9 +181,11 @@ class AdminService:
             success=True,
             message=f'Gestor {name} criado com sucesso!',
             data={
-                'id': str(user.id),
-                'name': user.name,
-                'email': user.email,
+                'id': user_id,
+                'name': user_name,
+                'email': user_email,
+                'company_name': company_name,
+                'company_id': str(company_id),
                 'password': password,
                 'email_sent': email_sent,
             },
