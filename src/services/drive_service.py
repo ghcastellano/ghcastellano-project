@@ -13,7 +13,10 @@ logger = logging.getLogger(__name__)
 
 class DriveService:
     def __init__(self, credentials_file='credentials.json'):
-        self.scopes = ['https://www.googleapis.com/auth/drive.file']
+        # drive.file is insufficient: app needs access to pre-existing folders
+        # (ROOT_FOLDER_ID created manually in Drive). drive.file only allows
+        # access to files/folders created by the app itself.
+        self.scopes = ['https://www.googleapis.com/auth/drive']
         self.credentials_file = credentials_file
         self.creds = None
         self._service = None
