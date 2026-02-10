@@ -149,6 +149,7 @@ def create_consultant():
 
         temp_pass = generate_temp_password()
         user = User(
+            id=uuid.uuid4(),
             name=name,
             email=email,
             password_hash=generate_password_hash(temp_pass),
@@ -306,6 +307,7 @@ def create_establishment():
     uow = get_uow()
     try:
         est = Establishment(
+            id=uuid.uuid4(),
             name=name,
             code=code,
             company_id=current_user.company_id,

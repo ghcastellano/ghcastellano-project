@@ -43,7 +43,7 @@ class AdminService:
         if not name:
             return AdminResult(success=False, message='Nome da empresa é obrigatório.', error='MISSING_NAME')
 
-        company = Company(name=name, cnpj=cnpj)
+        company = Company(id=uuid.uuid4(), name=name, cnpj=cnpj)
 
         # Create Drive folder
         drive_folder_created = False
@@ -146,6 +146,7 @@ class AdminService:
 
         hashed = generate_password_hash(password)
         user = User(
+            id=uuid.uuid4(),
             name=name,
             email=email,
             password_hash=hashed,

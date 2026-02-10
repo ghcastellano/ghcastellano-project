@@ -1194,6 +1194,10 @@
     async function handleUpdateConsultant(e) {
         e.preventDefault();
         const id = document.getElementById('edit_consultant_id').value;
+        if (!id || id === 'None' || id === 'undefined') {
+            showToast('Erro: ID do consultor inválido. Recarregue a página.', 'error');
+            return;
+        }
         const form = e.target;
         const btn = document.getElementById('btnUpdateConsultant');
 
@@ -1249,6 +1253,10 @@
     async function handleUpdateEst(e) {
         e.preventDefault();
         const id = document.getElementById('edit_est_id').value;
+        if (!id || id === 'None' || id === 'undefined') {
+            showToast('Erro: ID do estabelecimento inválido. Recarregue a página.', 'error');
+            return;
+        }
         const form = e.target;
         const btn = document.getElementById('btnUpdateEst');
 

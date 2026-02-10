@@ -90,7 +90,7 @@ def create_establishment():
 
     uow = get_uow()
     try:
-        est = Establishment(company_id=uuid.UUID(company_id), name=name, drive_folder_id=drive_id)
+        est = Establishment(id=uuid.uuid4(), company_id=uuid.UUID(company_id), name=name, drive_folder_id=drive_id)
         uow.establishments.add(est)
 
         # Capture data before commit (SQLAlchemy expires attributes after commit)
@@ -180,6 +180,7 @@ def trigger_test_job():
                 return redirect(url_for('admin.index'))
 
         job = Job(
+            id=uuid.uuid4(),
             company_id=company_id,
             type="TEST_JOB",
             status=JobStatus.PENDING,
