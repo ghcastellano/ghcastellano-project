@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class DriveService:
     def __init__(self, credentials_file='credentials.json'):
-        self.scopes = ['https://www.googleapis.com/auth/drive']
+        self.scopes = ['https://www.googleapis.com/auth/drive.file']
         self.credentials_file = credentials_file
         self.creds = None
         self._service = None

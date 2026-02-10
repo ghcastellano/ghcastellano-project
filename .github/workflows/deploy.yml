@@ -56,6 +56,9 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
           region: ${{ env.REGION }}
+          # Public-facing web app with Flask-Login auth. --allow-unauthenticated is
+          # required so users can reach the login page. App-level auth protects routes.
+          # For additional security, consider Cloud Armor WAF or IAP pass-through.
           flags: '--allow-unauthenticated'
           env_vars: |
             FLASK_DEBUG=0
