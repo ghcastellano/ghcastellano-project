@@ -74,7 +74,7 @@ def admin_required(f):
     return role_required(UserRole.ADMIN)(f)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute", error_message="Muitas tentativas de login. Aguarde um minuto.")
+@limiter.limit("20 per minute", error_message="Muitas tentativas de login. Aguarde um minuto.")
 def login():
     # Rate limiting: 5 attempts per minute per IP
     # [MOD] User requested to stay on login page if explicitly visited
