@@ -315,7 +315,7 @@
                                 <div class="form-group">
                                     <label class="form-label">Nova Senha (Opcional)</label>
                                     <input type="password" name="password" class="form-control"
-                                        autocomplete="new-password" placeholder="Deixar em branco para manter">
+                                        autocomplete="off" placeholder="Deixar em branco para manter">
                                 </div>
                             </div>
                             <div style="margin-top: 1rem; text-align: right;">
@@ -1367,6 +1367,10 @@
         document.getElementById('edit_manager_id').value = id;
         document.getElementById('edit_manager_name').value = name;
         document.getElementById('edit_manager_email').value = email;
+
+        // Clear password field to prevent browser auto-fill from changing password
+        const pwField = document.querySelector('#editManagerForm input[name="password"]');
+        if (pwField) { pwField.value = ''; }
 
         const companySelect = document.getElementById('edit_manager_company');
         if (companySelect && companyId) {

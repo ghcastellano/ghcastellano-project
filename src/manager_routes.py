@@ -769,18 +769,9 @@ def api_status():
                     'message': job.error_log if is_error else None,
                 })
 
-        # Summary stats for charts
-        summary = {
-            'total_nc': sum(p.get('nc_count', 0) for p in processed_list),
-            'total_pc': sum(p.get('pc_count', 0) for p in processed_list),
-            'total_items': sum(p.get('total_items', 0) for p in processed_list),
-            'total_inspections': len(processed_list),
-        }
-
         return jsonify({
             'pending': pending_list,
             'processed_raw': processed_list,
-            'summary': summary,
         })
 
     except Exception as e:
