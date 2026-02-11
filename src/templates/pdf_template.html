@@ -333,7 +333,7 @@
                             {% endif %}
                             <span
                                 style="display: block; font-style: italic; margin-bottom: 8px; font-size: 9pt; color: #333;">
-                                {{ item.correction_notes or item.manager_notes or 'Sem observações.' }}
+                                {{ item.correction_notes or 'Sem observações.' }}
                             </span>
                             {% if item.evidence_image_url %}
                             <div style="margin-top: 5px; font-size: 8pt; color: #0d47a1;">
@@ -411,10 +411,10 @@
                         <span style="color: #d97706; font-weight: bold;">PENDENTE</span>
                         {% endif %}
                     </div>
-                    {% if item.correction_notes or item.manager_notes %}
+                    {% if item.correction_notes %}
                     <div
                         style="font-size: 9pt; color: #555; background: #f8f9fc; padding: 8px; border-radius: 4px; font-style: italic;">
-                        "{{ item.correction_notes or item.manager_notes }}"
+                        "{{ item.correction_notes }}"
                     </div>
                     {% endif %}
                 </div>

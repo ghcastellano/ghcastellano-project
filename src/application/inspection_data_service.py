@@ -188,7 +188,7 @@ class InspectionDataService:
 
             # Current workflow status
             current_status = item.current_status or (
-                'Pendente' if item.status == ActionPlanItemStatus.OPEN else 'Pendente'
+                'Corrigido' if item.status == ActionPlanItemStatus.RESOLVED else 'Pendente'
             )
             is_corrected = (current_status == 'Corrigido')
 
@@ -211,7 +211,7 @@ class InspectionDataService:
                 'pontuacao': float(score_val),
                 'manager_notes': item.manager_notes,
                 'evidence_image_url': item.evidence_image_url,
-                'correction_notes': item.manager_notes,
+                'correction_notes': item.correction_notes,
                 'is_corrected': is_corrected,
                 'original_status_label': status_val,
                 'old_score_display': str(score_val) if score_val else None,

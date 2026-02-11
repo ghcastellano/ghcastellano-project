@@ -247,6 +247,7 @@ class TestActionItems:
             original_status='Nao Conforme',
             ai_suggested_deadline='7 dias',
             manager_notes='Nota do gestor',
+            correction_notes='Nota do consultor',
         )
 
         inspection = plan.inspection
@@ -261,7 +262,8 @@ class TestActionItems:
         assert item.nome_area == 'Cozinha'
         assert item.status_inicial == 'Nao Conforme'
         assert item.prazo_sugerido == '7 dias'
-        assert item.correction_notes == 'Nota do gestor'
+        assert item.manager_notes == 'Nota do gestor'
+        assert item.correction_notes == 'Nota do consultor'
 
     def test_status_atual_is_pendente_for_open_item(self, db_session):
         from src.models_db import ActionPlanItemStatus

@@ -57,6 +57,9 @@ def run_auto_patch():
         "ALTER TABLE action_plan_items ADD COLUMN IF NOT EXISTS original_status VARCHAR(50)",
         "ALTER TABLE action_plan_items ADD COLUMN IF NOT EXISTS original_score FLOAT",
 
+        # Table: action_plan_items - correction_notes (consultor)
+        "ALTER TABLE action_plan_items ADD COLUMN IF NOT EXISTS correction_notes TEXT",
+
         # Enum: jobstatus (add SKIPPED if missing)
         "ALTER TYPE jobstatus ADD VALUE IF NOT EXISTS 'SKIPPED'"
     ]

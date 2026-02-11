@@ -311,11 +311,11 @@
                                         <!-- Notes -->
                                         <textarea class="form-control text-sm" rows="2" id="notes_{{ item.id }}"
                                             placeholder="Observações do consultor... (OBRIGATÓRIO)"
-                                            data-original="{{ item.manager_notes or '' }}"
+                                            data-original="{{ item.correction_notes or '' }}"
                                             oninput="markAsModified(this)"
                                             onblur="saveItem('{{ item.id }}')"
                                             {% if is_finalized %}readonly disabled{% endif %}
-                                            required>{{ item.manager_notes or '' }}</textarea>
+                                            required>{{ item.correction_notes or '' }}</textarea>
                                     </div>
                                 </div>
                             </div>

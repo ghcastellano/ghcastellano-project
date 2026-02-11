@@ -252,7 +252,7 @@ class Inspection(Base):
             # Status de acompanhamento
             item.status_atual = "Corrigido" if item.status == "RESOLVED" else "Pendente"
             item.correction_date = None # Nao rastreamos QUANDO foi corrigido exatamente ainda, talvez adicionar campo?
-            item.correction_notes = item.manager_notes
+            # correction_notes é coluna real - não precisa de fallback
             
             enriched_items.append(item)
         return enriched_items
@@ -314,8 +314,9 @@ class ActionPlanItem(Base):
     order_index: Mapped[Optional[int]] = mapped_column(Integer) # V15 Ordem de Classificacao
     
     manager_notes: Mapped[Optional[str]] = mapped_column(Text) # Notas do gestor
+    correction_notes: Mapped[Optional[str]] = mapped_column(Text) # Notas do consultor (verificação)
     evidence_image_url: Mapped[Optional[str]] = mapped_column(String) # URL da evidência (Cloud Storage)
-    
+
     current_status: Mapped[Optional[str]] = mapped_column(String) # [NOVO] Status flexível (Em Verificação, Corrigido, etc)
 
     # --- Propriedades para Compatibilidade Legada (PDF/Dashboard) ---

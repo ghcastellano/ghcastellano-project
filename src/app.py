@@ -1209,7 +1209,7 @@ def save_review(file_id):
                 item.current_status = 'Corrigido' if data['is_corrected'] else 'Pendente'
 
             if 'correction_notes' in data:
-                item.manager_notes = data['correction_notes']
+                item.correction_notes = data['correction_notes']
 
             if 'evidence_image_url' in data:
                 item.evidence_image_url = data['evidence_image_url'] or None
