@@ -477,9 +477,11 @@
 
     function renderMonitorRow(item) {
         const hasError = item.status === 'FAILED';
+        const isSkipped = item.status === 'SKIPPED';
         const errorBadge = hasError && item.error_code ? `<span class="badge badge-danger" style="font-size:0.65em; margin-left:4px;">${item.error_code}</span>` : '';
+        const skipBadge = isSkipped ? `<span class="badge badge-warning" style="font-size:0.65em; margin-left:4px;">DUPLICATA</span>` : '';
         return `
-       <tr style="animation: fadeIn 0.5s; ${hasError ? 'background: #fef2f2;' : ''}">
+       <tr style="animation: fadeIn 0.5s; ${hasError ? 'background: #fef2f2;' : isSkipped ? 'background: #fffbeb;' : ''}">
            <td>
                 <span title="${item.id}" style="font-family: monospace; font-size: 0.8em; color: var(--text-muted); cursor: help;">
                     ${item.id.substring(0, 8)}...
@@ -501,10 +503,11 @@
                 <div style="display:flex; flex-direction:column; gap:4px;">
                     <div>
                         <span class="badge badge-${getStatusColor(item.status)}" style="cursor: pointer;" onclick="openTracker('${item.id}')" title="Ver Detalhes">${translate(item.status)}</span>
-                        ${errorBadge}
+                        ${errorBadge}${skipBadge}
                     </div>
                     ${item.current_stage ? '<div style="font-size:0.75em; color:#64748b;">📍 ' + item.current_stage + '</div>' : ''}
                     ${hasError && item.error_log ? '<div style="font-size:0.7em; color:#dc2626; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.error_log + '">⚠️ ' + item.error_log + '</div>' : ''}
+                    ${isSkipped && item.error_log ? '<div style="font-size:0.7em; color:#d97706; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.error_log + '">⚠️ ' + item.error_log + '</div>' : ''}
                     ${item.last_log_message && !hasError ? '<div style="font-size:0.7em; color:#059669; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + item.last_log_message + '">✓ ' + item.last_log_message + '</div>' : ''}
                 </div>
             </td>

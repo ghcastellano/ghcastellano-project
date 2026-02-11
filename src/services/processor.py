@@ -177,7 +177,13 @@ class ProcessorService:
 
                 # Update Job as Skipped
                 if job_id:
-                    self._update_job_status(job_id, "SKIPPED", {"reason": "duplicate", "existing_id": existing_insp.drive_file_id})
+                    self._update_job_status(job_id, "SKIPPED", {
+                        "code": "DUPLICATE",
+                        "admin_msg": f"Arquivo duplicado (hash identico a {existing_insp.drive_file_id}, status: {existing_insp.status.value})",
+                        "user_msg": "Este arquivo ja foi enviado e processado anteriormente.",
+                        "reason": "duplicate",
+                        "existing_id": existing_insp.drive_file_id,
+                    })
 
                 return {'status': 'skipped', 'reason': 'duplicate', 'existing_id': existing_insp.drive_file_id}
             session.close()
@@ -325,7 +331,7 @@ class ProcessorService:
                         status = JobStatus[status] if status in JobStatus.__members__ else status
 
                 job.status = status
-                if status in [JobStatus.COMPLETED, JobStatus.FAILED]:
+                if status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.SKIPPED]:
                     job.finished_at = datetime.utcnow()
 
                 # [FIX] Robust error logging

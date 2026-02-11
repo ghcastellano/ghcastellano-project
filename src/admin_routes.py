@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from src.models_db import UserRole, AppConfig
+from src.models_db import UserRole, AppConfig, JobStatus
 from functools import wraps
 import os
 import logging
@@ -305,6 +305,12 @@ def api_monitor_stats():
                         last_log_message = inspection.processing_logs[-1].get('message', '')
 
             error_details, error_code = _parse_error_log(job.error_log)
+
+            # Override stage for SKIPPED jobs
+            if job.status == JobStatus.SKIPPED:
+                current_stage = 'Duplicata Detectada'
+                if not error_details and error_code == 'DUPLICATE':
+                    error_details = 'Arquivo ja foi enviado e processado anteriormente.'
 
             job_type = job.type or 'PROCESS_REPORT'
 
