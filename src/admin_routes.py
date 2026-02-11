@@ -309,8 +309,21 @@ def api_monitor_stats():
             # Override stage for SKIPPED jobs
             if job.status == JobStatus.SKIPPED:
                 current_stage = 'Duplicata Detectada'
-                if not error_details and error_code == 'DUPLICATE':
-                    error_details = 'Arquivo ja foi enviado e processado anteriormente.'
+                error_code = error_code or 'DUPLICATE'
+                if not error_details or error_details == 'Erro desconhecido':
+                    # Build message from raw error_log (handles old format without admin_msg)
+                    try:
+                        raw = json.loads(job.error_log) if isinstance(job.error_log, str) else job.error_log
+                        if isinstance(raw, list) and raw:
+                            entry = raw[-1]
+                        elif isinstance(raw, dict):
+                            entry = raw
+                        else:
+                            entry = {}
+                        existing_id = entry.get('existing_id', '')
+                        error_details = f'Arquivo duplicado (hash identico a {existing_id})' if existing_id else 'Arquivo ja foi enviado e processado anteriormente.'
+                    except Exception:
+                        error_details = 'Arquivo ja foi enviado e processado anteriormente.'
 
             job_type = job.type or 'PROCESS_REPORT'
 
