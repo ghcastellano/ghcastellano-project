@@ -146,7 +146,7 @@ try:
     from src.auth import auth_bp
     from src.admin_routes import admin_bp
     from src.manager_routes import manager_bp
-    from src.cron_routes import cron_bp, cron_sync_drive
+    from src.cron_routes import cron_bp, cron_sync_drive, cron_renew_webhook
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp)
@@ -157,9 +157,11 @@ try:
 
     # Exempt Cron from CSRF (Done here to avoid circular import)
     csrf.exempt(cron_sync_drive)
+    csrf.exempt(cron_renew_webhook)
 
     # Exempt Cron from rate limiting
     limiter.exempt(cron_sync_drive)
+    limiter.exempt(cron_renew_webhook)
 
     logger.info("✅ Blueprints Registrados: auth, admin, manager")
     
@@ -1410,25 +1412,6 @@ def finalize_verification(file_id):
     return jsonify({'success': True, 'message': result.message})
 
 @app.route('/api/webhook/drive', methods=['POST'])
-@csrf.exempt # Webhooks from Google don't have CSRF token
-def drive_webhook():
-    """
-    Recebe notificação do Google Drive (Push Notification).
-    """
-    # 1. Verifica Token de Segurança (Evitar Spam)
-    token = request.headers.get('X-Goog-Channel-Token')
-    expected_token = get_config('WEBHOOK_SECRET_TOKEN')
-    
-    if token != expected_token:
-        logger.warning(f"Webhook Unauthorized: {token}")
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    # 2. Verifica Estado do Recurso
-    resource_state = request.headers.get('X-Goog-Resource-State')
-    # 'sync' é o teste inicial, 'add'/'update'/'trash' são eventos
-    logger.info(f"Webhook Received: {resource_state}")
-
-@app.route('/api/webhook/drive', methods=['POST'])
 @csrf.exempt
 def webhook_drive():
     """
@@ -1462,65 +1445,72 @@ def webhook_drive():
     return jsonify({'success': True}), 200
 
 @app.route('/api/webhook/renew', methods=['POST'])
-@csrf.exempt 
-# @basic_auth_required 
+@csrf.exempt
 def renew_webhook():
     """
     Renova (ou Inicia) o Monitoramento Global.
-    Deve ser chamado periodicamente (ex: a cada 6 dias, ou start manual).
+    Chamado automaticamente pelo cron a cada 6 dias, ou manualmente.
     """
     try:
         from src.services.drive_service import drive_service
         from src.models_db import AppConfig
         from src import database
         import uuid
-        
-        # [FIX] Run migration lazily because __main__ block doesn't run in Gunicorn
-        try:
-            from scripts.migration_app_config import create_app_config_table
-            create_app_config_table()
-            logger.info("✅ AppConfig Migration Verified")
-        except Exception as mig_err:
-            logger.warning(f"⚠️ Migration Check Failed: {mig_err}")
-            return jsonify({'error': f'Migration Failed: {mig_err}'}), 500
 
         callback_url = os.getenv("APP_PUBLIC_URL")
         if not callback_url:
-            # Auto-detect from request (Cloud Run sets correct Host header)
             callback_url = request.url_root.rstrip('/')
             logger.info(f"APP_PUBLIC_URL not set, auto-detected: {callback_url}")
-            
+
         full_url = f"{callback_url}/api/webhook/drive"
         channel_id = str(uuid.uuid4())
-        token = get_config("DRIVE_WEBHOOK_TOKEN", "global-webhook-token")
-        
-        # 1. Fetch Start Token
-        start_token = drive_service.get_start_page_token()
-        if not start_token:
-            return jsonify({'error': 'Failed to fetch start_page_token from Drive'}), 500
-            
-        # 2. Save Token to DB (so we don't miss events from now)
+        token = get_config("WEBHOOK_SECRET_TOKEN")
+
+        db_session = next(database.get_db())
         try:
-            db_session = next(database.get_db())
-            config_entry = db_session.query(AppConfig).get('drive_page_token')
-            if not config_entry:
-                db_session.add(AppConfig(key='drive_page_token', value=start_token))
-            else:
-                config_entry.value = start_token
+            # 1. Stop old channel if exists
+            old_channel_id = db_session.query(AppConfig).get('drive_webhook_channel_id')
+            old_resource_id = db_session.query(AppConfig).get('drive_webhook_resource_id')
+            if old_channel_id and old_resource_id and old_channel_id.value and old_resource_id.value:
+                try:
+                    drive_service.stop_watch(old_channel_id.value, old_resource_id.value)
+                    logger.info(f"Stopped old channel: {old_channel_id.value}")
+                except Exception as stop_err:
+                    logger.warning(f"Could not stop old channel (may have expired): {stop_err}")
+
+            # 2. Get page token (use existing to not miss events, or fetch new)
+            existing_token = db_session.query(AppConfig).get('drive_page_token')
+            start_token = existing_token.value if existing_token and existing_token.value else drive_service.get_start_page_token()
+            if not start_token:
+                return jsonify({'error': 'Failed to fetch start_page_token from Drive'}), 500
+
+            # 3. Register new watch channel
+            resp = drive_service.watch_global_changes(full_url, channel_id, token, page_token=start_token)
+            logger.info(f"Global Watch Registered: {resp}")
+
+            # 4. Persist channel info + token for renewal/cleanup
+            def _upsert(key, value):
+                entry = db_session.query(AppConfig).get(key)
+                if not entry:
+                    db_session.add(AppConfig(key=key, value=value))
+                else:
+                    entry.value = value
+
+            _upsert('drive_page_token', start_token)
+            _upsert('drive_webhook_channel_id', channel_id)
+            _upsert('drive_webhook_resource_id', resp.get('resourceId', ''))
+            _upsert('drive_webhook_expiration', str(resp.get('expiration', '')))
             db_session.commit()
-            db_session.close()
+
+            return jsonify({'success': True, 'channel': resp, 'start_token': start_token}), 200
         except Exception as e:
-            logger.error(f"DB Token Save Error: {e}")
-            return jsonify({'error': f'DB Error: {e}'}), 500
-        
-        # 3. Register Watch
-        resp = drive_service.watch_global_changes(full_url, channel_id, token, page_token=start_token)
-        
-        logger.info(f"Global Watch Registered: {resp}")
-        return jsonify({'success': True, 'channel': resp, 'start_token': start_token}), 200
-        
+            db_session.rollback()
+            raise e
+        finally:
+            db_session.close()
+
     except Exception as e:
-        logger.error(f"Renew Error: {e}")
+        logger.error(f"Renew Error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

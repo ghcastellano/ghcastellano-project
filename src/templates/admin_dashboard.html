@@ -664,7 +664,16 @@
         });
 
         updateMonitoring();
-        setInterval(updateMonitoring, 30000);
+        // Only poll when tab is visible (saves Cloud Run costs)
+        var monitorInterval = setInterval(updateMonitoring, 30000);
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                clearInterval(monitorInterval);
+            } else {
+                updateMonitoring(); // Immediate refresh on return
+                monitorInterval = setInterval(updateMonitoring, 30000);
+            }
+        });
     });
 
     // --- SETTINGS ---

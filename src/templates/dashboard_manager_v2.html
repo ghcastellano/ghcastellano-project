@@ -360,9 +360,35 @@
                 <!-- REMOVIDO: Ações Pendentes de Validação (Redundante) -->
                 <div id="home-pendencies" style="display: none !important;"></div>
 
+                <!-- Charts: NC vs Parcialmente Conforme -->
+                <div id="charts-section" class="card" style="margin-top: 2rem; display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="ph-bold ph-chart-bar"></i> Panorama de Conformidade</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: center;">
+                            <div style="position: relative; max-width: 260px; margin: 0 auto;">
+                                <canvas id="chartDonut"></canvas>
+                            </div>
+                            <div>
+                                <canvas id="chartBars" style="max-height: 240px;"></canvas>
+                            </div>
+                        </div>
+                        <div id="charts-legend" style="display:flex; gap:1.5rem; justify-content:center; margin-top:1.25rem; flex-wrap:wrap;">
+                            <span style="display:flex; align-items:center; gap:6px; font-size:0.85rem;">
+                                <span style="width:12px;height:12px;background:#ef4444;border-radius:3px;display:inline-block;"></span> Nao Conforme
+                            </span>
+                            <span style="display:flex; align-items:center; gap:6px; font-size:0.85rem;">
+                                <span style="width:12px;height:12px;background:#f59e0b;border-radius:3px;display:inline-block;"></span> Parcialmente Conforme
+                            </span>
+                            <span style="display:flex; align-items:center; gap:6px; font-size:0.85rem;">
+                                <span style="width:12px;height:12px;background:#10b981;border-radius:3px;display:inline-block;"></span> Conforme
+                            </span>
+                        </div>
+                    </div>
+                </div>
 
-
-                <!-- 📊 Vistorias Realizadas section (Primary Focus) -->
+                <!-- Vistorias Realizadas section (Primary Focus) -->
                 <div class="card" style="margin-top: 2rem; min-height: 400px;">
                     <div class="card-header">
                         <h3 class="card-title">Histórico de Vistorias</h3>
@@ -1492,6 +1518,14 @@
                 if (urgentCard) urgentCard.style.display = 'none';
             }
 
+            // --- Charts: NC vs PC vs Conforme ---
+            if (data.summary && data.summary.total_items > 0) {
+                const s = data.summary;
+                const conforme = s.total_items - s.total_nc - s.total_pc;
+                document.getElementById('charts-section').style.display = 'block';
+                renderCharts(s.total_nc, s.total_pc, conforme, data.processed_raw || []);
+            }
+
         } catch (e) {
             console.error("Erro no polling:", e);
             const tbody = document.getElementById('list-processed-tbody');
@@ -1543,6 +1577,82 @@
             return `<span class="badge ${badge.class}" onclick="openTracker('${id}'); event.stopPropagation();" style="cursor: pointer;" title="Ver Status">${badge.text}</span>`;
         }
         return `<span class="badge ${badge.class}">${badge.text}</span>`;
+    }
+
+    // --- Chart Rendering ---
+    let donutChart = null;
+    let barChart = null;
+
+    function renderCharts(nc, pc, conforme, inspections) {
+        if (typeof Chart === 'undefined') return;
+
+        const donutCtx = document.getElementById('chartDonut');
+        const barCtx = document.getElementById('chartBars');
+        if (!donutCtx || !barCtx) return;
+
+        // Donut: Overall distribution
+        if (donutChart) donutChart.destroy();
+        donutChart = new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Nao Conforme', 'Parcialmente Conforme', 'Conforme'],
+                datasets: [{
+                    data: [nc, pc, conforme],
+                    backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const total = nc + pc + conforme;
+                                const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+                                return `${ctx.label}: ${ctx.raw} (${pct}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '60%',
+            }
+        });
+
+        // Bar: Per-establishment NC vs PC
+        const estMap = {};
+        inspections.forEach(item => {
+            if (!item.establishment) return;
+            if (!estMap[item.establishment]) estMap[item.establishment] = { nc: 0, pc: 0 };
+            estMap[item.establishment].nc += item.nc_count || 0;
+            estMap[item.establishment].pc += item.pc_count || 0;
+        });
+
+        const labels = Object.keys(estMap).slice(0, 8);
+        const ncData = labels.map(l => estMap[l].nc);
+        const pcData = labels.map(l => estMap[l].pc);
+
+        if (barChart) barChart.destroy();
+        barChart = new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: labels.map(l => l.length > 15 ? l.substring(0, 15) + '...' : l),
+                datasets: [
+                    { label: 'Nao Conforme', data: ncData, backgroundColor: '#ef4444', borderRadius: 4 },
+                    { label: 'Parc. Conforme', data: pcData, backgroundColor: '#f59e0b', borderRadius: 4 },
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                    y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } },
+                },
+            }
+        });
     }
 
     // Format Currency (Simple BRL estimation)

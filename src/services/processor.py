@@ -627,6 +627,7 @@ class ProcessorService:
             logger.info(f"📍 Target Establishment: {target_est.name if target_est else 'None'} (ID: {est_id})")
 
             # Filter out non-area sections BEFORE saving ai_raw_response
+            # Safety: rescue NC/partial items from excluded areas into "Geral"
             EXCLUDED_AREA_KEYWORDS = [
                 'inconformidade', 'observaç', 'comentário', 'acompanhante',
                 'responsável técnico', 'conclus', 'parecer', 'resumo geral',
@@ -635,16 +636,43 @@ class ProcessorService:
             ]
             original_count = len(report_data.areas_inspecionadas)
             filtered_areas = []
+            rescued_items = []
             for area in report_data.areas_inspecionadas:
                 area_name_lower = area.nome_area.lower().strip()
                 is_excluded = any(kw in area_name_lower for kw in EXCLUDED_AREA_KEYWORDS)
                 if is_excluded:
-                    logger.info(f"  ⚠️ Filtering non-area section: '{area.nome_area}'")
+                    # Rescue NC/Partial items before discarding the area
+                    nc_items = [
+                        it for it in area.itens
+                        if 'não conforme' in it.status.lower() or 'parcialmente' in it.status.lower()
+                    ]
+                    if nc_items:
+                        rescued_items.extend(nc_items)
+                        logger.warning(f"  🚨 Rescued {len(nc_items)} NC items from excluded area: '{area.nome_area}'")
+                    else:
+                        logger.info(f"  ⚠️ Filtering non-area section: '{area.nome_area}'")
                     continue
                 if area.pontuacao_maxima == 0 and len(area.itens) == 0:
                     logger.info(f"  ⚠️ Filtering empty area (0 max score, 0 items): '{area.nome_area}'")
                     continue
                 filtered_areas.append(area)
+
+            # Merge rescued items into first area or create "Geral"
+            if rescued_items:
+                if filtered_areas:
+                    filtered_areas[0].itens.extend(rescued_items)
+                    logger.info(f"  ✅ Merged {len(rescued_items)} rescued items into '{filtered_areas[0].nome_area}'")
+                else:
+                    from src.models import AreaInspecao
+                    geral = AreaInspecao(
+                        nome_area="Geral",
+                        itens=rescued_items,
+                        pontuacao_obtida=0, pontuacao_maxima=0,
+                        aproveitamento=0, resumo_area=""
+                    )
+                    filtered_areas.append(geral)
+                    logger.info(f"  ✅ Created 'Geral' area with {len(rescued_items)} rescued items")
+
             report_data.areas_inspecionadas = filtered_areas
             if original_count != len(filtered_areas):
                 logger.info(f"🔍 Areas filtered: {original_count} → {len(filtered_areas)}")

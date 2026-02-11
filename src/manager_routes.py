@@ -715,6 +715,19 @@ def api_status():
                 except Exception:
                     pass
 
+            # Count NC / Parcialmente Conforme from action plan items
+            nc_count = 0
+            pc_count = 0
+            total_items = 0
+            if hasattr(insp, 'action_plan') and insp.action_plan and insp.action_plan.items:
+                for item in insp.action_plan.items:
+                    total_items += 1
+                    orig = (item.original_status or '').lower()
+                    if 'parcial' in orig:
+                        pc_count += 1
+                    elif 'não' in orig or 'nao' in orig:
+                        nc_count += 1
+
             processed_list.append({
                 'id': str(insp.id),
                 'establishment': est_name,
@@ -723,6 +736,9 @@ def api_status():
                 'date': date_str,
                 'status': insp.status.value if insp.status else 'PENDING',
                 'review_link': review_link,
+                'nc_count': nc_count,
+                'pc_count': pc_count,
+                'total_items': total_items,
             })
 
         # Fetch pending jobs
@@ -753,9 +769,18 @@ def api_status():
                     'message': job.error_log if is_error else None,
                 })
 
+        # Summary stats for charts
+        summary = {
+            'total_nc': sum(p.get('nc_count', 0) for p in processed_list),
+            'total_pc': sum(p.get('pc_count', 0) for p in processed_list),
+            'total_items': sum(p.get('total_items', 0) for p in processed_list),
+            'total_inspections': len(processed_list),
+        }
+
         return jsonify({
             'pending': pending_list,
             'processed_raw': processed_list,
+            'summary': summary,
         })
 
     except Exception as e:

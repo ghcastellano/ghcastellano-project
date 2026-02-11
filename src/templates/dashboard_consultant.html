@@ -882,6 +882,8 @@
             ">
                 <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}" style="color: ${color}; font-size: 1.25rem;"></i>
                 <div style="font-weight: 600; color: #1e293b; font-size: 0.95rem;">${message}</div>
+                <button onclick="this.parentElement.style.transform='translateX(120%)'; setTimeout(() => this.parentElement.remove(), 300);"
+                    style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#64748B; padding:0 0 0 8px; line-height:1;">&times;</button>
             </div>
         `;
 
@@ -893,14 +895,6 @@
                 if (el) el.style.transform = 'translateX(0)';
             }, 50);
         });
-
-        setTimeout(() => {
-            const el = document.getElementById(toastId);
-            if (el) {
-                el.style.transform = 'translateX(120%)';
-                setTimeout(() => el.remove(), 300);
-            }
-        }, 5000);
     }
 
     // State for Exit Warning
@@ -1056,21 +1050,15 @@
                             </p>
                         </div>
                         <p style="color:#64748B; font-size:0.85rem; margin-bottom:1.5rem;">
-                            A página será atualizada automaticamente em instantes.
+                            Clique no botão abaixo para fechar e atualizar a página.
                         </p>
-                        <div style="background:#ECFDF5; border:1px solid #16a34a; border-radius:8px; padding:0.75rem; display:inline-block;">
-                            <p style="font-size:0.85rem; color:#14532d; margin:0; font-weight:600;">
-                                <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Processando...
-                            </p>
-                        </div>
+                        <button type="button" onclick="window.location.reload(true);"
+                            style="padding:0.7rem 2rem; border-radius:50px; border:none; background:#16a34a; color:white; cursor:pointer; font-weight:600; font-size:0.9rem; transition:all 0.2s;">
+                            <i class="fas fa-check" style="margin-right:6px;"></i> Fechar e Atualizar
+                        </button>
                     `;
                     modalWrapper.appendChild(successView);
                 }
-
-                // Auto-reload after 3 seconds
-                setTimeout(() => {
-                    window.location.reload(true);
-                }, 3000);
 
             } else if (xhr.status === 413) {
                 showError('Arquivo muito grande. O limite é 32MB.');
