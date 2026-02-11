@@ -490,6 +490,32 @@
         transform: scale(1.1);
         transition: transform 0.2s;
     }
+
+    /* Highlight incomplete items on validation */
+    .item-incomplete {
+        outline: 2px solid #ef4444 !important;
+        outline-offset: 2px;
+        animation: pulseOutline 1.5s ease-in-out 3;
+    }
+
+    @keyframes pulseOutline {
+        0%, 100% { outline-color: #ef4444; }
+        50% { outline-color: #fca5a5; }
+    }
+
+    /* Clearer unselected state for status buttons */
+    .btn-check + .btn-outline-success,
+    .btn-check + .btn-outline-warning {
+        opacity: 0.55;
+        border-width: 2px;
+    }
+
+    .btn-check:checked + .btn-outline-success,
+    .btn-check:checked + .btn-outline-warning {
+        opacity: 1;
+        font-weight: 600;
+        box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+    }
 </style>
 
 <!-- CSS for Auto-Save Feedback -->
@@ -742,29 +768,52 @@
     async function finishConsultantReview() {
         // Validação: Verificar se todos os itens não conformes têm status selecionado e observações
         const allItems = document.querySelectorAll('[id^="notes_"]');
-        const missingItems = [];
+        let firstIncompleteId = null;
+        let missingCount = 0;
+
+        // Limpar destaques anteriores
+        document.querySelectorAll('.item-incomplete').forEach(el => el.classList.remove('item-incomplete'));
 
         allItems.forEach(notesTextarea => {
             const itemId = notesTextarea.id.replace('notes_', '');
-
-            // Verificar se há um status selecionado
             const statusSelected = document.querySelector(`input[name="status_${itemId}"]:checked`);
-
-            // Verificar se há observações
             const notes = notesTextarea.value.trim();
 
-            if (!statusSelected) {
-                missingItems.push(`Item sem status selecionado`);
-            } else if (!notes) {
-                missingItems.push(`Item sem observações`);
+            if (!statusSelected || !notes) {
+                missingCount++;
+                if (!firstIncompleteId) firstIncompleteId = itemId;
+
+                // Destacar o card do item incompleto
+                const card = notesTextarea.closest('.card.border-0.shadow-sm');
+                if (card) card.classList.add('item-incomplete');
             }
         });
 
-        if (missingItems.length > 0) {
+        if (missingCount > 0) {
             alert('Por favor, complete todos os campos obrigatórios:\n\n' +
                   '• Todos os itens devem ter um status selecionado (Corrigido ou Pendente)\n' +
                   '• Todos os itens devem ter observações preenchidas\n\n' +
-                  `Faltam ${missingItems.length} item(ns) para preencher.`);
+                  `Faltam ${missingCount} item(ns) para preencher.`);
+
+            // Abrir o accordion que contém o item e rolar até ele
+            if (firstIncompleteId) {
+                const notesEl = document.getElementById(`notes_${firstIncompleteId}`);
+                if (notesEl) {
+                    // Encontrar e abrir o accordion pai
+                    const accordionCollapse = notesEl.closest('.accordion-collapse');
+                    if (accordionCollapse && !accordionCollapse.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(accordionCollapse, { toggle: true });
+                    }
+
+                    // Rolar até o item após o accordion abrir
+                    setTimeout(() => {
+                        const card = notesEl.closest('.card.border-0.shadow-sm');
+                        if (card) {
+                            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }, 350);
+                }
+            }
             return;
         }
 
