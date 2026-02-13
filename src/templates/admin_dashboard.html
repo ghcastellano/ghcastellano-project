@@ -43,9 +43,21 @@
             </li>
         </ul>
 
+        <!-- Company Filter -->
+        <div style="margin-top: auto; padding-top: 2rem;">
+            <label class="form-label" style="font-size: 0.75rem; color: var(--text-light);">FILTRAR POR EMPRESA</label>
+            <select id="adminCompanyFilter" onchange="handleAdminCompanyFilter(this.value)" class="form-control"
+                style="font-size: 0.85rem;">
+                <option value="">Todas as Empresas</option>
+                {% for company in companies %}
+                <option value="{{ company.id }}">{{ company.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         <!-- Info Box -->
         <div
-            style="margin-top: auto; padding: 1rem; background: rgba(239, 246, 255, 0.6); border-radius: 12px; border: 1px solid rgba(219, 234, 254, 0.6); font-size: 0.8rem; color: #1e40af;">
+            style="padding: 1rem; margin-top: 1rem; background: rgba(239, 246, 255, 0.6); border-radius: 12px; border: 1px solid rgba(219, 234, 254, 0.6); font-size: 0.8rem; color: #1e40af;">
             <i class="ph-bold ph-info"></i> Painel de Super Admin. Use com cautela. Ações aqui afetam toda a plataforma.
         </div>
     </aside>
@@ -214,7 +226,7 @@
                             </thead>
                             <tbody>
                                 {% for company in companies %}
-                                <tr id="row-company-{{ company.id }}">
+                                <tr id="row-company-{{ company.id }}" data-company-id="{{ company.id }}">
                                     <td style="font-weight: 600;" class="col-name">{{ company.name }}</td>
                                     <td class="text-sm text-muted col-cnpj">{{ company.cnpj or '--' }}</td>
                                     <td><span class="badge badge-success">Ativo</span></td>
@@ -343,13 +355,13 @@
                                 {% for manager in managers %}
                                 {% set comp_name = manager.company.name if manager.company else "Sem Empresa/Admin" %}
                                 {% if ns.last_company != comp_name %}
-                                <tr class="group-header" data-group-name="{{ comp_name }}">
+                                <tr class="group-header" data-group-name="{{ comp_name }}" data-company-id="{{ manager.company_id or '' }}">
                                     <td colspan="4"><i class="ph-bold ph-buildings"></i> {{ comp_name }}</td>
                                 </tr>
                                 {% set ns.last_company = comp_name %}
                                 {% endif %}
 
-                                <tr id="row-manager-{{ manager.id }}" data-company-name="{{ comp_name }}">
+                                <tr id="row-manager-{{ manager.id }}" data-company-name="{{ comp_name }}" data-company-id="{{ manager.company_id or '' }}">
                                     <td style="font-weight: 500; padding-left: 2rem;" class="col-name">{{ manager.name
                                         }}</td>
                                     <td class="text-sm text-muted col-email">{{ manager.email }}</td>
@@ -470,7 +482,53 @@
         }
     }
 
-    // ... [Existing Functions] ...
+    // Company Filter
+    var selectedCompanyId = '';
+    var allMonitorItems = [];
+
+    function handleAdminCompanyFilter(companyId) {
+        selectedCompanyId = companyId;
+
+        // Filter Companies table
+        document.querySelectorAll('#companiesTable tbody tr').forEach(row => {
+            if (!companyId || row.dataset.companyId === companyId) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Filter Managers table (rows + group headers)
+        document.querySelectorAll('#managersTable tbody tr').forEach(row => {
+            if (!companyId || row.dataset.companyId === companyId) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Filter Monitoring (re-render from cached data)
+        renderFilteredMonitor();
+    }
+
+    function renderFilteredMonitor() {
+        if (!allMonitorItems.length) return;
+        const filtered = selectedCompanyId
+            ? allMonitorItems.filter(i => i.company_id === selectedCompanyId)
+            : allMonitorItems;
+
+        const tbody = document.getElementById('monitoring-tbody');
+        if (filtered.length > 0) {
+            if (monitorPaginator) {
+                monitorPaginator.setData(filtered);
+            } else {
+                tbody.innerHTML = filtered.map(renderMonitorRow).join('');
+            }
+        } else {
+            if (monitorPaginator) monitorPaginator.setData([]);
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Nenhum job encontrado para esta empresa.</td></tr>';
+        }
+    }
 
     // Monitoring
     var monitorPaginator = null;
@@ -481,7 +539,7 @@
         const errorBadge = hasError && item.error_code ? `<span class="badge badge-danger" style="font-size:0.65em; margin-left:4px;">${item.error_code}</span>` : '';
         const skipBadge = isSkipped ? `<span class="badge badge-warning" style="font-size:0.65em; margin-left:4px;">DUPLICATA</span>` : '';
         return `
-       <tr style="animation: fadeIn 0.5s; ${hasError ? 'background: #fef2f2;' : isSkipped ? 'background: #fffbeb;' : ''}">
+       <tr data-company-id="${item.company_id}" style="animation: fadeIn 0.5s; ${hasError ? 'background: #fef2f2;' : isSkipped ? 'background: #fffbeb;' : ''}">
            <td>
                 <span title="${item.id}" style="font-family: monospace; font-size: 0.8em; color: var(--text-muted); cursor: help;">
                     ${item.id.substring(0, 8)}...
@@ -547,11 +605,15 @@
 
             if (res.ok) {
                 const data = await res.json();
-                if (data.items && data.items.length > 0) {
+                allMonitorItems = data.items || [];
+                const filtered = selectedCompanyId
+                    ? allMonitorItems.filter(i => i.company_id === selectedCompanyId)
+                    : allMonitorItems;
+                if (filtered.length > 0) {
                     if (monitorPaginator) {
-                        monitorPaginator.setData(data.items);
+                        monitorPaginator.setData(filtered);
                     } else {
-                        tbody.innerHTML = data.items.map(renderMonitorRow).join('');
+                        tbody.innerHTML = filtered.map(renderMonitorRow).join('');
                     }
                 } else {
                     if (monitorPaginator) monitorPaginator.setData([]);

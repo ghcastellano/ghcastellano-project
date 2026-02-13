@@ -36,8 +36,11 @@ def sanitize_log_message(message: str) -> str:
 
 class JsonFormatter(logging.Formatter):
     def format(self, record):
-        # Sanitize the message to remove sensitive data
-        sanitized_message = sanitize_log_message(record.getMessage())
+        # Guard against Python shutdown (sys.meta_path becomes None)
+        try:
+            sanitized_message = sanitize_log_message(record.getMessage())
+        except (ImportError, TypeError):
+            sanitized_message = record.getMessage()
 
         json_log = {
             "severity": record.levelname,

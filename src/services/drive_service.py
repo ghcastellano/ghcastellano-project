@@ -145,26 +145,35 @@ class DriveService:
         if mime_type:
             query += f" and mimeType='{mime_type}'"
         
-        try:
-            with self.lock:
-                results = self.service.files().list(
-                    q=query,
-                    fields="files(id, name, mimeType, webViewLink, createdTime, modifiedTime)",
-                    orderBy="modifiedTime desc",
-                    pageSize=100,
-                    supportsAllDrives=True,
-                    includeItemsFromAllDrives=True
-                ).execute()
-            
-            files = results.get('files', [])
-            
-            if extension:
-                files = [f for f in files if f['name'].lower().endswith(extension.lower())]
-                
-            return files
-        except Exception as e:
-            logger.error(f"Erro ao listar arquivos: {e}")
-            return []
+        import time
+        for attempt in range(3):
+            try:
+                with self.lock:
+                    results = self.service.files().list(
+                        q=query,
+                        fields="files(id, name, mimeType, webViewLink, createdTime, modifiedTime)",
+                        orderBy="modifiedTime desc",
+                        pageSize=100,
+                        supportsAllDrives=True,
+                        includeItemsFromAllDrives=True
+                    ).execute()
+
+                files = results.get('files', [])
+
+                if extension:
+                    files = [f for f in files if f['name'].lower().endswith(extension.lower())]
+
+                return files
+            except (BrokenPipeError, ConnectionResetError, OSError) as e:
+                if attempt < 2:
+                    logger.warning(f"Erro de conexão ao listar arquivos (tentativa {attempt+1}/3): {e}")
+                    time.sleep(2 ** attempt)
+                    continue
+                logger.error(f"Erro ao listar arquivos após 3 tentativas: {e}")
+                return []
+            except Exception as e:
+                logger.error(f"Erro ao listar arquivos: {e}")
+                return []
 
     def download_file(self, file_id):
         """Baixa arquivo e retorna bytes."""

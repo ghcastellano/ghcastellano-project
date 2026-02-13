@@ -330,6 +330,7 @@ def api_monitor_stats():
             monitor_list.append({
                 'id': str(job.id),
                 'type': job_type,
+                'company_id': str(job.company_id) if job.company_id else '',
                 'company_name': job.company.name if job.company else "Sem Empresa",
                 'filename': filename,
                 'establishment': est_name,
