@@ -220,7 +220,11 @@ def update_consultant(user_id):
             return jsonify({'error': 'Acesso negado a este consultor.'}), 403
 
         user.name = name
-        user.email = email
+        if email != user.email:
+            existing = uow.users.get_by_email(email)
+            if existing and existing.id != user.id:
+                return jsonify({'error': 'Email já cadastrado por outro usuário.'}), 400
+            user.email = email
 
         if password and len(password.strip()) > 0:
             user.password_hash = generate_password_hash(password)

@@ -220,6 +220,15 @@ def update_company(company_id):
             flash('Empresa não encontrada.', 'error')
             return redirect(url_for('admin.index'))
 
+        # Check CNPJ uniqueness (if changed)
+        if cnpj and cnpj != company.cnpj:
+            existing = uow.companies.get_by_cnpj(cnpj)
+            if existing and existing.id != company.id:
+                if request.accept_mimetypes.accept_json:
+                    return jsonify({'error': f'Já existe uma empresa com o CNPJ {cnpj}.'}), 400
+                flash(f'Já existe uma empresa com o CNPJ {cnpj}.', 'error')
+                return redirect(url_for('admin.index'))
+
         company.name = name
         company.cnpj = cnpj
         uow.commit()
@@ -371,6 +380,55 @@ def tracker_details(inspection_id):
 
         data = get_tracker_service().get_tracker_data(insp)
         return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/api/recent-errors')
+@login_required
+@admin_required
+def api_recent_errors():
+    """API for recent job errors (last 20 FAILED jobs)."""
+    from src.container import get_uow
+    from src.models_db import Job, JobStatus
+    import json
+
+    uow = get_uow()
+    try:
+        failed_jobs = uow.session.query(Job).filter(
+            Job.status.in_([JobStatus.FAILED, JobStatus.SKIPPED])
+        ).order_by(Job.created_at.desc()).limit(20).all()
+
+        errors = []
+        for job in failed_jobs:
+            payload = job.input_payload or {}
+            error_msg = ''
+            if job.error_log:
+                try:
+                    raw = json.loads(job.error_log) if isinstance(job.error_log, str) else job.error_log
+                    if isinstance(raw, list) and raw:
+                        entry = raw[-1]
+                        error_msg = entry.get('admin_msg') or entry.get('message') or str(entry)
+                    elif isinstance(raw, dict):
+                        error_msg = raw.get('admin_msg') or raw.get('message') or raw.get('error') or str(raw)
+                    else:
+                        error_msg = str(raw)
+                except Exception:
+                    error_msg = str(job.error_log)[:200]
+            elif job.result_details:
+                error_msg = job.result_details.get('error', '') if isinstance(job.result_details, dict) else str(job.result_details)
+
+            errors.append({
+                'id': str(job.id),
+                'status': job.status.value,
+                'filename': payload.get('filename', 'N/A'),
+                'source': payload.get('source', 'N/A'),
+                'company': job.company.name if job.company else 'N/A',
+                'error': error_msg[:300],
+                'created_at': job.created_at.isoformat() if job.created_at else None,
+            })
+
+        return jsonify({'errors': errors})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

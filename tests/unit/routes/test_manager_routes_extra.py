@@ -387,6 +387,7 @@ class TestUpdateConsultantExtra:
 
         mock_uow = MagicMock()
         mock_uow.users.get_by_id.return_value = mock_user
+        mock_uow.users.get_by_email.return_value = None
         mock_mgr_uow.return_value = mock_uow
 
         response = client.post(
@@ -506,6 +507,7 @@ class TestUpdateConsultantExtra:
 
         mock_uow = MagicMock()
         mock_uow.users.get_by_id.return_value = mock_user
+        mock_uow.users.get_by_email.return_value = None
         # Simulate exception on commit
         mock_uow.commit.side_effect = Exception("DB constraint violation")
         mock_mgr_uow.return_value = mock_uow

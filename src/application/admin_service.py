@@ -229,7 +229,10 @@ class AdminService:
 
         if name:
             user.name = name
-        if email:
+        if email and email != user.email:
+            existing = self._uow.users.get_by_email(email)
+            if existing and existing.id != user.id:
+                return AdminResult(success=False, message='Email já cadastrado por outro usuário.', error='DUPLICATE_EMAIL')
             user.email = email
 
         if company_id and str(company_id).strip():

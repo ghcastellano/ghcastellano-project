@@ -453,8 +453,10 @@ class TestUpdateCompany:
         _setup_admin_session(client, admin, mock_auth_uow)
 
         mock_company = MagicMock()
+        mock_company.cnpj = '11111111000100'
         mock_uow = MagicMock()
         mock_uow.companies.get_by_id.return_value = mock_company
+        mock_uow.companies.get_by_cnpj.return_value = None
         mock_container_uow.return_value = mock_uow
 
         cid = uuid.uuid4()
@@ -469,6 +471,36 @@ class TestUpdateCompany:
         assert mock_company.name == 'Updated Corp'
         assert mock_company.cnpj == '99999999000100'
         mock_uow.commit.assert_called_once()
+
+    @patch('src.container.get_uow')
+    @patch('src.auth.get_uow')
+    def test_update_company_duplicate_cnpj(self, mock_auth_uow, mock_container_uow, client):
+        """Updating company with CNPJ already used by another returns 400."""
+        admin = MockUser(role='ADMIN')
+        _setup_admin_session(client, admin, mock_auth_uow)
+
+        cid = uuid.uuid4()
+        other_id = uuid.uuid4()
+        mock_company = MagicMock()
+        mock_company.id = cid
+        mock_company.cnpj = '11111111000100'
+
+        mock_existing = MagicMock()
+        mock_existing.id = other_id
+
+        mock_uow = MagicMock()
+        mock_uow.companies.get_by_id.return_value = mock_company
+        mock_uow.companies.get_by_cnpj.return_value = mock_existing
+        mock_container_uow.return_value = mock_uow
+
+        response = client.post(
+            f'/admin/company/{cid}/update',
+            data={'name': 'My Corp', 'cnpj': '99999999000100'},
+            headers=JSON_HEADERS,
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'CNPJ' in data['error']
 
     @patch('src.container.get_uow')
     @patch('src.auth.get_uow')

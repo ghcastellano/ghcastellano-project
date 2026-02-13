@@ -31,7 +31,7 @@
             <li class="sidebar-item" id="menu-monitoring" onclick="showSection('monitoring', this)">
                 <div class="sidebar-dot"></div> Monitoramento Jobs
             </li>
-            <li class="sidebar-item" id="menu-system" onclick="showSection('system', this)">
+            <li class="sidebar-item" id="menu-system" onclick="showSection('system', this); loadRecentErrors();">
                 <div class="sidebar-dot"></div> Logs & Sistema
             </li>
         </ul>
@@ -437,11 +437,39 @@
 
             <!-- 5. System Logs -->
             <div id="system" class="section-view">
-                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Logs do Sistema</h1>
+                <h1 style="font-size: 1.8rem; margin-bottom: 2rem;">Logs & Sistema</h1>
+
+                <!-- Cloud Console Links -->
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <div class="card-body" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">Google Cloud:</span>
+                        <a href="https://console.cloud.google.com/run/detail/us-central1/mvp-web/logs?project=projeto-poc-ap" target="_blank"
+                            class="btn btn-sm" style="background: #1a73e8; color: white; border-radius: 8px; font-size: 0.8rem;">
+                            <i class="ph-bold ph-terminal-window"></i> Cloud Run Logs
+                        </a>
+                        <a href="https://console.cloud.google.com/logs/query?project=projeto-poc-ap" target="_blank"
+                            class="btn btn-sm" style="background: #34a853; color: white; border-radius: 8px; font-size: 0.8rem;">
+                            <i class="ph-bold ph-file-text"></i> Cloud Logging
+                        </a>
+                        <a href="https://console.cloud.google.com/run/detail/us-central1/mvp-web/revisions?project=projeto-poc-ap" target="_blank"
+                            class="btn btn-sm" style="background: #ea4335; color: white; border-radius: 8px; font-size: 0.8rem;">
+                            <i class="ph-bold ph-rocket-launch"></i> Revisions
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Recent Errors -->
                 <div class="card">
                     <div class="card-body">
-                        <p>Log Stream disponivel no Google Cloud Console.</p>
-                        <a href="https://console.cloud.google.com/run" target="_blank" class="btn btn-secondary">Abrir Cloud Console</a>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="font-size: 1rem; margin: 0; font-weight: 600;">Erros Recentes (Jobs)</h3>
+                            <button onclick="loadRecentErrors()" class="btn btn-sm" style="background: var(--bg-secondary); border-radius: 8px; font-size: 0.8rem;">
+                                <i class="ph-bold ph-arrows-clockwise"></i> Atualizar
+                            </button>
+                        </div>
+                        <div id="recentErrorsContainer">
+                            <p style="color: #94a3b8; text-align: center;"><i class="ph-bold ph-spinner"></i> Carregando...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -509,6 +537,9 @@
 
         // Filter Monitoring (re-render from cached data)
         renderFilteredMonitor();
+
+        // Update stat cards to reflect filtered counts
+        updateAdminStatCounts();
     }
 
     function renderFilteredMonitor() {
@@ -740,6 +771,47 @@
             }
         });
     });
+
+    // --- RECENT ERRORS ---
+    async function loadRecentErrors() {
+        const container = document.getElementById('recentErrorsContainer');
+        container.innerHTML = '<p style="color: #94a3b8; text-align: center;"><i class="ph-bold ph-spinner"></i> Carregando...</p>';
+        try {
+            const res = await fetch('/admin/api/recent-errors', { headers: { 'Accept': 'application/json' } });
+            if (res.status === 401) {
+                container.innerHTML = '<p style="color:#f59e0b;">Sessão expirada. <a href="/auth/login">Fazer login</a></p>';
+                return;
+            }
+            const data = await res.json();
+            if (data.error) {
+                container.innerHTML = `<p style="color:#ef4444;">${data.error}</p>`;
+                return;
+            }
+            const errors = data.errors || [];
+            if (errors.length === 0) {
+                container.innerHTML = '<p style="color: #10b981; text-align: center;">Nenhum erro recente encontrado.</p>';
+                return;
+            }
+            let html = '<table class="modern-table" style="font-size:0.85rem;"><thead><tr><th>Data</th><th>Empresa</th><th>Arquivo</th><th>Status</th><th>Erro</th></tr></thead><tbody>';
+            errors.forEach(e => {
+                const dt = e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : '-';
+                const statusBadge = e.status === 'FAILED'
+                    ? '<span class="badge badge-danger">FALHA</span>'
+                    : '<span class="badge badge-warning">DUPLICATA</span>';
+                html += `<tr>
+                    <td style="white-space:nowrap;">${dt}</td>
+                    <td>${e.company}</td>
+                    <td title="${e.filename}">${e.filename.length > 30 ? e.filename.substring(0,30)+'...' : e.filename}</td>
+                    <td>${statusBadge}</td>
+                    <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${e.error}">${e.error}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<p style="color:#ef4444;">Erro: ${err.message}</p>`;
+        }
+    }
 
     // --- SETTINGS ---
     let settingsLoaded = false;
@@ -1133,10 +1205,14 @@
     function updateAdminStatCounts() {
         const companyRows = document.querySelectorAll('#companiesTable tbody tr');
         const managerRows = document.querySelectorAll('#managersTable tbody tr:not(.group-header)');
+        let visibleCompanies = 0;
+        let visibleManagers = 0;
+        companyRows.forEach(r => { if (r.style.display !== 'none') visibleCompanies++; });
+        managerRows.forEach(r => { if (r.style.display !== 'none') visibleManagers++; });
         const compStat = document.getElementById('stat-companies-count');
         const mgrStat = document.getElementById('stat-managers-count');
-        if (compStat) compStat.textContent = companyRows.length;
-        if (mgrStat) mgrStat.textContent = managerRows.length;
+        if (compStat) compStat.textContent = visibleCompanies;
+        if (mgrStat) mgrStat.textContent = visibleManagers;
     }
 
     // --- COMPANY CRUD ---

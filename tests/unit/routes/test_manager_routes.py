@@ -458,6 +458,7 @@ class TestUpdateConsultant:
 
         mock_uow = MagicMock()
         mock_uow.users.get_by_id.return_value = mock_user
+        mock_uow.users.get_by_email.return_value = None
         mock_mgr_uow.return_value = mock_uow
 
         response = client.post(
