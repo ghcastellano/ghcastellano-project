@@ -406,6 +406,28 @@ class ProcessorService:
             logger.error("Erro OCR/Text", error=str(e))
             raise
 
+    def _extract_areas_below_100(self, pdf_text: str) -> list:
+        """Pre-process PDF text to extract areas with < 100% from summary table."""
+        import re
+        areas = []
+        # Match patterns like: "Cozinha / Área de Manipulação 15.52 27.27 56.90%"
+        # The summary table has: Area Name | Nota obtida | Máximo | Aproveitamento
+        pattern = r'([A-ZÀ-Ú][^\n\d]{3,50}?)\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)%'
+        for match in re.finditer(pattern, pdf_text[:2000]):  # Summary table is at the top
+            name = match.group(1).strip()
+            score = match.group(2).replace(',', '.')
+            max_score = match.group(3).replace(',', '.')
+            pct = match.group(4).replace(',', '.')
+            # Skip non-area entries
+            skip_words = ['não se aplica', 'acompanhante', 'inconformidade', 'comentário', 'observaç']
+            if any(w in name.lower() for w in skip_words):
+                continue
+            if float(pct) < 100.0:
+                areas.append({'name': name, 'score': score, 'max': max_score, 'pct': pct})
+        if areas:
+            logger.info(f"Pre-processed {len(areas)} areas below 100%: {[a['name'] for a in areas]}")
+        return areas
+
     def analyze_with_openai(self, file_content: bytes):
         pdf_text = self.extract_text_from_pdf_bytes(file_content)
         if not pdf_text.strip():
@@ -414,6 +436,18 @@ class ProcessorService:
         # Updated Prompt: Uses user's trusted approach (Areas) + our requirements (Action/Deadline)
         schema_json = ChecklistSanitario.model_json_schema()
         
+        # Pre-process: extract areas with < 100% from summary table to enforce completeness
+        areas_below_100 = self._extract_areas_below_100(pdf_text)
+        areas_instruction = ""
+        if areas_below_100:
+            areas_list = "\n".join([f"        - {a['name']} ({a['score']}/{a['max']} = {a['pct']}%)" for a in areas_below_100])
+            areas_instruction = f"""
+        ÁREAS OBRIGATÓRIAS (extraídas da tabela resumo do relatório):
+        As seguintes {len(areas_below_100)} áreas possuem aproveitamento < 100% e DEVEM OBRIGATORIAMENTE aparecer em areas_inspecionadas com seus itens não conformes:
+{areas_list}
+        Se alguma dessas áreas estiver faltando na sua resposta, sua análise está INCOMPLETA e INCORRETA.
+"""
+
         prompt = f"""
         Você é um Auditor Sanitário Sênior, especialista na legislação brasileira (RDC 216/2004, CVS-5/2013).
         Sua tarefa é analisar o texto COMPLETO do relatório de auditoria e transformá-lo em um CHECKLIST DE PLANO DE AÇÃO ESTRUTURADO, cobrindo TODAS as áreas do relatório.
@@ -435,20 +469,14 @@ class ProcessorService:
         6. "Resposta: Sim" em qualquer pergunta com Fotos ou Comentário de problema = "Não Conforme" → INCLUIR OBRIGATORIAMENTE
         7. "Resposta: N.A." ou "Não Aplicável" ou "Não aplicável" = Não se aplica → NÃO INCLUIR
         8. Se o item possui "Fotos da questão" ou "Comentário:" com evidência de problema = INCLUIR OBRIGATORIAMENTE como "Não Conforme" ou "Parcialmente Conforme"
-
+{areas_instruction}
         REGRA DE COMPLETUDE (CRÍTICA - MÁXIMA PRIORIDADE):
         - Você DEVE processar o relatório INTEIRO do início ao fim, seção por seção.
         - Você DEVE capturar ABSOLUTAMENTE TODOS os itens não conformes e parcialmente conformes de TODAS as áreas.
         - NÃO pare após processar a primeira área. Continue até a última área do relatório.
         - NÃO resuma. NÃO agrupe itens similares. NÃO pule nenhum item.
         - Cada item com problema deve aparecer como um ChecklistItem individual na área correspondente.
-
-        VALIDAÇÃO OBRIGATÓRIA (USE A TABELA RESUMO):
-        O relatório contém uma tabela "Notas por tópico" no início com o aproveitamento de cada área.
-        - TODA área com aproveitamento ABAIXO de 100% DEVE aparecer em areas_inspecionadas com pelo menos 1 item não conforme.
-        - Áreas com 100% ou "Não se aplica" podem ser omitidas.
-        - Se a tabela mostra 4 áreas abaixo de 100%, sua resposta DEVE conter exatamente essas 4 áreas com itens.
-        - Exemplo: Se "Estoque / Depósito" tem 90.91%, ele TEM itens com problema - encontre-os no corpo do relatório.
+        - MESMO que uma área tenha apenas 1 item com problema, ela DEVE ser incluída.
 
         DIRETRIZES:
         1. Identifique o Estabelecimento e a DATA DA INSPEÇÃO (Checklist Base).
@@ -477,13 +505,13 @@ class ProcessorService:
         JSON Schema:
         {json.dumps(schema_json, indent=2)}
         """
-        
+
         try:
             completion = self.client.beta.chat.completions.parse(
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": prompt},
-                    {"role": "user", "content": f"Analise o relatório e gere o checklist:\n\n{pdf_text}"}
+                    {"role": "user", "content": f"Analise o relatório COMPLETO abaixo. Processe TODAS as {len(areas_below_100)} áreas com problemas identificadas na tabela resumo.\n\n{pdf_text}"}
                 ],
                 response_format=ChecklistSanitario,
             )
