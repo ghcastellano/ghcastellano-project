@@ -278,12 +278,12 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div class="d-flex gap-2">
                     <!-- Share and Download buttons - disabled until approval -->
-                    <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#shareModal"
+                    <button id="btn-share" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#shareModal"
                         {% if not is_approved %}disabled{% endif %}>
                         <i class="ph-bold ph-share-network me-2"></i> Compartilhar
                     </button>
 
-                    <button class="btn btn-outline-primary"
+                    <button id="btn-download" class="btn btn-outline-primary"
                         onclick="window.open('/download_revised_pdf/{{ inspection.drive_file_id }}', '_blank')"
                         {% if not is_approved %}disabled{% endif %}>
                         <i class="ph-bold ph-file-pdf me-2"></i> Baixar Relatório
@@ -535,24 +535,31 @@
         btn.disabled = true;
 
         try {
-            // We reuse the save endpoint or a dedicated approval endpoint?
-            // "save_plan" route checks for "approved" status but doesn't transition it.
-            // We need an endpoint to transition to APPROVED/PENDING_VERIFICATION.
-            // Let's use a new endpoint or a flag in save.
-            // For now, let's call a new endpoint '/manager/plan/<id>/approve' (Need to create it or find it).
-            // Checking manager_routes... there is no specific approve route visible in previous read.
-            // I will create one or use 'save' with a special flag if permitted.
-            // Best practice: Dedicated route. I will use '/manager/review/approve' if it exists or create '/manager/plan/<id>/approve'.
-            // For now, I'll mock the URL and implement the backend route next.
-
             const response = await fetch(`/manager/plan/${INSPECTION_FILE_ID}/approve`, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': "{{ csrf_token() if csrf_token else '' }}" }
             });
 
             if (response.ok) {
-                alert('Plano Aprovado com Sucesso!');
-                window.location.reload();
+                // Update UI in-place (stay on same page for sharing/download)
+                btn.innerHTML = '<i class="ph-bold ph-check me-2"></i> Plano Validado';
+                btn.className = 'btn btn-success px-4';
+                btn.disabled = true;
+                btn.removeAttribute('onclick');
+
+                // Enable Share and Download buttons
+                const btnShare = document.getElementById('btn-share');
+                const btnDownload = document.getElementById('btn-download');
+                if (btnShare) btnShare.removeAttribute('disabled');
+                if (btnDownload) btnDownload.removeAttribute('disabled');
+
+                // Success feedback
+                const toast = document.createElement('div');
+                toast.className = 'alert alert-success shadow-sm';
+                toast.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;min-width:300px;animation:fadeIn 0.3s;';
+                toast.innerHTML = '<i class="ph-bold ph-check-circle me-2"></i> Plano Aprovado com Sucesso! Agora você pode compartilhar ou baixar o relatório.';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 5000);
             } else {
                 const err = await response.json();
                 alert('Erro ao aprovar: ' + (err.error || 'Erro desconhecido'));

@@ -416,57 +416,60 @@ class ProcessorService:
         
         prompt = f"""
         Você é um Auditor Sanitário Sênior, especialista na legislação brasileira (RDC 216/2004, CVS-5/2013).
-        Sua tarefa é analisar o texto do relatório de auditoria e transformá-lo em um CHECKLIST DE PLANO DE AÇÃO ESTRUTURADO.
+        Sua tarefa é analisar o texto COMPLETO do relatório de auditoria e transformá-lo em um CHECKLIST DE PLANO DE AÇÃO ESTRUTURADO, cobrindo TODAS as áreas do relatório.
 
         FORMATO DO RELATÓRIO DE ENTRADA:
-        Os itens do relatório seguem este padrão:
+        O relatório possui uma tabela resumo "Notas por tópico" no início, com cada área e seu aproveitamento.
+        Em seguida, os itens de cada área seguem este padrão:
         - Número e pergunta do item, seguido de "(X.XX% - X.XX pontos)" que indica a pontuação OBTIDA naquele item
-        - "Resposta: Sim/Não/Parcial/N.A./Não Aplicável"
+        - "Resposta: Sim/Não/Parcial/N.A./Não Aplicável/Não aplicável"
         - Opcionalmente: "Fotos da questão X.X" (indica evidência fotográfica de problema)
         - Opcionalmente: "Comentário: ..." (observação do auditor in-loco)
 
         REGRAS DE CLASSIFICAÇÃO DOS ITENS:
-        - "Resposta: Parcial" = SEMPRE "Parcialmente Conforme" → INCLUIR OBRIGATORIAMENTE
-        - "Resposta: Não" com pontuação "(0.00% - 0.00 pontos)" = "Não Conforme" → INCLUIR OBRIGATORIAMENTE
-        - "Resposta: Não" em perguntas POSITIVAS (ex: "Está limpo?", "Está adequado?") = "Não Conforme" → INCLUIR
-        - "Resposta: Não" em perguntas NEGATIVAS (ex: "Foram encontrados produtos vencidos?") onde "Não" significa ausência de problema E a pontuação é > 0 = Conforme → NÃO INCLUIR
-        - "Resposta: Sim" com pontuação > 0 = "Conforme" → NÃO INCLUIR
-        - "Resposta: N.A." ou "Não Aplicável" = Não se aplica → NÃO INCLUIR
-        - Se o item possui "Fotos da questão" ou "Comentário:" = EVIDÊNCIA DE PROBLEMA → INCLUIR OBRIGATORIAMENTE como "Não Conforme" ou "Parcialmente Conforme"
+        1. "Resposta: Parcial" = SEMPRE "Parcialmente Conforme" → INCLUIR OBRIGATORIAMENTE
+        2. "Resposta: Não" com pontuação "(0.00% - 0.00 pontos)" em pergunta POSITIVA = "Não Conforme" → INCLUIR
+        3. "Resposta: Não" em perguntas NEGATIVAS (ex: "Foram encontrados produtos vencidos?", "Há outras inconformidades?", "Percepção de inconformidade?") onde "Não" = ausência de problema E pontuação > 0 = Conforme → NÃO INCLUIR
+        4. "Resposta: Sim" com pontuação > 0 em pergunta POSITIVA (ex: "Está limpo?", "Está adequado?") = Conforme → NÃO INCLUIR
+        5. "Resposta: Sim" com pontuação "(0.00% - 0.00 pontos)" em pergunta NEGATIVA (ex: "Foram encontrados produtos vencidos?", "Percepção de inconformidade?") = O "Sim" confirma a existência do PROBLEMA → "Não Conforme" → INCLUIR OBRIGATORIAMENTE
+        6. "Resposta: Sim" em qualquer pergunta com Fotos ou Comentário de problema = "Não Conforme" → INCLUIR OBRIGATORIAMENTE
+        7. "Resposta: N.A." ou "Não Aplicável" ou "Não aplicável" = Não se aplica → NÃO INCLUIR
+        8. Se o item possui "Fotos da questão" ou "Comentário:" com evidência de problema = INCLUIR OBRIGATORIAMENTE como "Não Conforme" ou "Parcialmente Conforme"
 
-        REGRA DE COMPLETUDE (CRÍTICA):
-        Você DEVE capturar ABSOLUTAMENTE TODOS os itens não conformes e parcialmente conformes.
-        NÃO resuma. NÃO agrupe itens similares. NÃO pule nenhum item.
-        Cada item com problema no relatório deve aparecer como um ChecklistItem individual na lista de itens da área correspondente.
-        Se uma área possui 10 itens com problemas, a lista deve ter exatamente 10 itens.
+        REGRA DE COMPLETUDE (CRÍTICA - MÁXIMA PRIORIDADE):
+        - Você DEVE processar o relatório INTEIRO do início ao fim, seção por seção.
+        - Você DEVE capturar ABSOLUTAMENTE TODOS os itens não conformes e parcialmente conformes de TODAS as áreas.
+        - NÃO pare após processar a primeira área. Continue até a última área do relatório.
+        - NÃO resuma. NÃO agrupe itens similares. NÃO pule nenhum item.
+        - Cada item com problema deve aparecer como um ChecklistItem individual na área correspondente.
+
+        VALIDAÇÃO OBRIGATÓRIA (USE A TABELA RESUMO):
+        O relatório contém uma tabela "Notas por tópico" no início com o aproveitamento de cada área.
+        - TODA área com aproveitamento ABAIXO de 100% DEVE aparecer em areas_inspecionadas com pelo menos 1 item não conforme.
+        - Áreas com 100% ou "Não se aplica" podem ser omitidas.
+        - Se a tabela mostra 4 áreas abaixo de 100%, sua resposta DEVE conter exatamente essas 4 áreas com itens.
+        - Exemplo: Se "Estoque / Depósito" tem 90.91%, ele TEM itens com problema - encontre-os no corpo do relatório.
 
         DIRETRIZES:
         1. Identifique o Estabelecimento e a DATA DA INSPEÇÃO (Checklist Base).
         2. Crie um Resumo Geral robusto indicando as principais áreas críticas.
-        3. Calcule ou extraia a PONTUAÇÃO GERAL e o APROVEITAMENTO GERAL do estabelecimento do relatório.
-        4. Para cada ÁREA FÍSICA DE INSPEÇÃO (ex: 'Cozinha', 'Estoque Seco', 'Vestiários', 'Área de Manipulação', 'Câmaras Frigoríficas', 'Instalações sanitárias dos clientes'):
-           - Crie um 'resumo_area' curto e informativo.
-           - Extraia 'pontuacao_obtida', 'pontuacao_maxima' e calcule o 'aproveitamento' (%).
+        3. Calcule ou extraia a PONTUAÇÃO GERAL e o APROVEITAMENTO GERAL do relatório.
+        4. Para cada ÁREA FÍSICA com aproveitamento < 100%:
+           - Use o nome da área EXATAMENTE como aparece no relatório (ex: 'Cozinha / Área de Manipulação', 'Estoque / Depósito', 'Sanitário / Vestiário de Funcionários').
+           - Extraia 'pontuacao_obtida', 'pontuacao_maxima' e 'aproveitamento' da tabela resumo.
            - Liste TODOS os itens não conformes e parcialmente conformes desta área.
         5. Para cada item com problema:
-           - Status deve ser 'Não Conforme' ou 'Parcialmente Conforme'.
-           - Observação: Descreva detalhadamente a evidência encontrada. Se houver "Comentário:" do auditor no relatório, INCLUA esse comentário na observação.
-           - Fundamento Legal: Cite a legislação específica.
-           - Ação Corretiva Gerada: Como auditor, sugira a correção técnica IMEDIATA.
-           - Prazo Sugerido: Estime o prazo baseado no risco (Imediato - risco iminente, 24 horas - prioridade alta, 7 dias - operacional, 15 dias - estrutural leve, 30 dias - melhoria). Escolha o mais adequado, não use apenas 'Imediato'.
+           - item_verificado: Use o número e texto da pergunta original (ex: "2.1 - HIGIENIZAÇÃO: A área de manipulação...").
+           - Status: 'Não Conforme' ou 'Parcialmente Conforme'.
+           - Observação: Descreva a evidência. Se houver "Comentário:" do auditor, INCLUA-o na observação.
+           - Fundamento Legal: Cite a legislação específica (RDC 216/2004, CVS-5/2013, etc.).
+           - Ação Corretiva: Sugira a correção técnica IMEDIATA.
+           - Prazo Sugerido: Baseado no risco (Imediato, 24 horas, 7 dias, 15 dias, 30 dias).
 
         REGRA CRÍTICA - O QUE NÃO É ÁREA:
-        Inclua SOMENTE áreas físicas/setores reais do estabelecimento que possuem itens de inspeção com pontuação.
-        NÃO inclua como área as seguintes seções do relatório, que são metadados ou texto auxiliar:
-        - "Inconformidades resolvidas" ou "Não conformidades resolvidas"
-        - "Observações e comentários gerais" ou "Observações gerais"
-        - "Acompanhante de visita" ou "Acompanhante"
-        - "Responsável técnico" ou "Dados do responsável"
-        - "Conclusão" ou "Parecer final"
-        - "Resumo geral" ou "Resultado geral"
-        - Qualquer seção que não represente um local/setor físico inspecionado
-        - Qualquer seção sem itens de verificação ou sem pontuação numérica real
-        Se uma seção do relatório não possui pontuação numérica (pontuacao_obtida e pontuacao_maxima) ou contém apenas texto descritivo/notas, ela NÃO é uma área de inspeção.
+        NÃO inclua como área seções que são metadados:
+        - "Inconformidades resolvidas", "Acompanhante de visita", "Comentários gerais e observações"
+        - Qualquer seção sem pontuação numérica real
 
         Sua resposta deve ser APENAS o objeto JSON compatível com o schema abaixo.
         IMPORTANTE: Os valores dentro do JSON devem ser texto puro (sem markdown).
