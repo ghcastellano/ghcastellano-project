@@ -258,14 +258,14 @@
                 <tr style="background-color: #ffffff;">
                     <th
                         style="width: 5%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold; text-align: center;">
-                        Ref.</th>
-                    <th style="width: 28%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
+                        #</th>
+                    <th style="width: 24%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
                         Item</th>
-                    <th style="width: 12%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
+                    <th style="width: 10%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold; text-align: center;">
                         Status</th>
-                    <th style="width: 25%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
+                    <th style="width: 29%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
                         Plano de Ação Inicial</th>
-                    <th style="width: 30%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
+                    <th style="width: 32%; padding: 8px; border: 1px solid #d1d3e2; color: #4e73df; font-weight: bold;">
                         Acompanhamento</th>
                 </tr>
             </thead>
@@ -283,18 +283,18 @@
                     </td>
 
                     <td class="status-cell"
-                        style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center; word-wrap: break-word; overflow-wrap: break-word;">
+                        style="padding: 6px 4px; border: 1px solid #d1d3e2; vertical-align: top; text-align: center;">
                         {% if 'Não Conforme' in item.status or 'OPEN' in item.status %}
-                        <div style="color: #e74a3b; font-weight: bold; font-size: 8pt; line-height: 1.3;">NÃO<br>CONFORME</div>
+                        <div style="background-color: #fde8e8; color: #c0392b; font-weight: bold; font-size: 7pt; padding: 3px 2px; border-radius: 3px; border: 1px solid #e74a3b;">NC</div>
                         {% elif 'Parcial' in item.status %}
-                        <div style="color: #d97706; font-weight: bold; font-size: 8pt; line-height: 1.3;">PARCIALM.<br>CONFORME</div>
+                        <div style="background-color: #fef3cd; color: #856404; font-weight: bold; font-size: 7pt; padding: 3px 2px; border-radius: 3px; border: 1px solid #d97706;">PARCIAL</div>
                         {% else %}
-                        <div style="color: #4e73df; font-weight: bold; font-size: 8pt; line-height: 1.3;">{{ item.status|upper }}</div>
+                        <div style="background-color: #e8f0fe; color: #4e73df; font-weight: bold; font-size: 7pt; padding: 3px 2px; border-radius: 3px;">{{ item.status|upper }}</div>
                         {% endif %}
 
                         {% if item.pontuacao is defined and item.pontuacao is not none %}
-                        <div style="margin-top: 4px; font-size: 8pt; color: #666;">
-                            Nota: {{ item.pontuacao }}
+                        <div style="margin-top: 3px; font-size: 7pt; color: #888;">
+                            {{ item.pontuacao }}
                         </div>
                         {% endif %}
                     </td>
