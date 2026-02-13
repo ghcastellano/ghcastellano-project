@@ -91,13 +91,8 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
             for f in est_files:
                 current_status = existing_inspections.get(f['id'])
                 
-                # Rule: Process if NEW or if existing FAILED/REJECTED
-                should_process = False
-                if current_status is None:
-                    should_process = True
-                elif current_status in [InspectionStatus.REJECTED, InspectionStatus.REJECTED]:
-                    logger.info(f"      ♻️ Retrying FAILED file: {f['name']}")
-                    should_process = True
+                # Rule: Process only NEW files (no inspection record yet)
+                should_process = (current_status is None)
                 
                 if should_process:
                     # Enqueue with Context
@@ -118,14 +113,9 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
             if FOLDER_IN:
                 legacy_files = drive_service.list_files(FOLDER_IN, extension='.pdf')
                 for f in legacy_files:
-                     # Check status for legacy files too
+                     # Process only NEW files (no inspection record yet)
                      current_status = existing_inspections.get(f['id'])
-                     should_process = False
-                     if current_status is None:
-                         should_process = True
-                     elif current_status in [InspectionStatus.REJECTED, InspectionStatus.REJECTED]:
-                         logger.info(f"      ♻️ Retrying FAILED legacy file: {f['name']}")
-                         should_process = True
+                     should_process = (current_status is None)
 
                      if should_process and not any(queued[0]['id'] == f['id'] for queued in files_to_process):
                          files_to_process.append((f, None)) # No Est ID linked
@@ -196,17 +186,28 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                         establishment_id=est_id
                     )
 
-                    # Cleanup: If processor skipped (duplicate), remove orphan Inspection
+                    # Cleanup: If processor skipped (duplicate), mark inspection as REJECTED
+                    # so the sync doesn't retry this file on the next cycle
                     if result and result.get('status') == 'skipped':
-                        logger.info(f"      🧹 Processor skipped {file['name']}, cleaning orphan Inspection.")
+                        logger.info(f"      🔒 Processor skipped {file['name']}, marking as REJECTED to prevent retry.")
                         db_clean = next(get_db())
                         try:
                             orphan = db_clean.query(Inspection).filter_by(drive_file_id=file['id'], status=InspectionStatus.PROCESSING).first()
                             if orphan:
-                                db_clean.delete(orphan)
+                                orphan.status = InspectionStatus.REJECTED
                                 db_clean.commit()
                         finally:
                             db_clean.close()
+
+                        # Move SKIPPED files to backup folder too
+                        backup_folder = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+                        if backup_folder:
+                            try:
+                                drive_service.move_file(file['id'], backup_folder)
+                                logger.info(f"      📦 Arquivo duplicado movido para backup: {file['name']}")
+                            except Exception as move_e:
+                                logger.warning(f"      ⚠️ Falha ao mover duplicado {file['name']}: {move_e}")
+
                         continue  # Skip job update, already handled by processor
 
                     # Re-fetch job in a fresh session (processor detaches our objects)
@@ -393,13 +394,22 @@ def process_global_changes(drive_service):
                         establishment_id=establishment_id
                     )
 
-                    # Cleanup: If processor skipped (duplicate), remove orphan Inspection
+                    # Cleanup: If processor skipped (duplicate), mark as REJECTED to prevent retry
                     if result and result.get('status') == 'skipped':
-                        logger.info(f"🧹 Webhook processor skipped {file['id']}, cleaning orphan Inspection.")
+                        logger.info(f"🔒 Webhook processor skipped {file['id']}, marking as REJECTED.")
                         orphan = db.query(Inspection).filter_by(drive_file_id=file['id'], status=InspectionStatus.PROCESSING).first()
                         if orphan:
-                            db.delete(orphan)
+                            orphan.status = InspectionStatus.REJECTED
                             db.commit()
+
+                        # Move SKIPPED files to backup folder
+                        backup_folder = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+                        if backup_folder:
+                            try:
+                                drive_service.move_file(file['id'], backup_folder)
+                                logger.info(f"📦 Arquivo duplicado movido para backup: {file.get('name')}")
+                            except Exception as move_e:
+                                logger.warning(f"⚠️ Falha ao mover duplicado {file.get('name')}: {move_e}")
                     else:
                         # Update job status to COMPLETED
                         try:
