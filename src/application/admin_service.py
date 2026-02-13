@@ -43,6 +43,9 @@ class AdminService:
         if not name:
             return AdminResult(success=False, message='Nome da empresa é obrigatório.', error='MISSING_NAME')
 
+        if cnpj and self._uow.companies.get_by_cnpj(cnpj):
+            return AdminResult(success=False, message=f'Já existe uma empresa com o CNPJ {cnpj}.', error='DUPLICATE_CNPJ')
+
         company = Company(id=uuid.uuid4(), name=name, cnpj=cnpj)
 
         # Create Drive folder

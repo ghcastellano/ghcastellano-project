@@ -12,6 +12,9 @@ class CompanyRepository:
     def get_by_id(self, id: uuid.UUID) -> Optional[Company]:
         return self._session.query(Company).get(id)
 
+    def get_by_cnpj(self, cnpj: str) -> Optional[Company]:
+        return self._session.query(Company).filter_by(cnpj=cnpj).first()
+
     def get_all(self) -> List[Company]:
         return self._session.query(Company).all()
 
