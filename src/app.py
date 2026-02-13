@@ -300,10 +300,7 @@ def slugify(value):
 # Inicializa Serviços
 # Drive Service
 # 1le3240234 is the default placeholder if env var is missing
-FOLDER_IN = config.FOLDER_ID_01_ENTRADA_RELATORIOS
 FOLDER_OUT = config.FOLDER_ID_02_PLANOS_GERADOS
-FOLDER_BACKUP = config.FOLDER_ID_03_PROCESSADOS_BACKUP
-FOLDER_ERROR = config.FOLDER_ID_99_ERROS
 
 @app.errorhandler(500)
 def handle_500(e):

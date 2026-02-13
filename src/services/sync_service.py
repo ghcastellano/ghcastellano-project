@@ -4,6 +4,7 @@ from datetime import datetime
 from src.database import get_db
 from src.models_db import Job, JobStatus, Inspection, InspectionStatus
 from src import config
+from src.config_helper import get_config
 
 logger = logging.getLogger('sync_service')
 
@@ -200,7 +201,7 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                             db_clean.close()
 
                         # Move SKIPPED files to backup folder too
-                        backup_folder = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+                        backup_folder = get_config('FOLDER_ID_03_PROCESSADOS_BACKUP')
                         if backup_folder:
                             try:
                                 drive_service.move_file(file['id'], backup_folder)
@@ -224,7 +225,7 @@ def perform_drive_sync(drive_service, limit=5, user_trigger=False):
                         db_fresh.close()
 
                     # Mover arquivo processado para pasta de backup (evita reprocessamento)
-                    backup_folder = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+                    backup_folder = get_config('FOLDER_ID_03_PROCESSADOS_BACKUP')
                     if backup_folder:
                         try:
                             drive_service.move_file(file['id'], backup_folder)
@@ -403,7 +404,7 @@ def process_global_changes(drive_service):
                             db.commit()
 
                         # Move SKIPPED files to backup folder
-                        backup_folder = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+                        backup_folder = get_config('FOLDER_ID_03_PROCESSADOS_BACKUP')
                         if backup_folder:
                             try:
                                 drive_service.move_file(file['id'], backup_folder)
@@ -424,7 +425,7 @@ def process_global_changes(drive_service):
                             logger.warning(f"⚠️ Falha ao atualizar job {job_id_saved}: {job_err}")
 
                         # Mover arquivo processado para pasta de backup (evita reprocessamento)
-                        backup_folder = config.FOLDER_ID_03_PROCESSADOS_BACKUP
+                        backup_folder = get_config('FOLDER_ID_03_PROCESSADOS_BACKUP')
                         if backup_folder:
                             try:
                                 drive_service.move_file(file['id'], backup_folder)
