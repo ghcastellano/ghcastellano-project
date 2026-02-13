@@ -36,10 +36,16 @@ class DriveService:
                 logger.info(f"🔑 Autenticando usando arquivo: {self.credentials_file}")
                 self.creds = Credentials.from_service_account_file(
                     self.credentials_file, scopes=self.scopes)
-            
-            # 2. [NEW] Authenticate as User (OAuth) via Env Var - Fixes Storage Quota
+
+            # 2. Service Account via Env Var (Prod / GitHub Actions)
+            #    Prioridade sobre OAuth para que pastas sejam criadas pela SA, não pelo usuário
+            elif get_config('GCP_SA_KEY'):
+                logger.info("🔑 Autenticando usando Service Account (GCP_SA_KEY)...")
+                info = json.loads(get_config('GCP_SA_KEY'))
+                self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
+
+            # 3. OAuth User Token (fallback se SA não disponível)
             elif get_config('GCP_OAUTH_TOKEN'):
-                # import json (Removed to avoid UnboundLocalError)
                 import base64
                 from google.oauth2.credentials import Credentials as UserCredentials
                 logger.info("🔑 Autenticando usando OAuth User Token (GCP_OAUTH_TOKEN)...")
@@ -52,7 +58,7 @@ class DriveService:
                         logger.info("🔓 Token decodificado de Base64 com sucesso.")
                     except Exception as e:
                         logger.error(f"⚠️ Falha ao decodificar Base64 Token, tentando raw: {e}")
-                
+
                 try:
                     info = json.loads(token_str)
                 except json.JSONDecodeError as json_error:
@@ -64,15 +70,9 @@ class DriveService:
                     except Exception as ast_error:
                         logger.error(f"❌ Falha crítica ao parsear token OAuth: {ast_error}")
                         raise json_error
-                
+
                 self.creds = UserCredentials.from_authorized_user_info(info, self.scopes)
 
-            # 3. Tenta carregar da Env Var GCP_SA_KEY (Prod / GitHub Actions)
-            elif get_config('GCP_SA_KEY'):
-                logger.info("🔑 Autenticando usando JSON em Env Var (GCP_SA_KEY)...")
-                info = json.loads(get_config('GCP_SA_KEY'))
-                self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
-                
             # 4. Fallback para Default Credentials (Cloud Run Identity)
             else:
                 logger.info("☁️ Usando Default Credentials (ADC/Cloud Run Identity)...")

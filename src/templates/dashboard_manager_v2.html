@@ -912,6 +912,7 @@
         card.style.display = 'block';
 
         document.getElementById('edit_est_id').value = data.id;
+        document.getElementById('edit_est_company').value = data.company || '';
         document.getElementById('edit_est_name').value = data.name;
         document.getElementById('edit_est_code').value = data.code || '';
         document.getElementById('edit_est_resp_name').value = data.respName || '';
@@ -1281,8 +1282,8 @@
                     const nameDiv = row.querySelector('div[style*="font-weight: 600"]');
                     if (nameDiv) nameDiv.textContent = est.name;
 
-                    // Update Code
-                    if (row.cells[1]) row.cells[1].textContent = est.code || '-';
+                    // Update Code (column index 2: Nome=0, Empresa=1, Código=2)
+                    if (row.cells[2]) row.cells[2].textContent = est.code || '-';
 
                     // Update Edit Button Data
                     const editBtn = row.querySelector('.btn-icon-edit');
