@@ -109,22 +109,15 @@
     /* Local action icons replaced by global btn-icon classes in style.css */
 </style>
 <script>
-    // ... previous scripts ...
-
-    window.openEditEst = function (id, name, code, respName, respEmail, respPhone) {
-        document.getElementById('createEstCard').style.display = 'none';
-        const card = document.getElementById('editEstCard');
-        card.style.display = 'block';
-
-        document.getElementById('edit_est_id').value = id;
-        document.getElementById('edit_est_name').value = name;
-        document.getElementById('edit_est_code').value = code || '';
-        document.getElementById('edit_est_resp_name').value = respName || '';
-        document.getElementById('edit_est_resp_email').value = respEmail || ''; // Populating Email
-        document.getElementById('edit_est_resp_phone').value = respPhone || '';
-
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    // Helper: update stat card counts after AJAX create/delete
+    function updateStatCounts() {
+        const estRows = document.querySelectorAll('#table-establishments-body tr');
+        const conRows = document.querySelectorAll('#table-consultants-body tr');
+        const estStat = document.getElementById('stat-establishments');
+        const conStat = document.getElementById('stat-consultants');
+        if (estStat) estStat.textContent = estRows.length;
+        if (conStat) conStat.textContent = conRows.length;
+    }
 
     // Update DOM after Save
     // Inside handleUpdateEst...
@@ -318,12 +311,12 @@
                 <div class="stats-grid">
                     <div class="stat-card" onclick="document.getElementById('menu-est').click()">
                         <span class="stat-label">Estabelecimentos</span>
-                        <span class="stat-value">{{ establishments|length if establishments else 0 }}</span>
+                        <span class="stat-value" id="stat-establishments">{{ establishments|length if establishments else 0 }}</span>
                         <div class="stat-trend trend-up"><i class="ph-bold ph-trend-up"></i> Conectados</div>
                     </div>
                     <div class="stat-card" onclick="document.getElementById('menu-consultant').click()">
                         <span class="stat-label">Consultores</span>
-                        <span class="stat-value">{{ consultants|length if consultants else 0 }}</span>
+                        <span class="stat-value" id="stat-consultants">{{ consultants|length if consultants else 0 }}</span>
                         <div class="stat-trend trend-up"><i class="ph-bold ph-users"></i> Ativos</div>
                     </div>
                     <div class="stat-card" style="border-color: var(--accent-color); background: #EFF6FF;"
@@ -878,18 +871,7 @@
     }
     window.openEditConsultant = openEditConsultant;
 
-    function openEditEst(data) {
-        document.getElementById('editEstCard').style.display = 'block';
-        document.getElementById('edit_est_id').value = data.id;
-        document.getElementById('edit_est_name').value = data.name;
-        document.getElementById('edit_est_code').value = data.code;
-        document.getElementById('edit_est_company').value = data.company || '';
-        document.getElementById('edit_est_resp_name').value = data.respName || '';
-        document.getElementById('edit_est_resp_email').value = data.respEmail || '';
-        document.getElementById('edit_est_resp_phone').value = data.respPhone || '';
-        window.scrollTo(0, 0);
-    }
-    window.openEditEst = openEditEst;
+    // openEditEst defined below in unified version
 
     // Modal Helpers
     let createConsultantModal, createEstModal;
@@ -924,17 +906,17 @@
         }
     };
 
-    window.openEditEst = function (id, name, code, respName, respEmail, respPhone) {
+    window.openEditEst = function (data) {
         document.getElementById('createEstCard').style.display = 'none';
         const card = document.getElementById('editEstCard');
         card.style.display = 'block';
 
-        document.getElementById('edit_est_id').value = id;
-        document.getElementById('edit_est_name').value = name;
-        document.getElementById('edit_est_code').value = code || '';
-        document.getElementById('edit_est_resp_name').value = respName || '';
-        document.getElementById('edit_est_resp_email').value = respEmail || '';
-        document.getElementById('edit_est_resp_phone').value = respPhone || '';
+        document.getElementById('edit_est_id').value = data.id;
+        document.getElementById('edit_est_name').value = data.name;
+        document.getElementById('edit_est_code').value = data.code || '';
+        document.getElementById('edit_est_resp_name').value = data.respName || '';
+        document.getElementById('edit_est_resp_email').value = data.respEmail || '';
+        document.getElementById('edit_est_resp_phone').value = data.respPhone || '';
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -1082,6 +1064,7 @@
                     tbody.insertAdjacentHTML('beforeend', newRow);
                     if (window.consultantsPaginator) window.consultantsPaginator.refresh();
                 }
+                updateStatCounts();
             } else {
                 showToast(data.error || 'Erro desconhecido', 'error');
             }
@@ -1190,6 +1173,7 @@
                         checkContainer.appendChild(div);
                     }
                 }
+                updateStatCounts();
             } else {
                 showToast(data.error || 'Erro desconhecido', 'error');
             }
@@ -1670,7 +1654,7 @@
                 const row = document.getElementById(`row-consultant-${id}`);
                 if (row) {
                     row.style.background = '#fee2e2';
-                    setTimeout(function() { row.remove(); if (window.consultantsPaginator) window.consultantsPaginator.refresh(); }, 500);
+                    setTimeout(function() { row.remove(); if (window.consultantsPaginator) window.consultantsPaginator.refresh(); updateStatCounts(); }, 500);
                 }
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');
@@ -1712,7 +1696,7 @@
                 const row = document.getElementById(`row-est-${id}`);
                 if (row) {
                     row.style.background = '#fee2e2';
-                    setTimeout(function() { row.remove(); if (window.estPaginator) window.estPaginator.refresh(); }, 500);
+                    setTimeout(function() { row.remove(); if (window.estPaginator) window.estPaginator.refresh(); updateStatCounts(); }, 500);
                 }
             } else {
                 showToast(data.error || 'Erro ao remover', 'error');
