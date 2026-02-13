@@ -315,6 +315,38 @@ def handle_500(e):
          return jsonify({'error': f"Erro Interno: {str(e)}"}), 500
     return "Erro Interno no Servidor (500). Verifique os logs do Cloud Run para o Traceback.", 500
 
+def _ensure_system_folder(drive_svc, root_folder_id, config_key, folder_name):
+    """Validate a system folder exists in Drive. If missing/invalid, create under root and save to DB."""
+    from src.database import get_db
+    from src.models_db import AppConfig
+    current_id = get_config(config_key)
+    if current_id:
+        try:
+            drive_svc.service.files().get(
+                fileId=current_id, fields='id', supportsAllDrives=True
+            ).execute()
+            logger.info(f"✅ {config_key} válido: {current_id}")
+            return
+        except Exception:
+            logger.warning(f"⚠️ {config_key} inválido ({current_id}), recriando...")
+
+    folder_id, _ = drive_svc.create_folder(folder_name, parent_id=root_folder_id)
+    if folder_id:
+        try:
+            db = next(get_db())
+            entry = db.query(AppConfig).get(config_key)
+            if entry:
+                entry.value = folder_id
+            else:
+                db.add(AppConfig(key=config_key, value=folder_id))
+            db.commit()
+            db.close()
+        except Exception as e:
+            logger.warning(f"⚠️ Falha ao salvar {config_key} no DB: {e}")
+        logger.info(f"✅ {config_key} criado: {folder_id}")
+    else:
+        logger.error(f"❌ Falha ao criar pasta '{folder_name}' no Drive")
+
 try:
     from src.services.drive_service import DriveService
     app.drive_service = DriveService()
@@ -326,7 +358,7 @@ try:
     if root_folder_id and app.drive_service.service:
         try:
             folder_info = app.drive_service.service.files().get(
-                fileId=root_folder_id, 
+                fileId=root_folder_id,
                 fields='id,name',
                 supportsAllDrives=True
             ).execute()
@@ -334,6 +366,14 @@ try:
         except Exception as e:
             logger.error(f"❌ ROOT_FOLDER_ID inválido ou inacessível: {e}")
             logger.warning("⚠️ Pastas de empresas serão criadas na raiz do Drive")
+
+    # Auto-create backup folder if missing or invalid
+    if app.drive_service.service and root_folder_id:
+        _ensure_system_folder(
+            app.drive_service, root_folder_id,
+            config_key='FOLDER_ID_03_PROCESSADOS_BACKUP',
+            folder_name='Processados - Backup'
+        )
 
 except Exception as e:
     logger.error(f"⚠️ Falha ao inicializar Serviço do Drive: {e}")
