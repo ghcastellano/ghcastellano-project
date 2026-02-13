@@ -428,6 +428,130 @@ class ProcessorService:
             logger.info(f"Pre-processed {len(areas)} areas below 100%: {[a['name'] for a in areas]}")
         return areas
 
+    def _extract_section_text(self, pdf_text: str, area_name: str) -> str:
+        """Extract the text of a specific section from the PDF by area name."""
+        import re
+        # Find the section header: "N - Area Name" where N is the section number
+        # Build patterns to match variations of the area name
+        name_parts = area_name.split('/')
+        first_part = name_parts[0].strip()
+        # Escape regex special chars
+        escaped = re.escape(first_part)
+        pattern = rf'(\d+)\s*-\s*{escaped}'
+        match = re.search(pattern, pdf_text, re.IGNORECASE)
+        if not match:
+            # Try shorter match (first word)
+            first_word = first_part.split()[0] if first_part.split() else first_part
+            pattern = rf'(\d+)\s*-\s*[^\\n]*{re.escape(first_word)}'
+            match = re.search(pattern, pdf_text, re.IGNORECASE)
+        if not match:
+            return ""
+
+        section_num = match.group(1)
+        start = match.start()
+        # Find next top-level section (different number)
+        next_section = re.search(rf'\n(\d+)\s*-\s*(?!.*\d+\.\d+)', pdf_text[start + 10:])
+        if next_section:
+            end = start + 10 + next_section.start()
+        else:
+            end = len(pdf_text)
+        return pdf_text[start:end]
+
+    def _validate_and_retry_missing_areas(self, data, areas_below_100, pdf_text, total_usage):
+        """Check if AI response covers all expected areas; retry for missing ones."""
+        if not areas_below_100:
+            return data, total_usage
+
+        # Normalize area names from AI response for comparison
+        ai_area_names = [a.nome_area.lower().strip() for a in data.areas_inspecionadas]
+
+        missing_areas = []
+        for expected in areas_below_100:
+            expected_lower = expected['name'].lower().strip()
+            # Fuzzy match: check if expected name is contained in any AI area name or vice versa
+            found = any(
+                expected_lower in ai_name or ai_name in expected_lower
+                or expected_lower.split('/')[0].strip() in ai_name
+                for ai_name in ai_area_names
+            )
+            if not found:
+                missing_areas.append(expected)
+
+        if not missing_areas:
+            logger.info("All expected areas found in AI response")
+            return data, total_usage
+
+        logger.warning(f"Missing {len(missing_areas)} areas: {[a['name'] for a in missing_areas]}. Retrying...")
+
+        # Extract section texts for each missing area
+        sections_text = ""
+        for area in missing_areas:
+            section = self._extract_section_text(pdf_text, area['name'])
+            if section:
+                sections_text += f"\n\n--- SEÇÃO: {area['name']} ({area['score']}/{area['max']} = {area['pct']}%) ---\n{section}"
+
+        if not sections_text.strip():
+            logger.error("Could not extract section text for missing areas")
+            return data, total_usage
+
+        # Focused retry for missing areas
+        from src.models import AreaInspecao
+        retry_prompt = f"""Você é um Auditor Sanitário. Analise SOMENTE as seções abaixo e extraia os itens NÃO CONFORMES e PARCIALMENTE CONFORMES.
+
+REGRAS:
+- "Resposta: Parcial" = "Parcialmente Conforme" → INCLUIR
+- "Resposta: Não" com "(0.00% - 0.00 pontos)" em pergunta POSITIVA = "Não Conforme" → INCLUIR
+- "Resposta: Não" em pergunta NEGATIVA (ex: "Foram encontrados produtos vencidos?") com pontuação > 0 = Conforme → NÃO INCLUIR
+- "Resposta: Sim" com "(0.00% - 0.00 pontos)" em pergunta NEGATIVA = "Não Conforme" → INCLUIR
+- Item com "Fotos da questão" ou "Comentário:" com evidência de problema = INCLUIR
+- Para cada item: inclua item_verificado, status, observacao, fundamento_legal, acao_corretiva_sugerida, prazo_sugerido
+
+Retorne um JSON com areas_inspecionadas contendo SOMENTE as áreas analisadas. Use o nome EXATO de cada área.
+Os campos nome_estabelecimento, resumo_geral, pontuacao_geral, pontuacao_maxima_geral, aproveitamento_geral podem ser preenchidos com valores placeholder.
+
+JSON Schema:
+{json.dumps(ChecklistSanitario.model_json_schema(), indent=2)}"""
+
+        try:
+            retry_completion = self.client.beta.chat.completions.parse(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": retry_prompt},
+                    {"role": "user", "content": f"Analise estas {len(missing_areas)} seções e extraia todos os itens com problema:\n{sections_text}"}
+                ],
+                response_format=ChecklistSanitario,
+            )
+
+            retry_data = retry_completion.choices[0].message.parsed
+            retry_usage = {
+                'prompt_tokens': retry_completion.usage.prompt_tokens,
+                'completion_tokens': retry_completion.usage.completion_tokens,
+                'total_tokens': retry_completion.usage.total_tokens
+            }
+
+            # Merge usage
+            total_usage['prompt_tokens'] += retry_usage['prompt_tokens']
+            total_usage['completion_tokens'] += retry_usage['completion_tokens']
+            total_usage['total_tokens'] += retry_usage['total_tokens']
+
+            # Merge areas that have actual items
+            added = 0
+            for area in retry_data.areas_inspecionadas:
+                if area.itens:
+                    data.areas_inspecionadas.append(area)
+                    added += 1
+                    logger.info(f"  Added missing area: {area.nome_area} ({len(area.itens)} items)")
+
+            if added:
+                logger.info(f"Retry added {added} missing areas")
+            else:
+                logger.warning("Retry returned no areas with items")
+
+        except Exception as e:
+            logger.error(f"Retry for missing areas failed: {e}")
+
+        return data, total_usage
+
     def analyze_with_openai(self, file_content: bytes):
         pdf_text = self.extract_text_from_pdf_bytes(file_content)
         if not pdf_text.strip():
@@ -435,7 +559,7 @@ class ProcessorService:
 
         # Updated Prompt: Uses user's trusted approach (Areas) + our requirements (Action/Deadline)
         schema_json = ChecklistSanitario.model_json_schema()
-        
+
         # Pre-process: extract areas with < 100% from summary table to enforce completeness
         areas_below_100 = self._extract_areas_below_100(pdf_text)
         areas_instruction = ""
@@ -521,9 +645,14 @@ class ProcessorService:
                 'completion_tokens': completion.usage.completion_tokens,
                 'total_tokens': completion.usage.total_tokens
             }
-            
+
+            data = completion.choices[0].message.parsed
+
+            # Post-processing: validate all expected areas are present, retry if missing
+            data, usage = self._validate_and_retry_missing_areas(data, areas_below_100, pdf_text, usage)
+
             return {
-                'data': completion.choices[0].message.parsed,
+                'data': data,
                 'usage': usage
             }
         except Exception as e:
