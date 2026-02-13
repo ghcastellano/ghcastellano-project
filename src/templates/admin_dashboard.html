@@ -129,7 +129,7 @@
                     </div>
                     <div class="stat-card" onclick="document.getElementById('menu-managers').click()">
                         <span class="stat-label">Gestores</span>
-                        <span class="stat-value">{{ managers|length if managers else 0 }}</span>
+                        <span class="stat-value" id="stat-managers-count">{{ managers|length if managers else 0 }}</span>
                         <div class="stat-trend trend-up"><i class="ph-bold ph-caret-right"></i> Gerenciar</div>
                     </div>
                     <div class="stat-card" onclick="document.getElementById('menu-monitoring').click()">
@@ -1129,6 +1129,16 @@
         return input ? input.value : null;
     }
 
+    // --- STAT CARD UPDATES ---
+    function updateAdminStatCounts() {
+        const companyRows = document.querySelectorAll('#companiesTable tbody tr');
+        const managerRows = document.querySelectorAll('#managersTable tbody tr:not(.group-header)');
+        const compStat = document.getElementById('stat-companies-count');
+        const mgrStat = document.getElementById('stat-managers-count');
+        if (compStat) compStat.textContent = companyRows.length;
+        if (mgrStat) mgrStat.textContent = managerRows.length;
+    }
+
     // --- COMPANY CRUD ---
     async function handleCreateCompany(e) {
         e.preventDefault();
@@ -1191,6 +1201,7 @@
                         sel.add(opt);
                     });
                 }
+                updateAdminStatCounts();
             } else {
                 showToast(data.error || 'Erro ao criar empresa', 'error');
             }
@@ -1292,7 +1303,7 @@
                 const row = document.getElementById(`row-company-${id}`);
                 if (row) {
                     row.style.background = '#fee2e2';
-                    setTimeout(function() { row.remove(); if (companiesPaginator) companiesPaginator.refresh(); }, 500);
+                    setTimeout(function() { row.remove(); if (companiesPaginator) companiesPaginator.refresh(); updateAdminStatCounts(); }, 500);
                 }
 
                 // Remover empresa dos dropdowns de gestor
@@ -1306,7 +1317,7 @@
                     const editBtn = row.querySelector(`.btn-icon-edit[data-company="${id}"]`);
                     if (editBtn) {
                         row.style.background = '#fee2e2';
-                        setTimeout(() => row.remove(), 500);
+                        setTimeout(() => { row.remove(); updateAdminStatCounts(); }, 500);
                     }
                 });
             } else {
@@ -1414,6 +1425,7 @@
                     }
                     if (managersPaginator) managersPaginator.refresh();
                 }
+                updateAdminStatCounts();
             } else {
                 showToast(data.error || 'Erro ao criar gestor', 'error');
             }
@@ -1591,6 +1603,7 @@
                             if (header) header.remove();
                         }
                         if (managersPaginator) managersPaginator.refresh();
+                        updateAdminStatCounts();
                     }, 500);
                 }
             } else {

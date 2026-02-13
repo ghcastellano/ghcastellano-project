@@ -149,21 +149,15 @@ try:
     from src.auth import auth_bp
     from src.admin_routes import admin_bp
     from src.manager_routes import manager_bp
-    from src.cron_routes import cron_bp, cron_sync_drive, cron_renew_webhook
+    from src.cron_routes import cron_bp, cron_renew_webhook
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp)
     app.register_blueprint(manager_bp)
     app.register_blueprint(cron_bp)
 
-    # Note: Rate limiting for login is now defined in auth.py with @limiter.limit decorator
-
-    # Exempt Cron from CSRF (Done here to avoid circular import)
-    csrf.exempt(cron_sync_drive)
+    # Exempt Cron from CSRF and rate limiting
     csrf.exempt(cron_renew_webhook)
-
-    # Exempt Cron from rate limiting
-    limiter.exempt(cron_sync_drive)
     limiter.exempt(cron_renew_webhook)
 
     logger.info("✅ Blueprints Registrados: auth, admin, manager")
@@ -307,9 +301,10 @@ def handle_500(e):
     import traceback
     tb = traceback.format_exc()
     logger.error(f"💥 ERRO 500 DETECTADO: {e}\nTraceback:\n{tb}")
-    # Resposta extremamente simples para evitar Erros 500 recursivos (Template errors)
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-         return jsonify({'error': f"Erro Interno: {str(e)}"}), 500
+    # Return JSON for AJAX/fetch requests (check both XHR header and Accept header)
+    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in request.headers.get('Accept', '')):
+        return jsonify({'error': f"Erro Interno: {str(e)}"}), 500
     return "Erro Interno no Servidor (500). Verifique os logs do Cloud Run para o Traceback.", 500
 
 def _ensure_system_folder(drive_svc, root_folder_id, config_key, folder_name):
