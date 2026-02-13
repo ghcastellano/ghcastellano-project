@@ -1228,6 +1228,16 @@
 
                     if (row.cells[1]) row.cells[1].textContent = c.email;
 
+                    // Update Lojas Vinculadas badges (column 2)
+                    if (row.cells[2] && c.establishments) {
+                        const badgesHtml = c.establishments.length > 0
+                            ? c.establishments.map(est =>
+                                `<span class="badge" style="background:#dcfce7;color:#166534;font-size:0.7rem;padding:0.2rem 0.4rem;border-radius:3px;">${est.name}</span>`
+                            ).join('')
+                            : '<span style="color:var(--text-secondary);font-size:0.8rem;">Nenhuma</span>';
+                        row.cells[2].innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:0.25rem;">${badgesHtml}</div>`;
+                    }
+
                     const editBtn = row.querySelector('.btn-icon-edit');
                     if (editBtn) {
                         editBtn.dataset.id = c.id;

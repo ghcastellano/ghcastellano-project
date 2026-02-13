@@ -243,6 +243,7 @@ def update_consultant(user_id):
             'name': user.name,
             'email': user.email,
             'establishment_ids': [str(e.id) for e in user.establishments],
+            'establishments': [{'id': str(e.id), 'name': e.name} for e in user.establishments],
         }
 
         uow.commit()

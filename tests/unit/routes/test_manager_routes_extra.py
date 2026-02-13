@@ -418,6 +418,7 @@ class TestUpdateConsultantExtra:
 
         mock_est = MagicMock()
         mock_est.id = est_id
+        mock_est.name = 'Loja 1'
         mock_est.company_id = company_id
 
         mock_user = MagicMock()
@@ -430,6 +431,7 @@ class TestUpdateConsultantExtra:
 
         mock_uow = MagicMock()
         mock_uow.users.get_by_id.return_value = mock_user
+        mock_uow.users.get_by_email.return_value = None
         mock_uow.establishments.get_by_id.return_value = mock_est
         mock_mgr_uow.return_value = mock_uow
 
