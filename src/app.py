@@ -5,7 +5,7 @@ import json
 import logging
 import io
 import threading
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, send_file, get_flashed_messages, session, after_this_request, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, send_file, get_flashed_messages, session, after_this_request, make_response, current_app
 from dotenv import load_dotenv
 
 # Carrega variáveis de ambiente
@@ -1228,11 +1228,15 @@ def _handle_service_call(file_id, is_approval):
 def save_review(file_id):
     """Salva revisoes feitas pelo consultor no Plano de Acao."""
     try:
-        from src.models_db import ActionPlanItemStatus
+        from src.models_db import ActionPlanItemStatus, InspectionStatus
         from src.container import get_uow
+        from datetime import datetime, timezone
 
         uow = get_uow()
         updates = request.json
+
+        # Track if any evidence was added
+        evidence_added = False
 
         for item_id_str, data in updates.items():
             item = uow.action_plans.get_item_by_id(uuid.UUID(item_id_str))
@@ -1247,7 +1251,20 @@ def save_review(file_id):
                 item.correction_notes = data['correction_notes']
 
             if 'evidence_image_url' in data:
-                item.evidence_image_url = data['evidence_image_url'] or None
+                new_evidence = data['evidence_image_url']
+                # Check if this is adding NEW evidence (not just clearing it)
+                if new_evidence and not item.evidence_image_url:
+                    evidence_added = True
+                item.evidence_image_url = new_evidence or None
+
+        # Auto-transition to COMPLETED if consultant added evidence
+        # This prevents inspections from staying in PENDING_CONSULTANT_VERIFICATION with evidence
+        if evidence_added:
+            inspection = uow.inspections.get_by_drive_file_id(file_id)
+            if inspection and inspection.status == InspectionStatus.PENDING_CONSULTANT_VERIFICATION:
+                logger.info(f"Auto-transitioning inspection {file_id} to COMPLETED (evidence added)")
+                inspection.status = InspectionStatus.COMPLETED
+                inspection.updated_at = datetime.now(timezone.utc)
 
         uow.commit()
         return jsonify({'success': True})

@@ -1,0 +1,35 @@
+# Google Cloud Scheduler Job Configuration
+# Auto-renew WhatsApp Business API webhook every 6 days
+#
+# To create this job, run:
+# gcloud scheduler jobs create http webhook-renew-job \
+#   --location=us-central1 \
+#   --schedule="0 0 */6 * *" \
+#   --uri="https://mvp-web-1013946239177.us-central1.run.app/api/cron/renew_webhook?secret=meu-token-seguro-2026" \
+#   --http-method=POST \
+#   --headers="Content-Type=application/json" \
+#   --time-zone="America/Sao_Paulo" \
+#   --description="Auto-renew Google Drive webhook channel every 6 days (expires in 7 days)"
+#
+# Or via Console:
+# 1. Go to: https://console.cloud.google.com/cloudscheduler
+# 2. Create Job:
+#    - Name: webhook-renew-job
+#    - Region: us-central1
+#    - Frequency: 0 0 */6 * * (every 6 days at midnight)
+#    - Timezone: America/Sao_Paulo
+#    - Target type: HTTP
+#    - URL: https://mvp-web-1013946239177.us-central1.run.app/api/cron/renew_webhook?secret=meu-token-seguro-2026
+#    - HTTP method: POST
+#    - Auth header: None (using secret token in URL)
+
+name: webhook-renew-job
+description: Auto-renew Google Drive webhook channel every 6 days
+schedule: "0 0 */6 * *"
+time_zone: America/Sao_Paulo
+http_target:
+  uri: https://mvp-web-1013946239177.us-central1.run.app/api/cron/renew_webhook?secret=meu-token-seguro-2026
+  http_method: POST
+  headers:
+    Content-Type: application/json
+    User-Agent: Google-Cloud-Scheduler
