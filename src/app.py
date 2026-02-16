@@ -1226,17 +1226,13 @@ def _handle_service_call(file_id, is_approval):
 @app.route('/api/save_review/<file_id>', methods=['POST'])
 @login_required
 def save_review(file_id):
-    """Salva revisoes feitas pelo consultor no Plano de Acao."""
+    """Salva revisoes feitas pelo consultor no Plano de Acao (SEM finalizar a inspeção)."""
     try:
-        from src.models_db import ActionPlanItemStatus, InspectionStatus
+        from src.models_db import ActionPlanItemStatus
         from src.container import get_uow
-        from datetime import datetime, timezone
 
         uow = get_uow()
         updates = request.json
-
-        # Track if any evidence was added
-        evidence_added = False
 
         for item_id_str, data in updates.items():
             item = uow.action_plans.get_item_by_id(uuid.UUID(item_id_str))
@@ -1251,21 +1247,10 @@ def save_review(file_id):
                 item.correction_notes = data['correction_notes']
 
             if 'evidence_image_url' in data:
-                new_evidence = data['evidence_image_url']
-                # Check if this is adding NEW evidence (not just clearing it)
-                if new_evidence and not item.evidence_image_url:
-                    evidence_added = True
-                item.evidence_image_url = new_evidence or None
+                item.evidence_image_url = data['evidence_image_url'] or None
 
-        # Auto-transition to COMPLETED if consultant added evidence
-        # This prevents inspections from staying in PENDING_CONSULTANT_VERIFICATION with evidence
-        if evidence_added:
-            inspection = uow.inspections.get_by_drive_file_id(file_id)
-            if inspection and inspection.status == InspectionStatus.PENDING_CONSULTANT_VERIFICATION:
-                logger.info(f"Auto-transitioning inspection {file_id} to COMPLETED (evidence added)")
-                inspection.status = InspectionStatus.COMPLETED
-                inspection.updated_at = datetime.now(timezone.utc)
-
+        # NOTE: Consultant changes are saved but inspection stays in PENDING_CONSULTANT_VERIFICATION
+        # The PDF will only show these changes after consultant finalizes via finalize_verification endpoint
         uow.commit()
         return jsonify({'success': True})
     except Exception as e:

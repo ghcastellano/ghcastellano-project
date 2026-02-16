@@ -85,6 +85,10 @@ class InspectionDataService:
         else:
             data['status_plano'] = 'EM APROVAÇÃO'
 
+        # Add raw status for template conditional logic (hide consultant changes until finalized)
+        data['inspection_status'] = status_val
+        data['is_completed'] = (status_val == 'COMPLETED')
+
         return data
 
     def _rebuild_items(self, plan, data, filter_compliant=True):

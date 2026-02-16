@@ -315,8 +315,8 @@
                     </td>
 
                     <td class="followup-cell" style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word;">
-                        <!-- Mock de Visita/Correção -->
-                        {% if item.correction_notes or item.is_corrected or item.evidence_image_url %}
+                        <!-- Acompanhamento: só mostra correções do consultor se inspeção foi finalizada -->
+                        {% if relatorio.is_completed and (item.correction_notes or item.is_corrected or item.evidence_image_url) %}
                         <div
                             style="padding: 8px; border-left: 4px solid {% if item.is_corrected %}#1cc88a{% else %}#f6c23e{% endif %}; background-color: {% if item.is_corrected %}#e8fcf5{% else %}#fef9c3{% endif %}; border-radius: 2px;">
                             <span
@@ -360,7 +360,7 @@
     {% endif %}
     {% endfor %}
 
-    <!-- EVIDENCE SECTION - Only show if there are actual evidence images -->
+    <!-- EVIDENCE SECTION - Only show if inspection is completed and there are actual evidence images -->
     {% set all_evidence_items = [] %}
     {% for area in relatorio.areas_inspecionadas %}
         {% for item in area.itens %}
@@ -370,7 +370,7 @@
         {% endfor %}
     {% endfor %}
 
-    {% if all_evidence_items|length > 0 %}
+    {% if relatorio.is_completed and all_evidence_items|length > 0 %}
     <div style="page-break-before: always;"></div>
 
     <div class="header" style="text-align: center; margin-bottom: 30px;">
