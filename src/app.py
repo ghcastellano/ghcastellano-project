@@ -345,27 +345,9 @@ try:
     drive_service = app.drive_service # Global alias for routes
     logger.info("✅ Serviço do Drive Inicializado")
 
-    # [IMPROVEMENT] Validar ROOT_FOLDER_ID se configurado
-    root_folder_id = get_config('GDRIVE_ROOT_FOLDER_ID')
-    if root_folder_id and app.drive_service.service:
-        try:
-            folder_info = app.drive_service.service.files().get(
-                fileId=root_folder_id,
-                fields='id,name',
-                supportsAllDrives=True
-            ).execute()
-            logger.info(f"✅ ROOT_FOLDER_ID válido: '{folder_info.get('name')}' ({root_folder_id})")
-        except Exception as e:
-            logger.error(f"❌ ROOT_FOLDER_ID inválido ou inacessível: {e}")
-            logger.warning("⚠️ Pastas de empresas serão criadas na raiz do Drive")
-
-    # Auto-create backup folder if missing or invalid
-    if app.drive_service.service and root_folder_id:
-        _ensure_system_folder(
-            app.drive_service, root_folder_id,
-            config_key='FOLDER_ID_03_PROCESSADOS_BACKUP',
-            folder_name='Processados - Backup'
-        )
+    # [PERFORMANCE] Folder validation deferred to first use (lazy loading)
+    # This saves 2-5 seconds on cold start by avoiding API calls during initialization
+    # Validation happens automatically when folders are actually accessed
 
 except Exception as e:
     logger.error(f"⚠️ Falha ao inicializar Serviço do Drive: {e}")

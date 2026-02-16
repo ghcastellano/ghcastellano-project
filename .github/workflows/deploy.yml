@@ -73,7 +73,7 @@ jobs:
             AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
             AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
             SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
-            GCP_OAUTH_TOKEN=${{ env.GCP_OAUTH_TOKEN_B64 }}
+            GCP_SA_KEY=${{ secrets.GCP_SA_KEY }}
             WEBHOOK_SECRET_TOKEN=${{ secrets.WEBHOOK_SECRET_TOKEN }}
             WHATSAPP_TOKEN=${{ secrets.WHATSAPP_TOKEN }}
             WHATSAPP_PHONE_ID=${{ secrets.WHATSAPP_PHONE_ID }}
