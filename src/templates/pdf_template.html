@@ -316,12 +316,13 @@
 
                     <td class="followup-cell" style="padding: 8px; border: 1px solid #d1d3e2; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word;">
                         <!-- Acompanhamento: só mostra correções do consultor se inspeção foi finalizada -->
-                        {% if relatorio.is_completed and (item.correction_notes or item.is_corrected or item.evidence_image_url) %}
+                        {% if relatorio.is_completed %}
+                        <!-- Relatório concluído: mostra resultado da verificação -->
                         <div
-                            style="padding: 8px; border-left: 4px solid {% if item.is_corrected %}#1cc88a{% else %}#f6c23e{% endif %}; background-color: {% if item.is_corrected %}#e8fcf5{% else %}#fef9c3{% endif %}; border-radius: 2px;">
+                            style="padding: 8px; border-left: 4px solid {% if item.is_corrected %}#1cc88a{% else %}#dc3545{% endif %}; background-color: {% if item.is_corrected %}#e8fcf5{% else %}#f8d7da{% endif %}; border-radius: 2px;">
                             <span
-                                style="font-weight: bold; color: {% if item.is_corrected %}#13855c{% else %}#856404{% endif %}; display: block; margin-bottom: 5px;">
-                                {% if item.is_corrected %}Corrigido{% else %}Pendente{% endif %}
+                                style="font-weight: bold; color: {% if item.is_corrected %}#13855c{% else %}#721c24{% endif %}; display: block; margin-bottom: 5px;">
+                                {% if item.is_corrected %}Corrigido{% else %}Não corrigido{% endif %}
                             </span>
                             {% if item.is_corrected %}
                             <div
@@ -333,7 +334,7 @@
                             {% endif %}
                             <span
                                 style="display: block; font-style: italic; margin-bottom: 8px; font-size: 9pt; color: #333;">
-                                {{ item.correction_notes or 'Sem observações.' }}
+                                {{ item.correction_notes or ('Sem observações.' if item.is_corrected else 'Item permanece não conforme após verificação.') }}
                             </span>
                             {% if item.evidence_image_url %}
                             <div style="margin-top: 5px; font-size: 8pt; color: #0d47a1;">
@@ -343,6 +344,7 @@
                             {% endif %}
                         </div>
                         {% else %}
+                        <!-- Relatório NÃO concluído: aguardando visita -->
                         <div
                             style="padding: 8px; border-left: 4px solid #f6c23e; background-color: #fef9c3; border-radius: 2px;">
                             <span style="font-weight: bold; color: #856404; display: block;">Pendente</span>
