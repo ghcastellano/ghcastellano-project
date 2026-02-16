@@ -185,6 +185,9 @@ class ProcessorService:
                         "existing_id": existing_insp.drive_file_id,
                     })
 
+                # Move duplicate file to backup
+                self._move_to_backup_if_drive_file(file_id, filename, reason="duplicate")
+
                 return {'status': 'skipped', 'reason': 'duplicate', 'existing_id': existing_insp.drive_file_id}
             session.close()
 
@@ -256,6 +259,9 @@ class ProcessorService:
                 }
                 self._update_job_status(job_id, JobStatus.COMPLETED, result=final_result)
 
+            # Move successfully processed file to backup
+            self._move_to_backup_if_drive_file(file_id, filename, reason="processed")
+
             # Return usage for caller (JobProcessor)
             return {
                 'usage': usage,
@@ -284,6 +290,25 @@ class ProcessorService:
                 pass
 
             raise # Re-raise to let caller (app.py) know it failed
+
+    def _move_to_backup_if_drive_file(self, file_id, filename, reason="processed"):
+        """Move Drive file to backup folder if it's a real Drive file (not upload: or gcs:)"""
+        # Skip if not a Drive file
+        if file_id.startswith('upload:') or file_id.startswith('gcs:'):
+            return
+
+        # Skip if no backup folder configured
+        if not self.folder_backup:
+            logger.warning(f"Backup folder not configured, skipping move for {filename}")
+            return
+
+        try:
+            self.drive_service.move_file(file_id, self.folder_backup)
+            logger.info(f"📦 Arquivo {reason} movido para backup: {filename}")
+            self._log_trace(file_id, "BACKUP", "SUCCESS", f"Arquivo movido para pasta de backup ({reason})")
+        except Exception as move_error:
+            logger.warning(f"⚠️ Falha ao mover {filename} para backup: {move_error}")
+            self._log_trace(file_id, "BACKUP", "WARNING", f"Falha ao mover para backup: {str(move_error)}")
 
     def _update_job_metrics(self, job_id, usage):
         """Update job metrics independently of main session"""
