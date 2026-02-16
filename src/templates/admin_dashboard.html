@@ -443,7 +443,7 @@
                 <div class="card" style="margin-bottom: 1.5rem;">
                     <div class="card-body" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                         <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">Google Cloud:</span>
-                        <a href="https://console.cloud.google.com/run/detail/us-central1/mvp-web/logs?project=projeto-poc-ap" target="_blank"
+                        <a href="https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%0Aresource.labels.service_name%3D%22mvp-web%22;timeRange=PT1H?project=projeto-poc-ap" target="_blank"
                             class="btn btn-sm" style="background: #1a73e8; color: white; border-radius: 8px; font-size: 0.8rem;">
                             <i class="ph-bold ph-terminal-window"></i> Cloud Run Logs
                         </a>
